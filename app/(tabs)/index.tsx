@@ -3,7 +3,6 @@ import {
   View, ScrollView, SafeAreaView, Pressable,
   Platform, KeyboardAvoidingView,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, SearchBar, EmptyState, GlassCard } from "@/components/ui";
@@ -487,7 +486,7 @@ export default function DashboardScreen() {
               hitSlop={12}
               style={{ padding: spacing[1], marginTop: spacing[1] }}
             >
-              <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
+              <Text style={{ fontSize: 20, color: colors.textSecondary, lineHeight: 24 }}>⚙</Text>
             </Pressable>
           </View>
 
