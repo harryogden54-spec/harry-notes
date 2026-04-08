@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from "react";
 import {
-  View, ScrollView, Pressable,
+  View, ScrollView, SafeAreaView, Pressable,
   Platform, KeyboardAvoidingView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, SearchBar, EmptyState, GlassCard } from "@/components/ui";
@@ -448,7 +449,7 @@ export default function DashboardScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       {/* Background blobs for glass depth */}
       <View style={{ position: "absolute", top: 80,  left: -60,  width: 260, height: 260, borderRadius: 130, backgroundColor: colors.accent, opacity: 0.05 }} pointerEvents="none" />
       <View style={{ position: "absolute", top: 320, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: colors.accent, opacity: 0.04 }} pointerEvents="none" />
@@ -461,7 +462,7 @@ export default function DashboardScreen() {
         >
           {/* ── Header ───────────────────────────────────────────────────── */}
           <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text size="2xl" weight="bold">{greeting()}</Text>
               <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
                 {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
@@ -481,6 +482,13 @@ export default function DashboardScreen() {
                 </View>
               )}
             </View>
+            <Pressable
+              onPress={() => router.push("/settings")}
+              hitSlop={12}
+              style={{ padding: spacing[1], marginTop: spacing[1] }}
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
+            </Pressable>
           </View>
 
           {/* ── Search ───────────────────────────────────────────────────── */}
@@ -622,6 +630,6 @@ export default function DashboardScreen() {
           </Text>
         </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

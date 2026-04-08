@@ -1,26 +1,10 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Platform, Text, Pressable } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Platform, Text } from "react-native";
 import { useTheme } from "@/lib/useTheme";
 
 function TabIcon({ label, color }: { label: string; color: string }) {
   return <Text style={{ fontSize: 20, color, lineHeight: 24 }}>{label}</Text>;
-}
-
-function GearButton() {
-  const router = useRouter();
-  const { colors } = useTheme();
-  return (
-    <Pressable
-      onPress={() => router.push("/settings")}
-      hitSlop={12}
-      style={{ paddingRight: 16 }}
-    >
-      <Ionicons name="settings-outline" size={20} color={colors.textTertiary} />
-    </Pressable>
-  );
 }
 
 export default function TabLayout() {
@@ -51,12 +35,6 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color }) => <TabIcon label="⊞" color={color} />,
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.bgPrimary },
-          headerTintColor: colors.textPrimary,
-          headerTitle: "",
-          headerRight: () => <GearButton />,
-          headerShadowVisible: false,
         }}
       />
       <Tabs.Screen

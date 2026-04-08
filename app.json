@@ -30,7 +30,12 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "harry notes",
+      "shortName": "harry notes",
+      "description": "Personal productivity — tasks, lists, and notes",
+      "backgroundColor": "#0D0D0D",
+      "themeColor": "#0D0D0D"
     },
     "plugins": [
       "expo-router",
