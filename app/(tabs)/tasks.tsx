@@ -148,7 +148,7 @@ function DueDateSelector({ value, onChange }: { value?: string; onChange: (d?: s
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
   const nextWeek = getNextWeekStr();
-  const dueDateColor = value && value < today ? "#F26464" : value === today ? colors.warning : colors.accent;
+  const dueDateColor = value && value < today ? colors.danger : value === today ? colors.warning : colors.accent;
   const presets = [
     { label: "Today",     date: today },
     { label: "Tomorrow",  date: tomorrow },
@@ -366,7 +366,7 @@ function TaskItem({
 
   const priorityColor = task.priority ? PRIORITY_CONFIG[task.priority]?.color : undefined;
   const overdue       = !task.done && !!task.due_date && task.due_date < today;
-  const dueDateColor  = overdue ? "#F26464" : task.due_date === today ? colors.warning : colors.textTertiary;
+  const dueDateColor  = overdue ? colors.danger : task.due_date === today ? colors.warning : colors.textTertiary;
   const subtasks      = task.subtasks ?? [];
   const tags          = task.tags ?? [];
   const doneSubtasks  = subtasks.filter(s => s.done).length;
@@ -383,8 +383,8 @@ function TaskItem({
   function renderRightActions() {
     if (Platform.OS === "web") return null;
     return (
-      <View style={{ justifyContent: "center", alignItems: "flex-start", paddingHorizontal: spacing[4], backgroundColor: "#F2646422", borderRadius: radius.lg, marginBottom: spacing[2], marginLeft: spacing[1] }}>
-        <Text size="xs" weight="semibold" style={{ color: "#F26464" }}>✕ Delete</Text>
+      <View style={{ justifyContent: "center", alignItems: "flex-start", paddingHorizontal: spacing[4], backgroundColor: `${colors.danger}22`, borderRadius: radius.lg, marginBottom: spacing[2], marginLeft: spacing[1] }}>
+        <Text size="xs" weight="semibold" style={{ color: colors.danger }}>✕ Delete</Text>
       </View>
     );
   }
@@ -519,8 +519,8 @@ function TaskItem({
               <Divider />
               <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
                 <Pressable onPress={onDelete}
-                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: "#F2646444", backgroundColor: "#F2646410" }}>
-                  <Text size="xs" style={{ color: "#F26464" }}>Delete task</Text>
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: `${colors.danger}44`, backgroundColor: `${colors.danger}10` }}>
+                  <Text size="xs" style={{ color: colors.danger }}>Delete task</Text>
                 </Pressable>
               </View>
             </View>
@@ -866,8 +866,8 @@ export default function TasksScreen() {
               <Text size="sm" weight="medium" style={{ color: "#fff" }}>Complete</Text>
             </Pressable>
             <Pressable onPress={handleBulkDelete}
-              style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: "#F2646420", borderWidth: 1, borderColor: "#F2646444" }}>
-              <Text size="sm" weight="medium" style={{ color: "#F26464" }}>Delete</Text>
+              style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: `${colors.danger}20`, borderWidth: 1, borderColor: `${colors.danger}44` }}>
+              <Text size="sm" weight="medium" style={{ color: colors.danger }}>Delete</Text>
             </Pressable>
           </View>
         )}

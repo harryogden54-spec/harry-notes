@@ -1,14 +1,32 @@
-import React from "react";
+import React, { useRef, useCallback } from "react";
 import { Tabs } from "expo-router";
-import { Platform, Text } from "react-native";
+import { Platform, Text, Animated } from "react-native";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 
 function TabIcon({ label, color }: { label: string; color: string }) {
   return <Text style={{ fontSize: 20, color, lineHeight: 24 }}>{label}</Text>;
 }
 
+function useFadeTab() {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const onTabPress = useCallback(() => {
+    if (Platform.OS !== "web") Haptics.selectionAsync();
+    opacity.setValue(0);
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [opacity]);
+
+  return { opacity, onTabPress };
+}
+
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { onTabPress } = useFadeTab();
 
   return (
     <Tabs
@@ -36,6 +54,15 @@ export default function TabLayout() {
           title: "Home",
           tabBarIcon: ({ color }) => <TabIcon label="⊞" color={color} />,
         }}
+        listeners={{ tabPress: onTabPress }}
+      />
+      <Tabs.Screen
+        name="today"
+        options={{
+          title: "Today",
+          tabBarIcon: ({ color }) => <TabIcon label="☀" color={color} />,
+        }}
+        listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="tasks"
@@ -43,6 +70,7 @@ export default function TabLayout() {
           title: "Tasks",
           tabBarIcon: ({ color }) => <TabIcon label="✓" color={color} />,
         }}
+        listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="lists"
@@ -50,6 +78,7 @@ export default function TabLayout() {
           title: "Lists",
           tabBarIcon: ({ color }) => <TabIcon label="≡" color={color} />,
         }}
+        listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="notes"
@@ -57,6 +86,7 @@ export default function TabLayout() {
           title: "Notes",
           tabBarIcon: ({ color }) => <TabIcon label="✎" color={color} />,
         }}
+        listeners={{ tabPress: onTabPress }}
       />
     </Tabs>
   );

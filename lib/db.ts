@@ -9,7 +9,7 @@ export function getDb(): SQLite.SQLiteDatabase {
   return _db;
 }
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -62,6 +62,13 @@ export async function initDb(): Promise<void> {
       updated_at  TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS sticky_notes (
+      id         TEXT PRIMARY KEY,
+      content    TEXT NOT NULL DEFAULT '',
+      colour     TEXT NOT NULL DEFAULT '#88C0D0',
+      createdAt  TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS schema_version (
       version INTEGER NOT NULL
     );
@@ -84,6 +91,19 @@ export async function initDb(): Promise<void> {
 
   if (current < 2) {
     // v2: notes table (already in CREATE TABLE IF NOT EXISTS above)
+  }
+
+  if (current < 3) {
+    // v3: sticky_notes table (already in CREATE TABLE IF NOT EXISTS above)
+    // Ensure the table exists in case we're running against an older DB that skipped the CREATE
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS sticky_notes (
+        id         TEXT PRIMARY KEY,
+        content    TEXT NOT NULL DEFAULT '',
+        colour     TEXT NOT NULL DEFAULT '#88C0D0',
+        createdAt  TEXT NOT NULL
+      );
+    `);
   }
 
   if (current < SCHEMA_VERSION) {

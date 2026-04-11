@@ -3,7 +3,7 @@ import { View, ScrollView, SafeAreaView, Pressable, Switch, Platform, Alert } fr
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
-import { ACCENT_OPTIONS } from "@/lib/theme";
+import { ACCENT_OPTIONS, THEMES } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
@@ -66,7 +66,7 @@ function formatRelativeTime(iso: string | null): string {
 
 export default function SettingsScreen() {
   const { colors }                   = useTheme();
-  const { scheme, toggle, accentId, setAccentId } = useThemeContext();
+  const { scheme, toggle, accentId, setAccentId, themeId, setThemeId } = useThemeContext();
   const { syncStatus: taskSync, syncNow: syncTasks, tasks, clearCompleted, lastSynced: taskLastSynced } = useTasks();
   const { syncStatus: listSync, syncNow: syncLists, lists, lastSynced: listLastSynced } = useLists();
   const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
@@ -153,27 +153,66 @@ export default function SettingsScreen() {
             }
           />
           <Divider />
-          <SettingRow
-            label="Accent colour"
-            subtitle={ACCENT_OPTIONS.find(a => a.id === accentId)?.label}
-            right={
-              <View style={{ flexDirection: "row", gap: spacing[2] }}>
-                {ACCENT_OPTIONS.map(opt => (
+          {/* Theme selector */}
+          <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3] }}>
+            <Text size="xs" secondary style={{ marginBottom: spacing[2] }}>Theme</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+              {(Object.entries(THEMES) as [import("@/lib/theme").ThemeId, typeof THEMES[keyof typeof THEMES]][]).map(([id, def]) => {
+                const active = themeId === id;
+                const swatch = def.dark.bgSecondary;
+                const accentSwatch = def.dark.accent;
+                return (
                   <Pressable
-                    key={opt.id}
-                    onPress={() => setAccentId(opt.id)}
+                    key={id}
+                    onPress={() => setThemeId(id)}
                     style={{
-                      width: 24, height: 24, borderRadius: 99,
-                      backgroundColor: opt.color,
-                      borderWidth: accentId === opt.id ? 2 : 0,
-                      borderColor: "#fff",
-                      transform: [{ scale: accentId === opt.id ? 1.2 : 1 }],
+                      flexDirection: "row", alignItems: "center", gap: spacing[1.5],
+                      paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+                      borderRadius: radius.xl, borderWidth: active ? 2 : 1,
+                      borderColor: active ? colors.accent : colors.bgBorder,
+                      backgroundColor: active ? `${colors.accent}18` : colors.bgSecondary,
                     }}
-                  />
-                ))}
-              </View>
-            }
-          />
+                  >
+                    <View style={{ flexDirection: "row", gap: 3 }}>
+                      <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: swatch, borderWidth: 1, borderColor: `${swatch}80` }} />
+                      <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: accentSwatch }} />
+                    </View>
+                    <Text size="xs" weight={active ? "semibold" : undefined} style={{ color: active ? colors.accent : colors.textSecondary }}>
+                      {def.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <Divider />
+          {/* Accent override (only shown for default/Linear theme) */}
+          {themeId === "default" && (
+            <>
+              <SettingRow
+                label="Accent colour"
+                subtitle={ACCENT_OPTIONS.find(a => a.id === accentId)?.label}
+                right={
+                  <View style={{ flexDirection: "row", gap: spacing[2] }}>
+                    {ACCENT_OPTIONS.map(opt => (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() => setAccentId(opt.id)}
+                        style={{
+                          width: 24, height: 24, borderRadius: 99,
+                          backgroundColor: opt.color,
+                          borderWidth: accentId === opt.id ? 2 : 0,
+                          borderColor: "#fff",
+                          transform: [{ scale: accentId === opt.id ? 1.2 : 1 }],
+                        }}
+                      />
+                    ))}
+                  </View>
+                }
+              />
+              <Divider />
+            </>
+          )}
           <Divider />
           {/* Live preview strip */}
           <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], flexDirection: "row", alignItems: "center", gap: spacing[3] }}>

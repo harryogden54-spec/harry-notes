@@ -8,12 +8,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Dark mode base (Linear-inspired)
+        // ── Default (Linear-inspired) dark surfaces ──────────────────────────
         bg: {
-          primary:   "#0D0D0D",  // deepest background
-          secondary: "#141414",  // card / panel bg
-          tertiary:  "#1A1A1A",  // hover / elevated
-          border:    "#262626",  // dividers
+          primary:   "#0D0D0D",
+          secondary: "#141414",
+          tertiary:  "#1A1A1A",
+          border:    "#262626",
         },
         // Light mode base
         light: {
@@ -29,17 +29,41 @@ module.exports = {
           tertiary:  "#5A5A5A",
           inverse:   "#0D0D0D",
         },
-        // Accents
+        // Accent (frost default — runtime-overridden via useTheme)
         accent: {
-          DEFAULT: "#5B6AD0",  // indigo — primary action
-          hover:   "#6B7AE0",
-          subtle:  "#1E2147",  // low-opacity accent bg
+          DEFAULT: "#88C0D0",
+          hover:   "#9DCFDF",
+          subtle:  "#17323A",
         },
         // Semantic
         success: "#3DD68C",
         warning: "#F5A623",
         danger:  "#F26464",
-        // List colors (for named lists)
+
+        // ── Nord theme surfaces ───────────────────────────────────────────────
+        nord: {
+          "bg-primary":   "#2E3440",
+          "bg-secondary": "#3B4252",
+          "bg-tertiary":  "#434C5E",
+          "bg-border":    "#4C566A",
+          accent:         "#88C0D0",
+        },
+        // ── Warm Earth theme surfaces ─────────────────────────────────────────
+        earth: {
+          "bg-primary":   "#1C2B1E",
+          "bg-secondary": "#1A2235",
+          "bg-tertiary":  "#2D1B1B",
+          accent:         "#D2B48C",
+        },
+        // ── Slate theme surfaces ──────────────────────────────────────────────
+        slate: {
+          "bg-primary":   "#1E2329",
+          "bg-secondary": "#252D36",
+          "bg-tertiary":  "#2D3748",
+          accent:         "#4A90D9",
+        },
+
+        // List colors
         list: {
           blue:   "#4A90D9",
           purple: "#9B59B6",
@@ -65,10 +89,10 @@ module.exports = {
         "3xl": ["30px", { lineHeight: "38px" }],
       },
       borderRadius: {
-        sm:  "6px",
-        md:  "8px",
-        lg:  "12px",
-        xl:  "16px",
+        sm:    "6px",
+        md:    "8px",
+        lg:    "12px",
+        xl:    "16px",
         "2xl": "20px",
       },
       spacing: {
@@ -84,6 +108,7 @@ module.exports = {
         10:    "40px",
         12:    "48px",
         16:    "64px",
+        24:    "96px",
       },
     },
   },

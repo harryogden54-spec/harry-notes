@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput,
-  Pressable, KeyboardAvoidingView, Platform, LayoutAnimation,
+  Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
@@ -11,6 +11,7 @@ import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useNotes, type Note } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
+import { useStickyNotes, STICKY_COLOURS, type StickyNote } from "@/lib/StickyNotesContext";
 
 function animate() {
   if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -244,11 +245,82 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
   );
 }
 
+// ─── Sticky note modal ────────────────────────────────────────────────────────
+
+function StickyNoteModal({ note, visible, onClose }: {
+  note: StickyNote | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  const { updateNote, deleteNote } = useStickyNotes();
+  const [content, setContent] = useState(note?.content ?? "");
+
+  useEffect(() => { setContent(note?.content ?? ""); }, [note]);
+
+  if (!note) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing[6] }}
+        onPress={onClose}
+      >
+        <Pressable onPress={e => e.stopPropagation?.()}>
+          <GlassCard style={{ borderLeftWidth: 4, borderLeftColor: note.colour }}>
+            <View style={{ gap: spacing[3] }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", gap: spacing[1.5], alignItems: "center" }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: note.colour }} />
+                  <Text size="xs" secondary>Quick note</Text>
+                </View>
+                <Pressable onPress={onClose} hitSlop={8}>
+                  <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                value={content}
+                onChangeText={setContent}
+                onBlur={() => updateNote(note.id, content)}
+                placeholder="Note content…"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                autoFocus
+                style={[
+                  { color: colors.textPrimary, fontSize: 14, lineHeight: 22, minHeight: 100, textAlignVertical: "top" },
+                  // @ts-ignore
+                  { outlineStyle: "none" },
+                ]}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: spacing[2] }}>
+                <Pressable
+                  onPress={() => { deleteNote(note.id); onClose(); }}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: `${colors.danger}44` }}
+                >
+                  <Text size="xs" style={{ color: colors.danger }}>Delete</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { updateNote(note.id, content); onClose(); }}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, backgroundColor: colors.accent }}
+                >
+                  <Text size="xs" weight="medium" style={{ color: "#fff" }}>Save</Text>
+                </Pressable>
+              </View>
+            </View>
+          </GlassCard>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function NotesScreen() {
   const { colors } = useTheme();
   const { notes, addNote, loaded } = useNotes();
+  const { notes: stickyNotes } = useStickyNotes();
+  const [editingSticky, setEditingSticky] = useState<StickyNote | null>(null);
   const [search, setSearch]         = useState("");
   const [openId, setOpenId]         = useState<string | null>(null);
   const params = useLocalSearchParams<{ create?: string; openId?: string }>();
@@ -321,6 +393,38 @@ export default function NotesScreen() {
           </Pressable>
         </View>
 
+        {/* ── Sticky notes grid ─────────────────────────────────────────── */}
+        {stickyNotes.length > 0 && (
+          <View style={{ marginBottom: spacing[6] }}>
+            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[3] }}>
+              QUICK NOTES · {stickyNotes.length}
+            </Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+              {stickyNotes.map(n => (
+                <Pressable
+                  key={n.id}
+                  onPress={() => setEditingSticky(n)}
+                  style={{ width: "48%" as any }}
+                >
+                  <GlassCard style={{
+                    borderLeftWidth: 3, borderLeftColor: n.colour,
+                    padding: spacing[3], minHeight: 72,
+                  }}>
+                    <Text
+                      size="xs"
+                      numberOfLines={4}
+                      style={{ color: n.content ? colors.textPrimary : colors.textTertiary, lineHeight: 18 }}
+                    >
+                      {n.content || "Empty note"}
+                    </Text>
+                  </GlassCard>
+                </Pressable>
+              ))}
+            </View>
+            <Divider style={{ marginTop: spacing[4] }} />
+          </View>
+        )}
+
         {notes.length > 1 && <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />}
 
         {filtered.length === 0 ? (
@@ -342,6 +446,13 @@ export default function NotesScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Sticky note edit modal */}
+      <StickyNoteModal
+        note={editingSticky}
+        visible={!!editingSticky}
+        onClose={() => setEditingSticky(null)}
+      />
     </SafeAreaView>
   );
 }

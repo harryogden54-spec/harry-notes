@@ -1,15 +1,18 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
-  Platform, KeyboardAvoidingView,
+  Platform, KeyboardAvoidingView, TextInput, Modal,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, SearchBar, EmptyState, GlassCard } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { useTasks, type Task, type Priority } from "@/lib/TasksContext";
 import { useLists, type NoteList } from "@/lib/ListsContext";
 import { useNotes, type Note } from "@/lib/NotesContext";
+import { useStickyNotes, STICKY_COLOURS, type StickyNote } from "@/lib/StickyNotesContext";
 import { webContentStyle } from "@/lib/webLayout";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -21,7 +24,7 @@ const PRIORITY_COLOR: Record<Priority, string> = {
   urgent: "#F26464", high: "#F5A623", medium: "#E8C84A", low: "#5B6AD0",
 };
 
-function getTodayStr() { return new Date().toISOString().slice(0, 10); }
+function getTodayStr()    { return new Date().toISOString().slice(0, 10); }
 function getTomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
 
 function toStr(y: number, m: number, d: number) {
@@ -35,9 +38,9 @@ function greeting() {
   return "Good evening";
 }
 
-function formatDueDate(date: string, today: string, tomorrow: string): { label: string; color: string } {
-  if (date < today)      return { label: "Overdue",  color: "#F26464" };
-  if (date === today)    return { label: "Today",    color: "#E8C84A" };
+function formatDueDate(date: string, today: string, tomorrow: string, dangerColor: string, accentColor: string) {
+  if (date < today)      return { label: "Overdue",  color: dangerColor };
+  if (date === today)    return { label: "Today",    color: accentColor };
   if (date === tomorrow) return { label: "Tomorrow", color: "#5B6AD0" };
   return {
     label: new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
@@ -58,7 +61,7 @@ function stripMarkdown(text: string): string {
     .trim();
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// ─── M3 section header ────────────────────────────────────────────────────────
 
 function SectionHeader({ label, count, subtitle, action }: {
   label: string;
@@ -69,7 +72,11 @@ function SectionHeader({ label, count, subtitle, action }: {
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
-      <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, flex: 1 }}>
+      <Text style={{
+        fontSize: 11, letterSpacing: 1.2,
+        color: colors.textSecondary, fontWeight: "600",
+        textTransform: "uppercase", flex: 1,
+      }}>
         {label}{count !== undefined ? ` · ${count}` : ""}
       </Text>
       {subtitle && <Text size="xs" secondary>{subtitle}</Text>}
@@ -135,11 +142,12 @@ function MiniCalendar({ tasksByDate, selected, onSelect, today }: {
             const openTasks = dayTasks.filter(t => !t.done);
             const hasOpen   = openTasks.length > 0;
             const isPast    = str < today;
+            const isOverdue = isPast && hasOpen;
             const topP      = openTasks.find(t => t.priority === "urgent")?.priority
               ?? openTasks.find(t => t.priority === "high")?.priority
               ?? openTasks.find(t => t.priority === "medium")?.priority
               ?? openTasks.find(t => t.priority === "low")?.priority;
-            const dotColor  = topP ? PRIORITY_COLOR[topP] : colors.accent;
+            const dotColor  = isOverdue ? colors.danger : (topP ? PRIORITY_COLOR[topP] : colors.accent);
 
             return (
               <Pressable
@@ -160,7 +168,7 @@ function MiniCalendar({ tasksByDate, selected, onSelect, today }: {
                 </Text>
                 {hasOpen && (
                   <View style={{
-                    width: 4, height: 4, borderRadius: 99,
+                    width: 6, height: 6, borderRadius: 99,
                     backgroundColor: isSel ? "#ffffff88" : dotColor,
                     marginTop: 1,
                   }} />
@@ -178,7 +186,7 @@ function MiniCalendar({ tasksByDate, selected, onSelect, today }: {
 
 function ListShelfCard({ list, onPress }: { list: NoteList; onPress: () => void }) {
   const { colors } = useTheme();
-  const color    = list.color ?? "#5B6AD0";
+  const color    = list.color ?? colors.accent;
   const items    = list.items ?? [];
   const total    = items.filter(i => i.type === "checkbox").length;
   const done     = items.filter(i => i.type === "checkbox" && i.done).length;
@@ -213,7 +221,7 @@ function ListShelfCard({ list, onPress }: { list: NoteList; onPress: () => void 
 function PinnedListCard({ list, onPress }: { list: NoteList; onPress: () => void }) {
   const { colors } = useTheme();
   const { toggleItem } = useLists();
-  const color = list.color ?? "#5B6AD0";
+  const color = list.color ?? colors.accent;
   const items = list.items ?? [];
   const activeItems = items.filter(i => !i.done).slice(0, 5);
   const doneCount   = items.filter(i => i.done).length;
@@ -254,33 +262,29 @@ function PinnedListCard({ list, onPress }: { list: NoteList; onPress: () => void
 function TaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
   const { colors } = useTheme();
   const { toggleTask } = useTasks();
+  const today    = getTodayStr();
+  const tomorrow = getTomorrowStr();
   const priorityColor = task.priority ? PRIORITY_COLOR[task.priority] : undefined;
-  const due           = task.due_date ? formatDueDate(task.due_date, getTodayStr(), getTomorrowStr()) : null;
+  const due           = task.due_date ? formatDueDate(task.due_date, today, tomorrow, colors.danger, colors.accent) : null;
+  const isOverdue     = !task.done && !!task.due_date && task.due_date < today;
 
   return (
     <Pressable
       onPress={onPress}
       style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing[3],
-        paddingVertical: spacing[3],
-        paddingHorizontal: spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.bgBorder,
+        flexDirection: "row", alignItems: "center", gap: spacing[3],
+        paddingVertical: spacing[3], paddingHorizontal: spacing[3],
+        borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
       }}
     >
-      <Checkbox
-        checked={task.done}
-        onToggle={() => toggleTask(task.id)}
-      />
+      <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text
           size="sm"
           weight="medium"
           numberOfLines={1}
           style={{
-            color: task.done ? colors.textTertiary : colors.textPrimary,
+            color: task.done ? colors.textTertiary : isOverdue ? colors.danger : colors.textPrimary,
             textDecorationLine: task.done ? "line-through" : "none",
           }}
         >
@@ -294,6 +298,12 @@ function TaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
           </View>
         )}
       </View>
+      {isOverdue && (
+        <View style={{
+          width: 6, height: 6, borderRadius: 99,
+          backgroundColor: colors.danger,
+        }} />
+      )}
       {due && (
         <View style={{
           backgroundColor: `${due.color}18`,
@@ -313,6 +323,276 @@ function TaskRow({ task, onPress }: { task: Task; onPress: () => void }) {
   );
 }
 
+// ─── Sticky note card ─────────────────────────────────────────────────────────
+
+function StickyCard({ note, onPress }: { note: StickyNote; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} style={{ marginRight: spacing[3] }}>
+      <GlassCard style={{
+        width: 150,
+        borderLeftWidth: 3,
+        borderLeftColor: note.colour,
+        padding: spacing[3],
+        minHeight: 80,
+      }}>
+        <Text
+          size="xs"
+          numberOfLines={4}
+          style={{ color: note.content ? colors.textPrimary : colors.textTertiary, lineHeight: 18 }}
+        >
+          {note.content || "Empty note"}
+        </Text>
+      </GlassCard>
+    </Pressable>
+  );
+}
+
+// ─── Sticky note edit modal ───────────────────────────────────────────────────
+
+function StickyNoteModal({ note, visible, onClose }: {
+  note: StickyNote | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  const { updateNote, deleteNote } = useStickyNotes();
+  const [content, setContent] = useState(note?.content ?? "");
+
+  React.useEffect(() => { setContent(note?.content ?? ""); }, [note]);
+
+  if (!note) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing[6] }}
+        onPress={onClose}
+      >
+        <Pressable onPress={e => e.stopPropagation?.()}>
+          <GlassCard style={{ borderLeftWidth: 4, borderLeftColor: note.colour }}>
+            <View style={{ gap: spacing[3] }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ width: 12, height: 12, borderRadius: 99, backgroundColor: note.colour }} />
+                <Pressable onPress={onClose} hitSlop={8}>
+                  <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                value={content}
+                onChangeText={setContent}
+                onBlur={() => updateNote(note.id, content)}
+                placeholder="Note content…"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                autoFocus
+                style={[
+                  { color: colors.textPrimary, fontSize: 14, lineHeight: 22, minHeight: 100, textAlignVertical: "top" },
+                  // @ts-ignore
+                  { outlineStyle: "none" },
+                ]}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: spacing[2] }}>
+                <Pressable
+                  onPress={() => { deleteNote(note.id); onClose(); }}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: `${colors.danger}44` }}
+                >
+                  <Text size="xs" style={{ color: colors.danger }}>Delete</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { updateNote(note.id, content); onClose(); }}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, backgroundColor: colors.accent }}
+                >
+                  <Text size="xs" weight="medium" style={{ color: "#fff" }}>Save</Text>
+                </Pressable>
+              </View>
+            </View>
+          </GlassCard>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Quick-add task bottom sheet ──────────────────────────────────────────────
+
+function QuickAddSheet({ visible, onClose, onAdd }: {
+  visible: boolean;
+  onClose: () => void;
+  onAdd: (title: string, dueDate?: string) => void;
+}) {
+  const { colors } = useTheme();
+  const [title, setTitle]         = useState("");
+  const [quickDate, setQuickDate] = useState<"today" | "tomorrow" | "none">("none");
+  const today    = getTodayStr();
+  const tomorrow = getTomorrowStr();
+
+  function submit() {
+    const t = title.trim();
+    if (!t) return;
+    const due = quickDate === "today" ? today : quickDate === "tomorrow" ? tomorrow : undefined;
+    onAdd(t, due);
+    setTitle("");
+    setQuickDate("none");
+    onClose();
+  }
+
+  if (!visible) return null;
+
+  return (
+    <View style={{
+      position: "absolute", left: 0, right: 0, bottom: 0,
+      backgroundColor: colors.bgSecondary,
+      borderTopWidth: 1, borderTopColor: colors.bgBorder,
+      borderTopLeftRadius: radius["2xl"], borderTopRightRadius: radius["2xl"],
+      padding: spacing[5],
+      gap: spacing[4],
+    }}>
+      <View style={{ width: 36, height: 4, borderRadius: 99, backgroundColor: colors.bgBorder, alignSelf: "center", marginBottom: spacing[1] }} />
+      <Text size="base" weight="semibold">Quick add task</Text>
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        onSubmitEditing={submit}
+        placeholder="Task title…"
+        placeholderTextColor={colors.textTertiary}
+        autoFocus
+        returnKeyType="done"
+        style={[
+          {
+            color: colors.textPrimary, fontSize: 15,
+            paddingVertical: spacing[3], paddingHorizontal: spacing[3],
+            backgroundColor: colors.bgTertiary, borderRadius: radius.lg,
+            borderWidth: 1, borderColor: colors.bgBorder,
+          },
+          // @ts-ignore
+          { outlineStyle: "none" },
+        ]}
+      />
+      {/* Date chips */}
+      <View style={{ flexDirection: "row", gap: spacing[2] }}>
+        {(["none", "today", "tomorrow"] as const).map(opt => {
+          const label = opt === "none" ? "No date" : opt === "today" ? "Today" : "Tomorrow";
+          const active = quickDate === opt;
+          return (
+            <Pressable
+              key={opt}
+              onPress={() => setQuickDate(opt)}
+              style={{
+                paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+                borderRadius: radius.xl, borderWidth: 1,
+                borderColor: active ? colors.accent : colors.bgBorder,
+                backgroundColor: active ? `${colors.accent}18` : "transparent",
+              }}
+            >
+              <Text size="xs" weight={active ? "semibold" : undefined} style={{ color: active ? colors.accent : colors.textSecondary }}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Pressable
+        onPress={submit}
+        style={{
+          backgroundColor: title.trim() ? colors.accent : colors.bgTertiary,
+          borderRadius: radius.lg, paddingVertical: spacing[3],
+          alignItems: "center",
+        }}
+      >
+        <Text size="sm" weight="semibold" style={{ color: title.trim() ? "#fff" : colors.textTertiary }}>
+          Add task
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Quick-add note bottom sheet ──────────────────────────────────────────────
+
+function QuickAddNoteSheet({ visible, onClose, onAdd }: {
+  visible: boolean;
+  onClose: () => void;
+  onAdd: (content: string, colour: string) => void;
+}) {
+  const { colors } = useTheme();
+  const [content, setContent] = useState("");
+  const [colour, setColour]   = useState<string>(STICKY_COLOURS[0]);
+
+  function submit() {
+    const c = content.trim();
+    if (!c) return;
+    onAdd(c, colour);
+    setContent("");
+    setColour(STICKY_COLOURS[0]);
+    onClose();
+  }
+
+  if (!visible) return null;
+
+  return (
+    <View style={{
+      position: "absolute", left: 0, right: 0, bottom: 0,
+      backgroundColor: colors.bgSecondary,
+      borderTopWidth: 1, borderTopColor: colors.bgBorder,
+      borderTopLeftRadius: radius["2xl"], borderTopRightRadius: radius["2xl"],
+      padding: spacing[5],
+      gap: spacing[4],
+    }}>
+      <View style={{ width: 36, height: 4, borderRadius: 99, backgroundColor: colors.bgBorder, alignSelf: "center", marginBottom: spacing[1] }} />
+      <Text size="base" weight="semibold">Quick note</Text>
+      <TextInput
+        value={content}
+        onChangeText={setContent}
+        placeholder="Note content…"
+        placeholderTextColor={colors.textTertiary}
+        multiline
+        autoFocus
+        style={[
+          {
+            color: colors.textPrimary, fontSize: 14,
+            paddingVertical: spacing[3], paddingHorizontal: spacing[3],
+            backgroundColor: colors.bgTertiary, borderRadius: radius.lg,
+            borderWidth: 1, borderColor: colour,
+            minHeight: 88, textAlignVertical: "top", lineHeight: 22,
+          },
+          // @ts-ignore
+          { outlineStyle: "none" },
+        ]}
+      />
+      {/* Colour picker */}
+      <View style={{ flexDirection: "row", gap: spacing[3], alignItems: "center" }}>
+        <Text size="xs" secondary>Colour</Text>
+        {STICKY_COLOURS.map(c => (
+          <Pressable
+            key={c}
+            onPress={() => setColour(c)}
+            style={{
+              width: 22, height: 22, borderRadius: 11,
+              backgroundColor: c,
+              borderWidth: colour === c ? 2 : 0,
+              borderColor: "#fff",
+              transform: [{ scale: colour === c ? 1.2 : 1 }],
+            }}
+          />
+        ))}
+      </View>
+      <Pressable
+        onPress={submit}
+        style={{
+          backgroundColor: content.trim() ? colors.accent : colors.bgTertiary,
+          borderRadius: radius.lg, paddingVertical: spacing[3],
+          alignItems: "center",
+        }}
+      >
+        <Text size="sm" weight="semibold" style={{ color: content.trim() ? "#fff" : colors.textTertiary }}>
+          Add note
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ─── Search results ───────────────────────────────────────────────────────────
 
 function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
@@ -323,6 +603,7 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
   onTaskPress: (id: string) => void;
 }) {
   const { colors } = useTheme();
+  const router = useRouter();
   const q = query.toLowerCase();
   const matchTasks = tasks.filter(t =>
     t.title.toLowerCase().includes(q) ||
@@ -348,7 +629,7 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
     <View>
       {matchTasks.length > 0 && (
         <View style={{ marginBottom: spacing[5] }}>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
             Tasks · {matchTasks.length}
           </Text>
           <GlassCard style={{ overflow: "hidden" }}>
@@ -362,7 +643,7 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
       )}
       {matchNotes.length > 0 && (
         <View style={{ marginBottom: spacing[5] }}>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
             Notes · {matchNotes.length}
           </Text>
           {matchNotes.map(n => {
@@ -380,11 +661,11 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
       )}
       {matchLists.length > 0 && (
         <View>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
             Lists · {matchLists.length}
           </Text>
           {matchLists.map(l => {
-            const color = l.color ?? "#5B6AD0";
+            const color = l.color ?? colors.accent;
             const items = l.items ?? [];
             return (
               <GlassCard key={l.id} style={{ padding: spacing[3], marginBottom: spacing[2], borderLeftWidth: 3, borderLeftColor: color }}>
@@ -405,16 +686,19 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
 // ─── Dashboard screen ─────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
-  const { colors }            = useTheme();
-  const { tasks }             = useTasks();
-  const { lists }             = useLists();
-  const { notes }             = useNotes();
-  const router                = useRouter();
-  const [search, setSearch]   = useState("");
-  const [fabOpen, setFabOpen] = useState(false);
-  const today                 = getTodayStr();
-  const tomorrow              = getTomorrowStr();
-  const now                   = new Date();
+  const { colors }             = useTheme();
+  const { tasks, addTask }     = useTasks();
+  const { lists }              = useLists();
+  const { notes }              = useNotes();
+  const { notes: stickyNotes, addNote: addStickyNote } = useStickyNotes();
+  const router                 = useRouter();
+  const [search, setSearch]    = useState("");
+  const [showTaskSheet, setShowTaskSheet]   = useState(false);
+  const [showNoteSheet, setShowNoteSheet]   = useState(false);
+  const [editingNote, setEditingNote]       = useState<StickyNote | null>(null);
+  const today                  = getTodayStr();
+  const tomorrow               = getTomorrowStr();
+  const now                    = new Date();
   const [calSelected, setCalSelected] = useState(today);
 
   const openTasks = tasks
@@ -435,23 +719,34 @@ export default function DashboardScreen() {
 
   const overdueCount = tasks.filter(t => !t.done && !!t.due_date && t.due_date < today).length;
   const todayCount   = tasks.filter(t => !t.done && t.due_date === today).length;
-
-  const pinnedList = lists.find(l => l.pinned);
+  const pinnedList   = lists.find(l => l.pinned);
 
   const handleGoToLists = useCallback(() => router.push("/(tabs)/lists"), [router]);
   const handleGoToTasks = useCallback(() => router.push("/(tabs)/tasks"), [router]);
 
-  const fabActions = [
-    { label: "New Note",  icon: "✎", onPress: () => { setFabOpen(false); router.push("/(tabs)/notes?create=1" as any); } },
-    { label: "New List",  icon: "≡", onPress: () => { setFabOpen(false); router.push("/(tabs)/lists?create=1" as any); } },
-    { label: "New Task",  icon: "+", onPress: () => { setFabOpen(false); router.push("/(tabs)/tasks?create=1" as any); } },
-  ];
+  const handleQuickAddTask = useCallback((title: string, dueDate?: string) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    addTask(title, dueDate);
+  }, [addTask]);
+
+  const handleQuickAddNote = useCallback((content: string, colour: string) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    addStickyNote(content, colour);
+  }, [addStickyNote]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      {/* Background blobs for glass depth */}
-      <View style={{ position: "absolute", top: 80,  left: -60,  width: 260, height: 260, borderRadius: 130, backgroundColor: colors.accent, opacity: 0.05 }} pointerEvents="none" />
+      {/* Background blobs */}
+      <View style={{ position: "absolute", top: 80, left: -60, width: 260, height: 260, borderRadius: 130, backgroundColor: colors.accent, opacity: 0.05 }} pointerEvents="none" />
       <View style={{ position: "absolute", top: 320, right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: colors.accent, opacity: 0.04 }} pointerEvents="none" />
+
+      {/* Sheet backdrop */}
+      {(showTaskSheet || showNoteSheet) && (
+        <Pressable
+          onPress={() => { setShowTaskSheet(false); setShowNoteSheet(false); }}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.4)", zIndex: 10 }}
+        />
+      )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
@@ -469,8 +764,8 @@ export default function DashboardScreen() {
               {(overdueCount > 0 || todayCount > 0) && (
                 <View style={{ flexDirection: "row", gap: spacing[2], marginTop: spacing[2] }}>
                   {overdueCount > 0 && (
-                    <View style={{ backgroundColor: "#F2646418", borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3, borderWidth: 1, borderColor: "#F2646440" }}>
-                      <Text size="xs" weight="medium" style={{ color: "#F26464" }}>{overdueCount} overdue</Text>
+                    <View style={{ backgroundColor: `${colors.danger}18`, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3, borderWidth: 1, borderColor: `${colors.danger}40` }}>
+                      <Text size="xs" weight="medium" style={{ color: colors.danger }}>{overdueCount} overdue</Text>
                     </View>
                   )}
                   {todayCount > 0 && (
@@ -481,11 +776,7 @@ export default function DashboardScreen() {
                 </View>
               )}
             </View>
-            <Pressable
-              onPress={() => router.push("/settings")}
-              hitSlop={12}
-              style={{ padding: spacing[1], marginTop: spacing[1] }}
-            >
+            <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1], marginTop: spacing[1] }}>
               <Text style={{ fontSize: 20, color: colors.textSecondary, lineHeight: 24 }}>⚙</Text>
             </Pressable>
           </View>
@@ -496,22 +787,16 @@ export default function DashboardScreen() {
           {search.trim() ? (
             <View style={{ marginTop: spacing[3] }}>
               <SearchResults
-                tasks={tasks}
-                lists={lists}
-                notes={notes}
+                tasks={tasks} lists={lists} notes={notes}
                 query={search.trim()}
                 onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)}
               />
             </View>
           ) : (
             <>
-              {/* ── Tasks ──────────────────────────────────────────────── */}
+              {/* ── Tasks ────────────────────────────────────────────────── */}
               <View style={{ marginTop: spacing[4], marginBottom: spacing[5] }}>
-                <SectionHeader
-                  label="Tasks"
-                  count={openTasks.length}
-                  action={{ label: "See all", onPress: handleGoToTasks }}
-                />
+                <SectionHeader label="Tasks" count={openTasks.length} action={{ label: "See all", onPress: handleGoToTasks }} />
                 {openTasks.length === 0 ? (
                   <EmptyState type="tasks" title="All clear" subtitle="No open tasks — enjoy the moment." />
                 ) : (
@@ -533,22 +818,32 @@ export default function DashboardScreen() {
                 )}
               </View>
 
-              {/* ── Calendar ───────────────────────────────────────────── */}
+              {/* ── Quick Notes (Sticky) ─────────────────────────────────── */}
+              {stickyNotes.length > 0 && (
+                <View style={{ marginBottom: spacing[5] }}>
+                  <SectionHeader label="Quick Notes" count={stickyNotes.length} action={{ label: "See all", onPress: () => router.push("/(tabs)/notes") }} />
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: spacing[1] }}
+                  >
+                    {stickyNotes.map(n => (
+                      <StickyCard key={n.id} note={n} onPress={() => setEditingNote(n)} />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* ── Calendar ─────────────────────────────────────────────── */}
               <View style={{ marginBottom: spacing[2] }}>
                 <SectionHeader label="Calendar" />
-                <MiniCalendar
-                  tasksByDate={tasksByDate}
-                  selected={calSelected}
-                  onSelect={setCalSelected}
-                  today={today}
-                />
-                {/* Selected day tasks */}
+                <MiniCalendar tasksByDate={tasksByDate} selected={calSelected} onSelect={setCalSelected} today={today} />
                 {(() => {
                   const dayTasks = (tasksByDate[calSelected] ?? []).filter(t => !t.done);
                   if (dayTasks.length === 0) return null;
                   return (
                     <View style={{ marginBottom: spacing[4] }}>
-                      <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>
+                      <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
                         {calSelected === today ? "Today" : calSelected === tomorrow ? "Tomorrow" : new Date(calSelected + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · {dayTasks.length}
                       </Text>
                       <GlassCard style={{ overflow: "hidden" }}>
@@ -563,7 +858,7 @@ export default function DashboardScreen() {
                 })()}
               </View>
 
-              {/* ── Pinned list ─────────────────────────────────────────── */}
+              {/* ── Pinned list ──────────────────────────────────────────── */}
               {pinnedList && (
                 <View style={{ marginBottom: spacing[2] }}>
                   <SectionHeader label="Pinned list" action={{ label: "All lists", onPress: handleGoToLists }} />
@@ -571,15 +866,11 @@ export default function DashboardScreen() {
                 </View>
               )}
 
-              {/* ── Lists shelf ────────────────────────────────────────── */}
+              {/* ── Lists shelf ──────────────────────────────────────────── */}
               {lists.length > 0 && (
                 <View style={{ marginBottom: spacing[5] }}>
                   <SectionHeader label="Lists" action={{ label: "See all", onPress: handleGoToLists }} />
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: spacing[1] }}
-                  >
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing[1] }}>
                     {lists.map(l => (
                       <ListShelfCard key={l.id} list={l} onPress={handleGoToLists} />
                     ))}
@@ -591,44 +882,62 @@ export default function DashboardScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* FAB backdrop */}
-      {fabOpen && (
+      {/* ── Dual FABs ────────────────────────────────────────────────────────── */}
+      <View
+        style={{ position: "absolute", bottom: spacing[8], right: spacing[5], alignItems: "flex-end", gap: spacing[2] }}
+        pointerEvents="box-none"
+      >
+        {/* Note FAB */}
         <Pressable
-          onPress={() => setFabOpen(false)}
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-      )}
-
-      {/* ── FAB ──────────────────────────────────────────────────────────── */}
-      <View style={{ position: "absolute", bottom: spacing[8], right: spacing[5], alignItems: "flex-end", gap: spacing[2] }} pointerEvents="box-none">
-        {fabOpen && fabActions.map(action => (
-          <Pressable
-            key={action.label}
-            onPress={action.onPress}
-            style={{
-              flexDirection: "row", alignItems: "center", gap: spacing[2],
-              backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.bgBorder,
-              borderRadius: radius.xl, paddingHorizontal: spacing[4], paddingVertical: spacing[2.5],
-            }}
-          >
-            <Text size="sm" style={{ color: colors.textSecondary }}>{action.icon}</Text>
-            <Text size="sm" weight="medium">{action.label}</Text>
-          </Pressable>
-        ))}
-        <Pressable
-          onPress={() => setFabOpen(v => !v)}
+          onPress={() => { setShowNoteSheet(true); setShowTaskSheet(false); }}
           style={{
-            width: 52, height: 52, borderRadius: 26,
-            backgroundColor: fabOpen ? colors.bgTertiary : colors.accent,
+            width: 44, height: 44, borderRadius: 22,
+            backgroundColor: colors.bgSecondary,
+            borderWidth: 1, borderColor: colors.bgBorder,
             alignItems: "center", justifyContent: "center",
-            borderWidth: 1, borderColor: fabOpen ? colors.bgBorder : "transparent",
           }}
         >
-          <Text style={{ color: fabOpen ? colors.textSecondary : "#fff", fontSize: 24, lineHeight: 28, marginTop: -2 }}>
-            {fabOpen ? "✕" : "+"}
-          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 18, lineHeight: 24 }}>✎</Text>
+        </Pressable>
+        {/* Task FAB */}
+        <Pressable
+          onPress={() => { setShowTaskSheet(true); setShowNoteSheet(false); }}
+          style={{
+            width: 52, height: 52, borderRadius: 26,
+            backgroundColor: colors.accent,
+            alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 24, lineHeight: 28, marginTop: -2 }}>+</Text>
         </Pressable>
       </View>
+
+      {/* ── Quick-add sheets (rendered above scroll, below backdrop) ─────────── */}
+      {(showTaskSheet || showNoteSheet) && (
+        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20 }} pointerEvents="box-none">
+          {showTaskSheet && (
+            <QuickAddSheet
+              visible={showTaskSheet}
+              onClose={() => setShowTaskSheet(false)}
+              onAdd={handleQuickAddTask}
+            />
+          )}
+          {showNoteSheet && (
+            <QuickAddNoteSheet
+              visible={showNoteSheet}
+              onClose={() => setShowNoteSheet(false)}
+              onAdd={handleQuickAddNote}
+            />
+          )}
+        </View>
+      )}
+
+      {/* ── Sticky note edit modal ────────────────────────────────────────────── */}
+      <StickyNoteModal
+        note={editingNote}
+        visible={!!editingNote}
+        onClose={() => setEditingNote(null)}
+      />
     </SafeAreaView>
   );
 }
