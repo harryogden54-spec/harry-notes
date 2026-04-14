@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
 import { syncFetch, syncUpsert, syncDelete } from "./supabase";
+import { dbLoadNotes, dbSaveNotes } from "./db";
 
 export type Note = {
   id: string;
@@ -38,27 +40,33 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const loadedRef                   = useRef(false);
   const notesRef                    = useRef<Note[]>([]);
-  const debounceRef                 = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
 
-  // Persist locally + debounced sync
+  // Persist locally on every change; Supabase sync only on explicit triggers
   useEffect(() => {
     if (!loadedRef.current) return;
     storage.set("notes", notes);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setSyncStatus("syncing");
-      syncUpsert("notes", notes)
-        .then(() => { setSyncStatus("synced"); setLastSynced(new Date().toISOString()); })
-        .catch(() => setSyncStatus("error"));
-    }, 1500);
+    if (Platform.OS !== "web") dbSaveNotes(notes).catch(console.error);
   }, [notes]);
 
   // Load from local storage then sync from remote
   useEffect(() => {
-    storage.get<Note[]>("notes").then(async (local) => {
-      const localNotes = local ?? [];
+    const loadLocal = async (): Promise<Note[]> => {
+      if (Platform.OS !== "web") {
+        try {
+          const dbNotes = await dbLoadNotes() as Note[];
+          if (dbNotes.length > 0) return dbNotes;
+          const stored = await storage.get<Note[]>("notes") ?? [];
+          if (stored.length > 0) dbSaveNotes(stored).catch(console.error);
+          return stored;
+        } catch { /* fall through */ }
+      }
+      return await storage.get<Note[]>("notes") ?? [];
+    };
+
+    loadLocal().then(async (local) => {
+      const localNotes = local;
       setNotes(localNotes);
       loadedRef.current = true;
       setLoaded(true);
@@ -91,6 +99,15 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("error");
       }
     });
+  }, []);
+
+  // Sync when app comes to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active" && loadedRef.current) syncNow();
+    });
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const syncNow = useCallback(async () => {

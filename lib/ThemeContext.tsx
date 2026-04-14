@@ -19,9 +19,9 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const device = (useColorScheme() ?? "dark") as Scheme;
-  const [override, setOverride]   = useState<Scheme | null>(null);
+  const [override, setOverride]   = useState<Scheme | null>("dark"); // default dark
   const [accentId, setAccentIdState] = useState<AccentId>("frost");
-  const [themeId, setThemeIdState]   = useState<ThemeId>("default");
+  const [themeId, setThemeIdState]   = useState<ThemeId>("nord");
 
   useEffect(() => {
     storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); });

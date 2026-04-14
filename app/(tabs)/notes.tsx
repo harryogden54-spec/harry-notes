@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput,
-  Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal,
+  Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
-import { Text, Divider, SearchBar, EmptyState, GlassCard } from "@/components/ui";
+import { Text, Divider, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useNotes, type Note } from "@/lib/NotesContext";
@@ -125,15 +125,18 @@ function MarkdownToolbar({ body, selRef, onApply }: {
 
 function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
   const { colors } = useTheme();
-  const { updateNote, deleteNote } = useNotes();
+  const { updateNote, deleteNote, pinNote } = useNotes();
   const { showToast } = useToast();
   const bodyRef   = useRef<TextInput | null>(null);
   const selRef    = useRef<Sel>({ start: 0, end: 0 });
   const [cursor, setCursor] = useState<Sel | undefined>(undefined);
 
+  const wordCount = note.body.trim() ? note.body.trim().split(/\s+/).length : 0;
+  const charCount = note.body.length;
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
+      <View style={{ flex: 1 }}>
         {/* Toolbar */}
         <View style={{
           flexDirection: "row", alignItems: "center", gap: spacing[2],
@@ -147,6 +150,18 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
           <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
           <Pressable
             onPress={() => {
+              pinNote(note.id);
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            hitSlop={12}
+            style={{ padding: spacing[1] }}
+          >
+            <Text size="sm" style={{ color: note.pinned ? colors.accent : colors.textTertiary }}>
+              {note.pinned ? "📌" : "📍"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
               const undo = deleteNote(note.id);
               onClose();
               showToast("Note deleted", { label: "Undo", onPress: undo });
@@ -155,7 +170,7 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
             hitSlop={12}
             style={{ padding: spacing[1] }}
           >
-            <Text size="xs" style={{ color: "#F26464" }}>Delete</Text>
+            <Text size="xs" style={{ color: colors.danger }}>Delete</Text>
           </Pressable>
         </View>
 
@@ -193,6 +208,16 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
             ]}
           />
         </ScrollView>
+
+        {/* Word count footer */}
+        <View style={{
+          flexDirection: "row", justifyContent: "flex-end",
+          paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+          borderTopWidth: 1, borderTopColor: colors.bgBorder,
+        }}>
+          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {charCount} chars</Text>
+        </View>
+
         <MarkdownToolbar
           body={note.body}
           selRef={selRef}
@@ -318,8 +343,14 @@ function StickyNoteModal({ note, visible, onClose }: {
 
 export default function NotesScreen() {
   const { colors } = useTheme();
-  const { notes, addNote, loaded } = useNotes();
+  const { notes, addNote, loaded, syncNow } = useNotes();
   const { notes: stickyNotes } = useStickyNotes();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await syncNow().catch(() => {});
+    setRefreshing(false);
+  }, [syncNow]);
   const [editingSticky, setEditingSticky] = useState<StickyNote | null>(null);
   const [search, setSearch]         = useState("");
   const [openId, setOpenId]         = useState<string | null>(null);
@@ -347,9 +378,11 @@ export default function NotesScreen() {
 
   if (!loaded) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary, justifyContent: "center", alignItems: "center" }}>
-        <Text size="sm" secondary>Loading…</Text>
-      </SafeAreaView>
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text size="sm" secondary>Loading…</Text>
+        </SafeAreaView>
+      </GradientBackground>
     );
   }
 
@@ -357,9 +390,11 @@ export default function NotesScreen() {
   const openNote = notes.find(n => n.id === openId);
   if (openNote) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-        <NoteEditor note={openNote} onClose={() => { animate(); setOpenId(null); }} />
-      </SafeAreaView>
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1 }}>
+          <NoteEditor note={openNote} onClose={() => { animate(); setOpenId(null); }} />
+        </SafeAreaView>
+      </GradientBackground>
     );
   }
 
@@ -373,8 +408,16 @@ export default function NotesScreen() {
   const unpinned = filtered.filter(n => !n.pinned);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }} keyboardShouldPersistTaps="handled">
+    <GradientBackground>
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+      >
 
         {/* Header */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
@@ -454,5 +497,6 @@ export default function NotesScreen() {
         onClose={() => setEditingSticky(null)}
       />
     </SafeAreaView>
+    </GradientBackground>
   );
 }

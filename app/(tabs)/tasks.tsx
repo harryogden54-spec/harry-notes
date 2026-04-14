@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput, Pressable,
-  KeyboardAvoidingView, Platform, type ScrollView as RNScrollView,
+  KeyboardAvoidingView, Platform, RefreshControl, type ScrollView as RNScrollView,
 } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -10,7 +10,7 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
-import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard } from "@/components/ui";
+import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
@@ -595,6 +595,8 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
   onTaskMeasureY?: (id: string, y: number) => void;
 }) {
   const { colors } = useTheme();
+  const [collapsed, setCollapsed] = useState(false);
+
   if (tasks.length === 0 && !emptyMessage) return null;
 
   const sorted = sortByPriority(tasks);
@@ -621,29 +623,35 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
 
   return (
     <View style={{ marginBottom: spacing[6] }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: spacing[3] }}>
+      <Pressable
+        onPress={() => setCollapsed(v => !v)}
+        style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: collapsed ? 0 : spacing[3] }}
+      >
         <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1 }}>{label}</Text>
         {tasks.length > 0 && (
           <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
             <Text size="xs" style={{ color: colors.textTertiary }}>{tasks.length}</Text>
           </View>
         )}
-      </View>
-      {tasks.length === 0 && emptyMessage ? (
-        <GlassCard style={{ borderRadius: radius.lg }} intensity={16}>
-          <View style={{ padding: spacing[5], alignItems: "center" }}>
-            <Text size="sm" secondary>{emptyMessage}</Text>
-          </View>
-        </GlassCard>
-      ) : (
-        <DraggableFlatList
-          data={sorted}
-          keyExtractor={t => t.id}
-          renderItem={renderItem}
-          onDragEnd={({ data }) => onReorder(data)}
-          scrollEnabled={false}
-          activationDistance={Platform.OS === "web" ? 999 : 20}
-        />
+        <Text size="xs" style={{ color: colors.textTertiary, marginLeft: "auto" }}>{collapsed ? "▾" : "▴"}</Text>
+      </Pressable>
+      {!collapsed && (
+        tasks.length === 0 && emptyMessage ? (
+          <GlassCard style={{ borderRadius: radius.lg }} intensity={16}>
+            <View style={{ padding: spacing[5], alignItems: "center" }}>
+              <Text size="sm" secondary>{emptyMessage}</Text>
+            </View>
+          </GlassCard>
+        ) : (
+          <DraggableFlatList
+            data={sorted}
+            keyExtractor={t => t.id}
+            renderItem={renderItem}
+            onDragEnd={({ data }) => onReorder(data)}
+            scrollEnabled={false}
+            activationDistance={Platform.OS === "web" ? 999 : 20}
+          />
+        )
       )}
     </View>
   );
@@ -653,9 +661,9 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
 
 export default function TasksScreen() {
   const { colors } = useTheme();
-  const { tasks, addTask, loaded, deleteTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
+  const { tasks, addTask, loaded, syncStatus, syncNow, deleteTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
   const { showToast } = useToast();
-  const params = useLocalSearchParams<{ create?: string; taskId?: string }>();
+  const params = useLocalSearchParams<{ create?: string; taskId?: string; filter?: string }>();
 
   const [expandedId, setExpandedId]         = useState<string | null>(null);
   const [search, setSearch]                 = useState("");
@@ -674,6 +682,9 @@ export default function TasksScreen() {
 
   // Auto-focus add input or expand + scroll to a specific task when navigated here
   useEffect(() => {
+    if (params.filter === "overdue" || params.filter === "today") {
+      setFocusMode(true);
+    }
     if (params.create === "1") {
       setTimeout(() => addInputRef.current?.focus(), 300);
     }
@@ -762,21 +773,48 @@ export default function TasksScreen() {
 
   const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY };
 
+  // Sync pill: show while syncing, then show "Synced ✓" for 2s
+  const [pillText, setPillText] = useState<string | null>(null);
+  useEffect(() => {
+    if (syncStatus === "syncing") {
+      setPillText("Syncing…");
+    } else if (syncStatus === "synced") {
+      setPillText("Synced ✓");
+      const t = setTimeout(() => setPillText(null), 2000);
+      return () => clearTimeout(t);
+    } else {
+      setPillText(null);
+    }
+  }, [syncStatus]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await syncNow().catch(() => {});
+    setRefreshing(false);
+  }, [syncNow]);
+
   if (!loaded) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary, justifyContent: "center", alignItems: "center" }}>
-        <Text size="sm" secondary>Loading…</Text>
-      </SafeAreaView>
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text size="sm" secondary>Loading…</Text>
+        </SafeAreaView>
+      </GradientBackground>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      {/* Background blobs for glass effect */}
-      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-        <View style={{ position: "absolute", top: -80, right: -60, width: 320, height: 320, borderRadius: 160, backgroundColor: colors.accent, opacity: 0.06 }} />
-        <View style={{ position: "absolute", bottom: 60, left: -80, width: 260, height: 260, borderRadius: 130, backgroundColor: colors.accentHover, opacity: 0.04 }} />
-      </View>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }}>
+      {/* Sync status pill */}
+      {pillText && (
+        <View style={{ alignItems: "center", paddingVertical: spacing[1] }}>
+          <View style={{ backgroundColor: `${colors.accent}20`, borderRadius: 99, paddingHorizontal: spacing[3], paddingVertical: 3 }}>
+            <Text size="xs" style={{ color: colors.accent }}>{pillText}</Text>
+          </View>
+        </View>
+      )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
@@ -784,6 +822,9 @@ export default function TasksScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+          }
         >
           {/* Header */}
           <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
@@ -872,6 +913,7 @@ export default function TasksScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }

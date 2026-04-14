@@ -1,24 +1,34 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput,
-  Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal,
+  Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal, RefreshControl,
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
-import { Text, Checkbox, Divider, EmptyState } from "@/components/ui";
+import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
-import { useLists, LIST_COLORS, type NoteList, type ListItemType } from "@/lib/ListsContext";
+import { useLists, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
 import { SearchBar } from "@/components/ui/SearchBar";
 
 function animate() {
   if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 }
+
+// ─── Templates ────────────────────────────────────────────────────────────────
+
+const TEMPLATES = [
+  { name: "Grocery",  color: "#27AE60", items: ["🥛 Milk", "🥚 Eggs", "🍞 Bread", "🧀 Cheese", "🍎 Apples"] },
+  { name: "Packing",  color: "#4A90D9", items: ["👕 T-shirts", "🩲 Underwear", "🧦 Socks", "🪥 Toothbrush", "💊 Medications"] },
+  { name: "Reading",  color: "#9B59B6", items: ["📖 Current book", "📚 Next up", "✅ Finished recently"] },
+  { name: "Study",    color: "#E67E22", items: ["📝 Review notes", "📚 Read chapter", "✏️ Do exercises", "🔁 Flashcards"] },
+];
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────
 
@@ -39,23 +49,41 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => void }) {
   const { colors } = useTheme();
   const { addList } = useLists();
-  const [name, setName]   = useState("");
-  const [color, setColor] = useState(LIST_COLORS[0]);
+  const [name, setName]             = useState("");
+  const [color, setColor]           = useState(LIST_COLORS[0]);
+  const [templateItems, setTemplateItems] = useState<string[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+
+  function applyTemplate(t: typeof TEMPLATES[number]) {
+    if (selectedTemplate === t.name) {
+      // deselect
+      setSelectedTemplate(null);
+      setTemplateItems([]);
+      if (name === t.name) { setName(""); setColor(LIST_COLORS[0]); }
+    } else {
+      setSelectedTemplate(t.name);
+      setTemplateItems(t.items);
+      setName(t.name);
+      setColor(t.color);
+    }
+  }
 
   function submit() {
     const n = name.trim();
     if (!n) return;
-    addList(n, color);
-    setName("");
-    setColor(LIST_COLORS[0]);
+    addList(n, color, templateItems.length > 0 ? templateItems : undefined);
+    reset();
     onDone();
   }
 
-  function cancel() {
+  function reset() {
     setName("");
     setColor(LIST_COLORS[0]);
-    onDone();
+    setTemplateItems([]);
+    setSelectedTemplate(null);
   }
+
+  function cancel() { reset(); onDone(); }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={cancel}>
@@ -77,6 +105,35 @@ function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => 
               <Pressable onPress={cancel} hitSlop={12}>
                 <Text size="sm" style={{ color: colors.textTertiary }}>✕</Text>
               </Pressable>
+            </View>
+
+            {/* Template picker */}
+            <View style={{ gap: spacing[2] }}>
+              <Text size="xs" secondary weight="medium">Start from template</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing[1] }}>
+                <View style={{ flexDirection: "row", gap: spacing[2], paddingHorizontal: spacing[1] }}>
+                  {TEMPLATES.map(t => {
+                    const active = selectedTemplate === t.name;
+                    return (
+                      <Pressable
+                        key={t.name}
+                        onPress={() => applyTemplate(t)}
+                        style={{
+                          paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+                          borderRadius: radius.lg,
+                          borderWidth: 1,
+                          borderColor: active ? t.color : colors.bgBorder,
+                          backgroundColor: active ? `${t.color}22` : colors.bgTertiary,
+                        }}
+                      >
+                        <Text size="xs" weight="medium" style={{ color: active ? t.color : colors.textSecondary }}>
+                          {t.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </View>
 
             <TextInput
@@ -129,11 +186,13 @@ function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => 
 // ─── List Item Row ────────────────────────────────────────────────────────────
 
 function ListItemRow({
-  item, listId, otherLists,
+  item, listId, otherLists, drag, isDragActive,
 }: {
   item: { id: string; content: string; type: ListItemType; done: boolean };
   listId: string;
   otherLists: NoteList[];
+  drag?: () => void;
+  isDragActive?: boolean;
 }) {
   const { colors } = useTheme();
   const { toggleItem, updateItem, deleteItem, moveItem } = useLists();
@@ -184,10 +243,15 @@ function ListItemRow({
             flexDirection: "row", alignItems: "center", gap: spacing[3],
             paddingVertical: spacing[2], paddingHorizontal: spacing[1],
             borderRadius: radius.sm,
-            backgroundColor: hovered ? colors.bgTertiary : "transparent",
+            backgroundColor: isDragActive ? colors.bgTertiary : hovered ? colors.bgTertiary : "transparent",
             opacity: item.done ? 0.5 : 1,
           }}
         >
+          {drag && (
+            <Pressable onLongPress={drag} delayLongPress={150} hitSlop={8}>
+              <Text style={{ color: colors.textTertiary, fontSize: 14, lineHeight: 20 }}>⠿</Text>
+            </Pressable>
+          )}
           {item.type === "checkbox" ? (
             <Checkbox checked={item.done} onToggle={() => toggleItem(listId, item.id)} size={15} />
           ) : (
@@ -283,7 +347,7 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   list: NoteList; isExpanded: boolean; onToggleExpand: () => void; otherLists: NoteList[];
 }) {
   const { colors } = useTheme();
-  const { updateList, deleteList, duplicateList, pinList } = useLists();
+  const { updateList, deleteList, duplicateList, pinList, reorderItems } = useLists();
   const { showToast } = useToast();
   const [editingName, setEditingName]   = useState(false);
   const [nameVal, setNameVal]           = useState(list.name);
@@ -295,7 +359,6 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   // Done items sink to bottom; undone items first
   const activeItems = items.filter(i => !i.done);
   const doneItems   = items.filter(i => i.done);
-  const sortedItems = [...activeItems, ...doneItems];
 
   const checkboxItems = items.filter(i => i.type === "checkbox");
   const done  = checkboxItems.filter(i => i.done).length;
@@ -367,8 +430,29 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
             <Divider />
 
-            {/* Items — done items sink to bottom at 50% opacity */}
-            {sortedItems.map(item => (
+            {/* Active items — draggable */}
+            {activeItems.length > 0 && (
+              <DraggableFlatList
+                data={activeItems}
+                keyExtractor={i => i.id}
+                renderItem={({ item, drag, isActive }: RenderItemParams<ListItem>) => (
+                  <ScaleDecorator>
+                    <ListItemRow
+                      item={item}
+                      listId={list.id}
+                      otherLists={otherLists}
+                      drag={drag}
+                      isDragActive={isActive}
+                    />
+                  </ScaleDecorator>
+                )}
+                onDragEnd={({ data }) => reorderItems(list.id, [...data, ...doneItems])}
+                scrollEnabled={false}
+                activationDistance={Platform.OS === "web" ? 999 : 12}
+              />
+            )}
+            {/* Done items — non-draggable, sink to bottom */}
+            {doneItems.map(item => (
               <ListItemRow key={item.id} item={item} listId={list.id} otherLists={otherLists} />
             ))}
 
@@ -419,11 +503,21 @@ export default function ListsScreen() {
     l.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { syncNow, syncStatus } = useLists();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await syncNow().catch(() => {});
+    setRefreshing(false);
+  }, [syncNow]);
+
   if (!loaded) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary, justifyContent: "center", alignItems: "center" }}>
-        <Text size="sm" secondary>Loading…</Text>
-      </SafeAreaView>
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text size="sm" secondary>Loading…</Text>
+        </SafeAreaView>
+      </GradientBackground>
     );
   }
 
@@ -433,11 +527,19 @@ export default function ListsScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }}>
       <CreateListModal visible={creating} onDone={() => setCreating(false)} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+          }
+        >
           {/* Header */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
             <View>
@@ -474,6 +576,7 @@ export default function ListsScreen() {
           ))}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }

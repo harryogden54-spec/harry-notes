@@ -9,4 +9,6 @@ export { DatePicker } from "./DatePicker";
 export { SearchBar }    from "./SearchBar";
 export { ToastContainer } from "./Toast";
 export { EmptyState }     from "./EmptyState";
-export { GlassCard }      from "./GlassCard";
+export { GlassCard }           from "./GlassCard";
+export { GradientBackground }  from "./GradientBackground";
+export { Skeleton }            from "./Skeleton";

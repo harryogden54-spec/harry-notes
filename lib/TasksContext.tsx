@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
 import { syncFetch, syncUpsert, syncDelete } from "./supabase";
+import { dbLoadTasks, dbSaveTasks } from "./db";
 
 export type Priority   = "urgent" | "high" | "medium" | "low";
 export type TaskCategory = "personal" | "uni";
@@ -65,27 +67,37 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedRef   = useRef(false);
   const tasksRef    = useRef<Task[]>([]);
 
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
+  // Persist locally on every change; Supabase sync only on explicit triggers
   useEffect(() => {
     if (!loadedRef.current) return;
     storage.set("tasks", tasks);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setSyncStatus("syncing");
-      syncUpsert("tasks", tasks)
-        .then(() => { setSyncStatus("synced"); setLastSynced(new Date().toISOString()); })
-        .catch(() => setSyncStatus("error"));
-    }, 1500);
+    if (Platform.OS !== "web") dbSaveTasks(tasks).catch(console.error);
   }, [tasks]);
 
   useEffect(() => {
-    storage.get<Task[]>("tasks").then(async (local) => {
-      const localTasks = local ?? [];
+    const loadLocal = async (): Promise<Task[]> => {
+      if (Platform.OS !== "web") {
+        try {
+          const dbTasks = await dbLoadTasks() as Task[];
+          if (dbTasks.length > 0) return dbTasks;
+          // SQLite empty — migrate from AsyncStorage
+          const stored = await storage.get<Task[]>("tasks") ?? [];
+          if (stored.length > 0) dbSaveTasks(stored).catch(console.error);
+          return stored;
+        } catch {
+          // SQLite unavailable — fall back
+        }
+      }
+      return await storage.get<Task[]>("tasks") ?? [];
+    };
+
+    loadLocal().then(async (local) => {
+      const localTasks = local;
       setTasks(localTasks);
       loadedRef.current = true;
       setLoaded(true);
@@ -118,6 +130,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("error");
       }
     });
+  }, []);
+
+  // Sync when app comes to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active" && loadedRef.current) syncNow();
+    });
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const syncNow = useCallback(async () => {

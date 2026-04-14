@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
 import { syncFetch, syncUpsert, syncDelete } from "./supabase";
+import { dbLoadLists, dbSaveLists } from "./db";
 
 export type ListItemType = "checkbox" | "bullet";
 
@@ -34,7 +36,7 @@ type ListsContextValue = {
   loaded: boolean;
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  addList: (name: string, color: string) => string;
+  addList: (name: string, color: string, initialItems?: string[]) => string;
   updateList: (id: string, updates: Partial<Omit<NoteList, "id" | "created_at">>) => void;
   deleteList: (id: string) => () => void;
   duplicateList: (id: string) => void;
@@ -44,6 +46,7 @@ type ListsContextValue = {
   toggleItem: (listId: string, itemId: string) => void;
   deleteItem: (listId: string, itemId: string) => () => void;
   moveItem: (fromListId: string, itemId: string, toListId: string) => void;
+  reorderItems: (listId: string, newItems: ListItem[]) => void;
   syncNow: () => Promise<void>;
 };
 
@@ -58,27 +61,34 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedRef   = useRef(false);
   const listsRef    = useRef<NoteList[]>([]);
 
   useEffect(() => { listsRef.current = lists; }, [lists]);
 
+  // Persist locally on every change; Supabase sync only on explicit triggers
   useEffect(() => {
     if (!loadedRef.current) return;
     storage.set("lists", lists);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setSyncStatus("syncing");
-      syncUpsert("lists", lists)
-        .then(() => { setSyncStatus("synced"); setLastSynced(new Date().toISOString()); })
-        .catch(() => setSyncStatus("error"));
-    }, 1500);
+    if (Platform.OS !== "web") dbSaveLists(lists).catch(console.error);
   }, [lists]);
 
   useEffect(() => {
-    storage.get<NoteList[]>("lists").then(async (local) => {
-      const localLists = local ?? [];
+    const loadLocal = async (): Promise<NoteList[]> => {
+      if (Platform.OS !== "web") {
+        try {
+          const dbLists = await dbLoadLists() as NoteList[];
+          if (dbLists.length > 0) return dbLists;
+          const stored = await storage.get<NoteList[]>("lists") ?? [];
+          if (stored.length > 0) dbSaveLists(stored).catch(console.error);
+          return stored;
+        } catch { /* fall through */ }
+      }
+      return await storage.get<NoteList[]>("lists") ?? [];
+    };
+
+    loadLocal().then(async (local) => {
+      const localLists = local;
       setLists(localLists);
       loadedRef.current = true;
       setLoaded(true);
@@ -113,6 +123,15 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Sync when app comes to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active" && loadedRef.current) syncNow();
+    });
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const syncNow = useCallback(async () => {
     setSyncStatus("syncing");
     try {
@@ -137,11 +156,20 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const addList = useCallback((name: string, color: string): string => {
+  const addList = useCallback((name: string, color: string, initialItems?: string[]): string => {
     const id  = `${Date.now()}`;
     const now = new Date().toISOString();
-    setLists(prev => [...prev, stamp({ id, name, color, items: [], created_at: now })]);
+    const items: ListItem[] = (initialItems ?? []).map((content, i) => ({
+      id: `${Date.now()}_${i}`, content, type: "checkbox" as ListItemType, done: false,
+    }));
+    setLists(prev => [...prev, stamp({ id, name, color, items, created_at: now })]);
     return id;
+  }, []);
+
+  const reorderItems = useCallback((listId: string, newItems: ListItem[]) => {
+    setLists(prev => prev.map(l =>
+      l.id === listId ? stamp({ ...l, items: newItems }) : l
+    ));
   }, []);
 
   const updateList = useCallback((id: string, updates: Partial<Omit<NoteList, "id" | "created_at">>) => {
@@ -237,7 +265,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     <ListsContext.Provider value={{
       lists, loaded, syncStatus, lastSynced,
       addList, updateList, deleteList, duplicateList, pinList,
-      addItem, updateItem, toggleItem, deleteItem, moveItem, syncNow,
+      addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems, syncNow,
     }}>
       {children}
     </ListsContext.Provider>

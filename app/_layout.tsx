@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import "react-native-reanimated";
 import "../global.css";
 
@@ -29,18 +29,14 @@ SplashScreen.preventAutoHideAsync();
 function AppShell() {
   const { scheme } = useThemeContext();
   const { tasks, loaded: tasksLoaded } = useTasks();
-  const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
+    // Fire-and-forget: don't block render on DB init
     if (Platform.OS === "web") {
-      setDbReady(true);
       SplashScreen.hideAsync();
       return;
     }
-    initDb()
-      .then(() => setDbReady(true))
-      .catch(console.error)
-      .finally(() => SplashScreen.hideAsync());
+    initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
   }, []);
 
   // Request permission once on first load, then reschedule whenever tasks change
@@ -50,8 +46,6 @@ function AppShell() {
       if (granted) scheduleTaskReminders(tasks);
     });
   }, [tasks, tasksLoaded]);
-
-  if (!dbReady) return null;
 
   return (
     <NavThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>

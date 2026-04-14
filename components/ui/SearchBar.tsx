@@ -8,7 +8,7 @@ interface SearchBarProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  inputRef?: React.RefObject<TextInput>;
+  inputRef?: React.RefObject<TextInput | null>;
 }
 
 export function SearchBar({ value, onChange, placeholder = "Search…", inputRef }: SearchBarProps) {

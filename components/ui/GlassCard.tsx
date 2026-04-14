@@ -3,66 +3,99 @@ import { View, Platform, type ViewStyle } from "react-native";
 import { BlurView } from "expo-blur";
 import { useTheme } from "@/lib/useTheme";
 import { radius } from "@/lib/theme";
-import type { CardVariant } from "./Card";
+
+export type GlassVariant = "default" | "elevated" | "inset";
 
 interface GlassCardProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  /** BlurView intensity — higher = more frosted. Default 22. */
+  /** BlurView intensity — higher = more frosted. Default 20. */
   intensity?: number;
-  /** M3 card variant — affects border and shadow. Default "elevated". */
-  variant?: CardVariant;
+  /** Card variant — affects shadow and border. Default "default". */
+  variant?: GlassVariant;
+  /** @deprecated use variant instead — kept for backward-compat */
+  [key: string]: any;
 }
 
-export function GlassCard({ children, style, intensity = 22, variant = "elevated" }: GlassCardProps) {
-  const { isDark } = useTheme();
+export function GlassCard({ children, style, intensity = 20, variant = "default", ...rest }: GlassCardProps) {
+  const { isDark, colors } = useTheme();
 
-  const borderColor  = isDark ? "rgba(255,255,255,0.11)" : "rgba(255,255,255,0.85)";
-  const overlayColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.55)";
-  const webBg        = isDark ? "rgba(22,22,22,0.92)"   : "rgba(255,255,255,0.90)";
-  const br           = (style as any)?.borderRadius ?? radius.xl;
+  const br = (style as any)?.borderRadius ?? radius.xl;
 
-  const outlinedBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)";
-  const resolvedBorder = variant === "outlined" ? outlinedBorder : borderColor;
+  const borderColor = isDark
+    ? "rgba(255,255,255,0.10)"
+    : "rgba(255,255,255,0.80)";
 
-  const elevationStyle: ViewStyle = variant === "elevated" ? {
+  const overlayColor = isDark
+    ? "rgba(255,255,255,0.04)"
+    : "rgba(255,255,255,0.50)";
+
+  const elevatedShadow: ViewStyle = {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.20,
+    shadowRadius: 16,
+    elevation: 8,
+  };
+
+  const defaultShadow: ViewStyle = {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
-  } : {};
+  };
+
+  const insetBorder: ViewStyle = {
+    borderWidth: 1,
+    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+  };
+
+  const shadowStyle = variant === "elevated" ? elevatedShadow : variant === "inset" ? {} : defaultShadow;
+  const variantBorder = variant === "inset" ? insetBorder : {};
 
   if (Platform.OS === "web") {
+    const webBg = isDark ? "rgba(30,35,48,0.72)" : "rgba(255,255,255,0.72)";
     return (
-      <View style={[
-        {
-          borderRadius: br,
-          borderWidth: variant === "filled" ? 0 : 1,
-          borderColor: resolvedBorder,
-          backgroundColor: variant === "filled" ? (isDark ? "rgba(22,22,22,0.97)" : "rgba(255,255,255,0.98)") : webBg,
-          overflow: "hidden",
-        },
-        style,
-      ]}>
+      <View
+        {...rest}
+        style={[
+          {
+            borderRadius: br,
+            borderWidth: 1,
+            borderColor,
+            overflow: "hidden",
+            backgroundColor: webBg,
+          },
+          shadowStyle,
+          variantBorder,
+          style,
+          // @ts-ignore — web-only CSS properties
+          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" },
+        ]}
+      >
         {children}
       </View>
     );
   }
 
   return (
-    <View style={[
-      {
-        borderRadius: br,
-        borderWidth: variant === "filled" ? 0 : 1,
-        borderColor: resolvedBorder,
-        overflow: "hidden",
-      },
-      elevationStyle,
-      style,
-    ]}>
-      <BlurView intensity={intensity} tint={isDark ? "dark" : "light"}>
-        <View style={{ backgroundColor: overlayColor }}>
+    <View
+      {...rest}
+      style={[
+        {
+          borderRadius: br,
+          borderWidth: 1,
+          borderColor,
+          overflow: "hidden",
+        },
+        shadowStyle,
+        variantBorder,
+        style,
+      ]}
+    >
+      <BlurView intensity={intensity} tint={isDark ? "dark" : "light"} style={{ flex: 1 }}>
+        <View style={{ flex: 1, backgroundColor: overlayColor }}>
           {children}
         </View>
       </BlurView>
