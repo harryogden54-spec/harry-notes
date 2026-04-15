@@ -51,6 +51,15 @@ function sortByPriority(tasks: Task[]) {
   });
 }
 
+type SortBy = "priority" | "due_date" | "title" | "created";
+
+function applySort(tasks: Task[], by: SortBy): Task[] {
+  if (by === "priority") return sortByPriority(tasks);
+  if (by === "due_date") return [...tasks].sort((a, b) => (a.due_date ?? "9999") < (b.due_date ?? "9999") ? -1 : 1);
+  if (by === "title")    return [...tasks].sort((a, b) => a.title.localeCompare(b.title));
+  return [...tasks];
+}
+
 function matchesSearch(task: Task, q: string) {
   if (!q) return true;
   const lower = q.toLowerCase();
@@ -410,6 +419,7 @@ function TaskItem({
         // @ts-ignore
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        variant="elevated"
         style={{
           borderColor: highlighted ? colors.accent : selected ? colors.accent : isExpanded ? (priorityColor ?? colors.accent) : undefined,
           borderWidth: highlighted ? 2 : 1,
@@ -418,7 +428,7 @@ function TaskItem({
           marginBottom: spacing[2],
           opacity: selected ? 0.85 : 1,
         }}
-        intensity={18}
+        intensity={22}
       >
         {/* Header row */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], padding: spacing[3] }}>
@@ -534,48 +544,141 @@ function TaskItem({
 
 // ─── Add Task Row ─────────────────────────────────────────────────────────────
 
-function AddTaskRow({ onAdd, inputRef }: { onAdd: (t: string, date?: string) => void; inputRef: React.RefObject<TextInput | null> }) {
+function AddTaskRow({ onAdd, inputRef }: {
+  onAdd: (t: string, date?: string, category?: TaskCategory, uniCourse?: UniCourse) => void;
+  inputRef: React.RefObject<TextInput | null>;
+}) {
   const { colors } = useTheme();
-  const [value, setValue]     = useState("");
-  const [focused, setFocused] = useState(false);
+  const [value, setValue]               = useState("");
+  const [focused, setFocused]           = useState(false);
+  const [quickDate, setQuickDate]       = useState<string | undefined>();
+  const [quickCat, setQuickCat]         = useState<TaskCategory | undefined>();
+  const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
+
+  const showOptions = focused || value.length > 0;
+  const today    = getTodayStr();
+  const tomorrow = getTomorrowStr();
+  const nextWeek = getNextWeekStr();
+
+  const dueDateColor = quickDate && quickDate < today ? colors.danger : quickDate === today ? colors.warning : colors.accent;
 
   function submit() {
     const t = value.trim();
     if (!t) return;
-    onAdd(t);
+    onAdd(t, quickDate, quickCat, quickCat === "uni" ? quickCourse : undefined);
     setValue("");
+    setQuickDate(undefined);
+    setQuickCat(undefined);
   }
+
+  const DATE_PRESETS = [
+    { label: "Today",     date: today },
+    { label: "Tomorrow",  date: tomorrow },
+    { label: "Next week", date: nextWeek },
+  ];
 
   return (
     <GlassCard
-      style={{
-        borderColor: focused ? colors.accent : undefined,
-        marginBottom: spacing[4],
-      }}
-      intensity={18}
+      variant="elevated"
+      style={{ borderColor: focused ? colors.accent : undefined, marginBottom: spacing[4] }}
+      intensity={22}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], paddingVertical: spacing[2] + 2, paddingHorizontal: spacing[3] }}>
-        <Text style={{ color: colors.accent, fontSize: 18, lineHeight: 22, marginTop: -1 }}>+</Text>
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={setValue}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onSubmitEditing={submit}
-          placeholder="New task… (press N)"
-          placeholderTextColor={colors.textTertiary}
-          returnKeyType="done"
-          style={[
-            { flex: 1, color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
-            // @ts-ignore
-            { outlineStyle: "none" },
-          ]}
-        />
-        {value.length > 0 && (
-          <Pressable onPress={submit} style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: colors.accent }}>
-            <Text size="xs" weight="medium" style={{ color: "#fff" }}>Add</Text>
-          </Pressable>
+      <View style={{ paddingVertical: spacing[2] + 2, paddingHorizontal: spacing[3], gap: spacing[2] }}>
+        {/* Main input row */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
+          <Text style={{ color: colors.accent, fontSize: 18, lineHeight: 22, marginTop: -1 }}>+</Text>
+          <TextInput
+            ref={inputRef}
+            value={value}
+            onChangeText={setValue}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onSubmitEditing={submit}
+            placeholder="New task… (press N)"
+            placeholderTextColor={colors.textTertiary}
+            returnKeyType="done"
+            style={[
+              { flex: 1, color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
+              // @ts-ignore
+              { outlineStyle: "none" },
+            ]}
+          />
+          {value.length > 0 && (
+            <Pressable onPress={submit}
+              style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: colors.accent }}>
+              <Text size="xs" weight="medium" style={{ color: "#fff" }}>Add</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Quick-options panel */}
+        {showOptions && (
+          <Animated.View entering={FadeIn.duration(150)}>
+            <Divider />
+            <View style={{ gap: spacing[2], paddingTop: spacing[2] }}>
+              {/* Date row */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
+                <Text size="xs" style={{ color: colors.textTertiary, width: 32 }}>Date</Text>
+                {DATE_PRESETS.map(p => (
+                  <Pressable
+                    key={p.date}
+                    onPress={() => setQuickDate(d => d === p.date ? undefined : p.date)}
+                    style={{
+                      paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
+                      borderRadius: 99, borderWidth: 1,
+                      borderColor: quickDate === p.date ? dueDateColor : colors.bgBorder,
+                      backgroundColor: quickDate === p.date ? `${dueDateColor}18` : "transparent",
+                    }}
+                  >
+                    <Text size="xs" style={{ color: quickDate === p.date ? dueDateColor : colors.textSecondary }}>
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Category row */}
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[1.5], flexWrap: "wrap" }}>
+                <Text size="xs" style={{ color: colors.textTertiary, width: 32, marginTop: 3 }}>Cat.</Text>
+                <View style={{ flex: 1, gap: spacing[1.5] }}>
+                  <View style={{ flexDirection: "row", gap: spacing[1.5] }}>
+                    {([["personal", "Personal", "#88C0D0"], ["uni", "Uni", "#B48EAD"]] as [TaskCategory, string, string][]).map(([cat, label, color]) => (
+                      <Pressable
+                        key={cat}
+                        onPress={() => setQuickCat(c => c === cat ? undefined : cat)}
+                        style={{
+                          paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
+                          borderRadius: 99, borderWidth: 1,
+                          borderColor: quickCat === cat ? color : colors.bgBorder,
+                          backgroundColor: quickCat === cat ? `${color}18` : "transparent",
+                        }}
+                      >
+                        <Text size="xs" style={{ color: quickCat === cat ? color : colors.textSecondary }}>{label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {quickCat === "uni" && (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
+                      {UNI_COURSES.map(course => (
+                        <Pressable
+                          key={course}
+                          onPress={() => setQuickCourse(course)}
+                          style={{
+                            paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
+                            borderRadius: 99, borderWidth: 1,
+                            borderColor: quickCourse === course ? "#B48EAD" : colors.bgBorder,
+                            backgroundColor: quickCourse === course ? "#B48EAD18" : "transparent",
+                          }}
+                        >
+                          <Text size="xs" style={{ color: quickCourse === course ? "#B48EAD" : colors.textSecondary }}>{course}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+          </Animated.View>
         )}
       </View>
     </GlassCard>
@@ -584,7 +687,7 @@ function AddTaskRow({ onAdd, inputRef }: { onAdd: (t: string, date?: string) => 
 
 // ─── Section ──────────────────────────────────────────────────────────────────
 
-function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selectMode, selectedIds, onSelect, onDelete, onReorderUp, onReorderDown, onReorder, highlightId, onTaskMeasureY }: {
+function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selectMode, selectedIds, onSelect, onDelete, onReorderUp, onReorderDown, onReorder, highlightId, onTaskMeasureY, sortBy = "priority" }: {
   label: string; tasks: Task[]; expandedId: string | null;
   onToggleExpand: (id: string) => void; emptyMessage?: string;
   selectMode: boolean; selectedIds: Set<string>;
@@ -593,13 +696,14 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
   onReorder: (newOrder: Task[]) => void;
   highlightId?: string | null;
   onTaskMeasureY?: (id: string, y: number) => void;
+  sortBy?: SortBy;
 }) {
   const { colors } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
 
   if (tasks.length === 0 && !emptyMessage) return null;
 
-  const sorted = sortByPriority(tasks);
+  const sorted = applySort(tasks, sortBy);
 
   const renderItem = ({ item: t, drag, isActive }: RenderItemParams<Task>) => (
     <ScaleDecorator>
@@ -672,6 +776,8 @@ export default function TasksScreen() {
   const [selectMode, setSelectMode]         = useState(false);
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId]       = useState<string | null>(null);
+  const [sortBy, setSortBy]                 = useState<SortBy>("priority");
+  const [grouped, setGrouped]               = useState(true);
   const addInputRef    = useRef<TextInput | null>(null);
   const scrollViewRef  = useRef<RNScrollView>(null);
   const taskYPositions = useRef<Record<string, number>>({});
@@ -715,11 +821,12 @@ export default function TasksScreen() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const handleAdd = useCallback((title: string, due_date?: string) => {
+  const handleAdd = useCallback((title: string, due_date?: string, category?: TaskCategory, uniCourse?: UniCourse) => {
     const id = addTask(title, due_date);
+    if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
     setExpandedId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [addTask]);
+  }, [addTask, updateTask]);
 
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -771,7 +878,7 @@ export default function TasksScreen() {
   const open      = tasks.filter(t => !t.done);
   const focusTasks = [...overdue, ...today];
 
-  const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY };
+  const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy };
 
   // Sync pill: show while syncing, then show "Synced ✓" for 2s
   const [pillText, setPillText] = useState<string | null>(null);
@@ -867,10 +974,40 @@ export default function TasksScreen() {
           <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} />
 
           <SearchBar value={search} onChange={setSearch} placeholder="Search tasks…" />
-          <View style={{ flexDirection: "row", gap: spacing[1.5], flexWrap: "wrap", marginBottom: spacing[4] }}>
+          <View style={{ flexDirection: "row", gap: spacing[1.5], flexWrap: "wrap", marginBottom: spacing[3] }}>
             {(Object.entries(PRIORITY_CONFIG) as [Priority, { label: string; color: string }][]).map(([key, cfg]) => (
               <Chip key={key} label={cfg.label} color={cfg.color} active={filterPriority === key}
                 onPress={() => setFilterPriority(p => p === key ? null : key)} />
+            ))}
+          </View>
+
+          {/* Sort / Group bar */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap", marginBottom: spacing[4] }}>
+            <Pressable
+              onPress={() => setGrouped(v => !v)}
+              style={{
+                paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                borderRadius: radius.sm, borderWidth: 1,
+                borderColor: colors.bgBorder, backgroundColor: colors.bgTertiary,
+                flexDirection: "row", alignItems: "center", gap: 4,
+              }}
+            >
+              <Text size="xs" style={{ color: colors.textSecondary }}>{grouped ? "⊟ Ungroup" : "⊞ Group"}</Text>
+            </Pressable>
+            <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
+            {([["priority", "Priority"], ["due_date", "Due date"], ["title", "A–Z"], ["created", "Added"]] as [SortBy, string][]).map(([key, label]) => (
+              <Pressable
+                key={key}
+                onPress={() => setSortBy(key)}
+                style={{
+                  paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                  borderRadius: radius.sm, borderWidth: 1,
+                  borderColor: sortBy === key ? colors.accent : colors.bgBorder,
+                  backgroundColor: sortBy === key ? `${colors.accent}15` : "transparent",
+                }}
+              >
+                <Text size="xs" style={{ color: sortBy === key ? colors.accent : colors.textSecondary }}>{label}</Text>
+              </Pressable>
             ))}
           </View>
 
@@ -882,6 +1019,18 @@ export default function TasksScreen() {
             )
           ) : tasks.length === 0 ? (
             <EmptyState type="tasks" title="No tasks yet" subtitle={'Tap the field above or press "N" to add your first task.'} />
+          ) : !grouped ? (
+            <>
+              <Section
+                label={`All tasks · ${visible.filter(t => !t.done).length}`}
+                tasks={applySort(visible.filter(t => !t.done), sortBy)}
+                {...sectionProps}
+                sortBy="created"
+              />
+              {done.length > 0 && (
+                <Section label="Completed" tasks={done} {...sectionProps} sortBy="created" />
+              )}
+            </>
           ) : (
             <>
               {overdue.length > 0 && <Section label="Overdue" tasks={overdue} {...sectionProps} />}
