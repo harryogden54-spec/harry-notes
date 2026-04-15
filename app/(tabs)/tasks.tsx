@@ -7,7 +7,7 @@ import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanim
 import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
@@ -555,7 +555,7 @@ function AddTaskRow({ onAdd, inputRef }: {
   const [quickCat, setQuickCat]         = useState<TaskCategory | undefined>();
   const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
 
-  const showOptions = focused || value.length > 0;
+  const showOptions = focused || value.length > 0 || !!quickDate || !!quickCat;
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
   const nextWeek = getNextWeekStr();
@@ -983,18 +983,22 @@ export default function TasksScreen() {
 
           {/* Sort / Group bar */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap", marginBottom: spacing[4] }}>
-            <Pressable
-              onPress={() => setGrouped(v => !v)}
-              style={{
-                paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                borderRadius: radius.sm, borderWidth: 1,
-                borderColor: colors.bgBorder, backgroundColor: colors.bgTertiary,
-                flexDirection: "row", alignItems: "center", gap: 4,
-              }}
-            >
-              <Text size="xs" style={{ color: colors.textSecondary }}>{grouped ? "⊟ Ungroup" : "⊞ Group"}</Text>
-            </Pressable>
-            <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
+            {!focusMode && (
+              <>
+                <Pressable
+                  onPress={() => setGrouped(v => !v)}
+                  style={{
+                    paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                    borderRadius: radius.sm, borderWidth: 1,
+                    borderColor: colors.bgBorder, backgroundColor: colors.bgTertiary,
+                    flexDirection: "row", alignItems: "center", gap: 4,
+                  }}
+                >
+                  <Text size="xs" style={{ color: colors.textSecondary }}>{grouped ? "Grouped" : "Flat"}</Text>
+                </Pressable>
+                <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
+              </>
+            )}
             {([["priority", "Priority"], ["due_date", "Due date"], ["title", "A–Z"], ["created", "Added"]] as [SortBy, string][]).map(([key, label]) => (
               <Pressable
                 key={key}
@@ -1022,7 +1026,7 @@ export default function TasksScreen() {
           ) : !grouped ? (
             <>
               <Section
-                label={`All tasks · ${visible.filter(t => !t.done).length}`}
+                label="All tasks"
                 tasks={applySort(visible.filter(t => !t.done), sortBy)}
                 {...sectionProps}
                 sortBy="created"
