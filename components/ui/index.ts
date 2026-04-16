@@ -12,3 +12,5 @@ export { EmptyState }     from "./EmptyState";
 export { GlassCard }           from "./GlassCard";
 export { GradientBackground }  from "./GradientBackground";
 export { Skeleton }            from "./Skeleton";
+export { SectionHeader }       from "./SectionHeader";
+export { TaskRow }             from "./TaskRow";
