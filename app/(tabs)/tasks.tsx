@@ -227,7 +227,7 @@ function CategorySelector({ category, uniCourse, onChange }: {
         </Pressable>
       </View>
       {category === "uni" && (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
+        <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
           {UNI_COURSES.map(course => (
             <Pressable
               key={course}
@@ -658,7 +658,7 @@ function AddTaskRow({ onAdd, inputRef }: {
                     ))}
                   </View>
                   {quickCat === "uni" && (
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
+                    <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
                       {UNI_COURSES.map(course => (
                         <Pressable
                           key={course}
@@ -1039,7 +1039,7 @@ export default function TasksScreen() {
             <>
               {overdue.length > 0 && <Section label="Overdue" tasks={overdue} {...sectionProps} />}
               {today.length > 0   && <Section label="Today"   tasks={today}   {...sectionProps} />}
-              <Section label="Scheduled" tasks={scheduled} {...sectionProps} emptyMessage="No scheduled tasks" />
+              <Section label="Scheduled" tasks={scheduled} {...sectionProps} />
               <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
               {done.length > 0    && <Section label="Completed" tasks={done}  {...sectionProps} />}
             </>

@@ -64,7 +64,7 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
   warmEarth: {
     label: "Warm Earth",
     dark: {
-      bgPrimary: "#1C2B1E", bgSecondary: "#1A2235", bgTertiary: "#2D1B1B", bgBorder: "#3A2C2C",
+      bgPrimary: "#1C2B1E", bgSecondary: "#231A0F", bgTertiary: "#2D1B1B", bgBorder: "#3A2C2C",
       textPrimary: "#F0EAE0", textSecondary: "#C4A882", textTertiary: "#7A6050", textInverse: "#1C2B1E",
       accent: "#D2B48C", accentHover: "#E2C49C", accentSubtle: "#2C1C10",
       ...SEMANTIC_DARK,

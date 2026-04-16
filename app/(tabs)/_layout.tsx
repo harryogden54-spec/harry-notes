@@ -6,11 +6,11 @@ import { useTheme } from "@/lib/useTheme";
 import { radius, spacing } from "@/lib/theme";
 
 const NAV_ITEMS = [
-  { name: "index",  label: "Home",  icon: "⊞", path: "/(tabs)/" },
-  { name: "today",  label: "Today", icon: "☀", path: "/(tabs)/today" },
+  { name: "index",  label: "Home",  icon: "⌂", path: "/(tabs)/" },
+  { name: "today",  label: "Today", icon: "◎", path: "/(tabs)/today" },
   { name: "tasks",  label: "Tasks", icon: "✓", path: "/(tabs)/tasks" },
   { name: "lists",  label: "Lists", icon: "≡", path: "/(tabs)/lists" },
-  { name: "notes",  label: "Notes", icon: "✎", path: "/(tabs)/notes" },
+  { name: "notes",  label: "Notes", icon: "✦", path: "/(tabs)/notes" },
 ] as const;
 
 function TabIcon({ label, color }: { label: string; color: string }) {
@@ -43,7 +43,7 @@ function Sidebar() {
     <View style={{
       width: 220,
       height: "100%",
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.bgPrimary,
       borderRightWidth: 1,
       borderRightColor: colors.bgBorder,
       paddingTop: Platform.OS === "web" ? 24 : 48,
@@ -123,7 +123,7 @@ export default function TabLayout() {
   const { onTabPress } = useFadeTab();
   const { width } = useWindowDimensions();
 
-  const useSidebar = Platform.OS === "web" || width >= 768;
+  const useSidebar = width >= 768;
 
   if (useSidebar) {
     return (
@@ -163,12 +163,12 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: "Home",  tabBarIcon: ({ color }) => <TabIcon label="⊞" color={color} /> }}
+        options={{ title: "Home",  tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} /> }}
         listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="today"
-        options={{ title: "Today", tabBarIcon: ({ color }) => <TabIcon label="☀" color={color} /> }}
+        options={{ title: "Today", tabBarIcon: ({ color }) => <TabIcon label="◎" color={color} /> }}
         listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
@@ -183,7 +183,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="notes"
-        options={{ title: "Notes", tabBarIcon: ({ color }) => <TabIcon label="✎" color={color} /> }}
+        options={{ title: "Notes", tabBarIcon: ({ color }) => <TabIcon label="✦" color={color} /> }}
         listeners={{ tabPress: onTabPress }}
       />
     </Tabs>

@@ -20,7 +20,7 @@ export function GradientBackground({ children }: { children: React.ReactNode }) 
   const [from, to] = isDark ? entry.dark : entry.light;
 
   // Decorative blobs
-  const blobOpacity = isDark ? 0.07 : 0.12;
+  const blobOpacity = isDark ? 0.04 : 0.06;
 
   return (
     <View style={{ flex: 1 }}>
@@ -34,12 +34,12 @@ export function GradientBackground({ children }: { children: React.ReactNode }) 
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         <View style={{
           position: "absolute", top: -120, right: -80,
-          width: 350, height: 350, borderRadius: 175,
+          width: 240, height: 240, borderRadius: 120,
           backgroundColor: colors.accent, opacity: blobOpacity,
         }} />
         <View style={{
           position: "absolute", bottom: 40, left: -100,
-          width: 350, height: 350, borderRadius: 175,
+          width: 240, height: 240, borderRadius: 120,
           backgroundColor: colors.accentHover, opacity: blobOpacity * 0.7,
         }} />
       </View>

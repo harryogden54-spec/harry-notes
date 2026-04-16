@@ -134,14 +134,15 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingTop: spacing[4], paddingBottom: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginRight: spacing[3] }}>
-          <Text style={{ color: colors.accent, fontSize: 16 }}>✕</Text>
-        </Pressable>
-        <Text size="lg" weight="bold">Settings</Text>
-      </View>
+      <ScrollView contentContainerStyle={{ padding: spacing[4], paddingTop: spacing[4], ...webContentStyle }}>
 
-      <ScrollView contentContainerStyle={{ padding: spacing[4], paddingTop: spacing[6], ...webContentStyle }}>
+        {/* Header — matches tab page header style */}
+        <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginBottom: spacing[2] }}>
+            <Text size="sm" style={{ color: colors.accent }}>‹ Back</Text>
+          </Pressable>
+          <Text size="2xl" weight="bold">Settings</Text>
+        </View>
 
         <Section title="Appearance">
           <SettingRow
@@ -194,19 +195,22 @@ export default function SettingsScreen() {
                 subtitle={ACCENT_OPTIONS.find(a => a.id === accentId)?.label}
                 right={
                   <View style={{ flexDirection: "row", gap: spacing[2] }}>
-                    {ACCENT_OPTIONS.map(opt => (
-                      <Pressable
-                        key={opt.id}
-                        onPress={() => setAccentId(opt.id)}
-                        style={{
-                          width: 24, height: 24, borderRadius: 99,
-                          backgroundColor: opt.color,
-                          borderWidth: accentId === opt.id ? 2 : 0,
-                          borderColor: "#fff",
-                          transform: [{ scale: accentId === opt.id ? 1.2 : 1 }],
-                        }}
-                      />
-                    ))}
+                    {ACCENT_OPTIONS.map(opt => {
+                      const active = colors.accent === opt.color;
+                      return (
+                        <Pressable
+                          key={opt.id}
+                          onPress={() => setAccentId(opt.id)}
+                          style={{
+                            width: 24, height: 24, borderRadius: 99,
+                            backgroundColor: opt.color,
+                            borderWidth: active ? 2 : 0,
+                            borderColor: active ? "#fff" : "transparent",
+                            transform: [{ scale: active ? 1.2 : 1 }],
+                          }}
+                        />
+                      );
+                    })}
                   </View>
                 }
               />

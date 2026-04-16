@@ -23,7 +23,7 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
   const br = (style as any)?.borderRadius ?? radius.xl;
 
   const borderColor = isDark
-    ? "rgba(255,255,255,0.10)"
+    ? (Platform.OS === "web" ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.10)")
     : "rgba(255,255,255,0.80)";
 
   const overlayColor = isDark
@@ -33,16 +33,16 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
   const elevatedShadow: ViewStyle = {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.20,
-    shadowRadius: 16,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 8,
   };
 
   const defaultShadow: ViewStyle = {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 3,
   };
 
@@ -71,7 +71,7 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
           variantBorder,
           style,
           // @ts-ignore — web-only CSS properties
-          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" },
+          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" },
         ]}
       >
         {children}

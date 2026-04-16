@@ -706,6 +706,10 @@ export default function DashboardScreen() {
   const openTasks = tasks
     .filter(t => !t.done)
     .sort((a, b) => {
+      const aOverdue = !!a.due_date && a.due_date < today;
+      const bOverdue = !!b.due_date && b.due_date < today;
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
       const aDate = a.due_date ?? "9999-99-99";
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
@@ -841,6 +845,13 @@ export default function DashboardScreen() {
                   <EmptyState type="tasks" title="All clear" subtitle="No open tasks — enjoy the moment." />
                 ) : (
                   <GlassCard style={{ overflow: "hidden" }}>
+                    {overdueCount > 0 && (
+                      <View style={{ paddingHorizontal: spacing[3], paddingTop: spacing[3], paddingBottom: spacing[1] }}>
+                        <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.danger, fontWeight: "600", textTransform: "uppercase" }}>
+                          Overdue
+                        </Text>
+                      </View>
+                    )}
                     {openTasks.slice(0, 8).map((task, i) => (
                       <View
                         key={task.id}
