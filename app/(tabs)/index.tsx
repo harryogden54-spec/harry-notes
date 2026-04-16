@@ -9,6 +9,7 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, SearchBar, EmptyState, GlassCard, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { useTasks, type Task, type Priority } from "@/lib/TasksContext";
 import { useLists, type NoteList } from "@/lib/ListsContext";
 import { useNotes, type Note } from "@/lib/NotesContext";
@@ -815,7 +816,7 @@ export default function DashboardScreen() {
               )}
             </View>
             <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1], marginTop: spacing[1] }}>
-              <Text style={{ fontSize: 20, color: colors.textSecondary, lineHeight: 24 }}>⚙</Text>
+              <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
 
@@ -991,7 +992,7 @@ export default function DashboardScreen() {
             alignItems: "center", justifyContent: "center",
           }}
         >
-          <Text style={{ color: colors.textSecondary, fontSize: 18, lineHeight: 24 }}>✎</Text>
+          <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
         </Pressable>
         {/* Task FAB */}
         <Pressable
@@ -1002,7 +1003,7 @@ export default function DashboardScreen() {
             alignItems: "center", justifyContent: "center",
           }}
         >
-          <Text style={{ color: "#fff", fontSize: 24, lineHeight: 28, marginTop: -2 }}>+</Text>
+          <Ionicons name="add" size={26} color="#fff" />
         </Pressable>
       </View>
 

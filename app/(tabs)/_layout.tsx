@@ -1,20 +1,36 @@
 import React, { useRef, useCallback } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
 import { Platform, Text, Animated, View, Pressable, useWindowDimensions } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { radius, spacing, fontFamily } from "@/lib/theme";
 
-const NAV_ITEMS = [
-  { name: "index",  label: "Home",  icon: "⌂", path: "/(tabs)/" },
-  { name: "today",  label: "Today", icon: "◎", path: "/(tabs)/today" },
-  { name: "tasks",  label: "Tasks", icon: "✓", path: "/(tabs)/tasks" },
-  { name: "lists",  label: "Lists", icon: "≡", path: "/(tabs)/lists" },
-  { name: "notes",  label: "Notes", icon: "✦", path: "/(tabs)/notes" },
-] as const;
+type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
-function TabIcon({ label, color }: { label: string; color: string }) {
-  return <Text style={{ fontSize: 20, color, lineHeight: 24 }}>{label}</Text>;
+type NavItem = {
+  name: string;
+  label: string;
+  iconOutline: IoniconName;
+  iconFilled: IoniconName;
+  path: string;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { name: "index",  label: "Home",  iconOutline: "home-outline",          iconFilled: "home",          path: "/(tabs)/" },
+  { name: "today",  label: "Today", iconOutline: "today-outline",         iconFilled: "today",         path: "/(tabs)/today" },
+  { name: "tasks",  label: "Tasks", iconOutline: "checkbox-outline",      iconFilled: "checkbox",      path: "/(tabs)/tasks" },
+  { name: "lists",  label: "Lists", iconOutline: "list-outline",          iconFilled: "list",          path: "/(tabs)/lists" },
+  { name: "notes",  label: "Notes", iconOutline: "document-text-outline", iconFilled: "document-text", path: "/(tabs)/notes" },
+];
+
+function TabIcon({ focused, color, iconOutline, iconFilled }: {
+  focused: boolean;
+  color: string;
+  iconOutline: IoniconName;
+  iconFilled: IoniconName;
+}) {
+  return <Ionicons name={focused ? iconFilled : iconOutline} size={22} color={color} />;
 }
 
 function useFadeTab() {
@@ -79,12 +95,11 @@ function Sidebar() {
                   backgroundColor: active ? `${colors.accent}20` : "transparent",
                 }}
               >
-                <Text style={{
-                  fontSize: 16, lineHeight: 22,
-                  color: active ? colors.accent : colors.textSecondary,
-                }}>
-                  {item.icon}
-                </Text>
+                <Ionicons
+                  name={active ? item.iconFilled : item.iconOutline}
+                  size={20}
+                  color={active ? colors.accent : colors.textSecondary}
+                />
                 <Text style={{
                   fontSize: 14, fontFamily: active ? fontFamily.semibold : fontFamily.regular,
                   color: active ? colors.accent : colors.textSecondary,
@@ -109,8 +124,8 @@ function Sidebar() {
           borderRadius: radius.lg,
         }}
       >
-        <Text style={{ fontSize: 16, lineHeight: 22, color: colors.textTertiary }}>⚙</Text>
-        <Text style={{ fontSize: 14, color: colors.textTertiary }}>Settings</Text>
+        <Ionicons name="settings-outline" size={20} color={colors.textTertiary} />
+        <Text style={{ fontSize: 14, fontFamily: fontFamily.regular, color: colors.textTertiary }}>Settings</Text>
       </Pressable>
     </View>
   );
@@ -163,27 +178,27 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: "Home",  tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} /> }}
+        options={{ title: "Home",  tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="home-outline" iconFilled="home" /> }}
         listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="today"
-        options={{ title: "Today", tabBarIcon: ({ color }) => <TabIcon label="◎" color={color} /> }}
+        options={{ title: "Today", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="today-outline" iconFilled="today" /> }}
         listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="tasks"
-        options={{ title: "Tasks", tabBarIcon: ({ color }) => <TabIcon label="✓" color={color} /> }}
+        options={{ title: "Tasks", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="checkbox-outline" iconFilled="checkbox" /> }}
         listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="lists"
-        options={{ title: "Lists", tabBarIcon: ({ color }) => <TabIcon label="≡" color={color} /> }}
+        options={{ title: "Lists", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="list-outline" iconFilled="list" /> }}
         listeners={{ tabPress: onTabPress }}
       />
       <Tabs.Screen
         name="notes"
-        options={{ title: "Notes", tabBarIcon: ({ color }) => <TabIcon label="✦" color={color} /> }}
+        options={{ title: "Notes", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="document-text-outline" iconFilled="document-text" /> }}
         listeners={{ tabPress: onTabPress }}
       />
     </Tabs>

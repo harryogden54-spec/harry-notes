@@ -9,6 +9,7 @@ import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider } from "@/components/ui";
+import { Ionicons } from "@expo/vector-icons";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 
@@ -138,8 +139,9 @@ export default function SettingsScreen() {
 
         {/* Header — matches tab page header style */}
         <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginBottom: spacing[2] }}>
-            <Text size="sm" style={{ color: colors.accent }}>‹ Back</Text>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginBottom: spacing[2], flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" }}>
+            <Ionicons name="chevron-back" size={16} color={colors.accent} />
+            <Text size="sm" style={{ color: colors.accent }}>Back</Text>
           </Pressable>
           <Text size="2xl" weight="bold">Settings</Text>
         </View>
