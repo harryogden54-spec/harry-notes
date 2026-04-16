@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Pressable, TextInput } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr } from "@/lib/utils";
+
+const SHEET_HEIGHT = 260;
 
 interface Props {
   visible: boolean;
@@ -18,6 +21,13 @@ export function QuickAddSheet({ visible, onClose, onAdd }: Props) {
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
 
+  const translateY = useSharedValue(SHEET_HEIGHT);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
+
+  useEffect(() => {
+    translateY.value = withSpring(visible ? 0 : SHEET_HEIGHT, { damping: 22, stiffness: 260 });
+  }, [visible]);
+
   function submit() {
     const t = title.trim();
     if (!t) return;
@@ -28,17 +38,15 @@ export function QuickAddSheet({ visible, onClose, onAdd }: Props) {
     onClose();
   }
 
-  if (!visible) return null;
-
   return (
-    <View style={{
+    <Animated.View style={[animatedStyle, {
       position: "absolute", left: 0, right: 0, bottom: 0,
       backgroundColor: colors.bgSecondary,
       borderTopWidth: 1, borderTopColor: colors.bgBorder,
       borderTopLeftRadius: radius["2xl"], borderTopRightRadius: radius["2xl"],
       padding: spacing[5],
       gap: spacing[4],
-    }}>
+    }]}>
       <View style={{ width: 36, height: 4, borderRadius: 99, backgroundColor: colors.bgBorder, alignSelf: "center", marginBottom: spacing[1] }} />
       <Text size="base" weight="semibold">Quick add task</Text>
       <TextInput
@@ -47,7 +55,7 @@ export function QuickAddSheet({ visible, onClose, onAdd }: Props) {
         onSubmitEditing={submit}
         placeholder="Task title…"
         placeholderTextColor={colors.textTertiary}
-        autoFocus
+        autoFocus={visible}
         returnKeyType="done"
         style={[
           {
@@ -94,6 +102,6 @@ export function QuickAddSheet({ visible, onClose, onAdd }: Props) {
           Add task
         </Text>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }

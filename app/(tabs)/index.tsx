@@ -365,16 +365,10 @@ export default function DashboardScreen() {
       </View>
 
       {/* ── Quick-add sheets ─────────────────────────────────────────────────── */}
-      {(showTaskSheet || showNoteSheet) && (
-        <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20 }} pointerEvents="box-none">
-          {showTaskSheet && (
-            <QuickAddSheet visible={showTaskSheet} onClose={() => setShowTaskSheet(false)} onAdd={handleQuickAddTask} />
-          )}
-          {showNoteSheet && (
-            <QuickAddNoteSheet visible={showNoteSheet} onClose={() => setShowNoteSheet(false)} onAdd={handleQuickAddNote} />
-          )}
-        </View>
-      )}
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 20 }} pointerEvents="box-none">
+        <QuickAddSheet visible={showTaskSheet} onClose={() => setShowTaskSheet(false)} onAdd={handleQuickAddTask} />
+        <QuickAddNoteSheet visible={showNoteSheet} onClose={() => setShowNoteSheet(false)} onAdd={handleQuickAddNote} />
+      </View>
 
       {/* ── Sticky note edit modal ────────────────────────────────────────────── */}
       <StickyNoteModal note={editingNote} visible={!!editingNote} onClose={() => setEditingNote(null)} />
