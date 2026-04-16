@@ -3,6 +3,7 @@ import {
   View, ScrollView, SafeAreaView, Pressable,
   Platform, KeyboardAvoidingView, TextInput, RefreshControl,
 } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
@@ -52,6 +53,11 @@ export default function DashboardScreen() {
   const tomorrow               = getTomorrowStr();
   const now                    = new Date();
   const [calSelected, setCalSelected] = useState(today);
+
+  const noteFabScale = useSharedValue(1);
+  const taskFabScale = useSharedValue(1);
+  const noteFabStyle = useAnimatedStyle(() => ({ transform: [{ scale: noteFabScale.value }] }));
+  const taskFabStyle = useAnimatedStyle(() => ({ transform: [{ scale: taskFabScale.value }] }));
 
   const openTasks = tasks
     .filter(t => !t.done)
@@ -331,24 +337,30 @@ export default function DashboardScreen() {
       >
         <Pressable
           onPress={() => { setShowNoteSheet(true); setShowTaskSheet(false); }}
-          style={{
+          onPressIn={() => { noteFabScale.value = withSpring(0.9, { damping: 20, stiffness: 300 }); }}
+          onPressOut={() => { noteFabScale.value = withSpring(1.0, { damping: 20, stiffness: 300 }); }}
+        >
+          <Animated.View style={[noteFabStyle, {
             width: 44, height: 44, borderRadius: 22,
             backgroundColor: colors.bgSecondary,
             borderWidth: 1, borderColor: colors.bgBorder,
             alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+          }]}>
+            <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+          </Animated.View>
         </Pressable>
         <Pressable
           onPress={() => { setShowTaskSheet(true); setShowNoteSheet(false); }}
-          style={{
+          onPressIn={() => { taskFabScale.value = withSpring(0.9, { damping: 20, stiffness: 300 }); }}
+          onPressOut={() => { taskFabScale.value = withSpring(1.0, { damping: 20, stiffness: 300 }); }}
+        >
+          <Animated.View style={[taskFabStyle, {
             width: 52, height: 52, borderRadius: 26,
             backgroundColor: colors.accent,
             alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <Ionicons name="add" size={26} color="#fff" />
+          }]}>
+            <Ionicons name="add" size={26} color="#fff" />
+          </Animated.View>
         </Pressable>
       </View>
 
