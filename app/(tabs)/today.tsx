@@ -6,7 +6,7 @@ import {
 import * as Haptics from "expo-haptics";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/lib/useTheme";
-import { Text, GlassCard, GradientBackground } from "@/components/ui";
+import { Text, Surface, GradientBackground } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
@@ -161,7 +161,7 @@ export default function TodayScreen() {
           {/* Carryover modal */}
           <Modal visible={showCarryover} transparent animationType="fade" onRequestClose={() => setShowCarryover(false)}>
             <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing[6] }}>
-              <GlassCard style={{ padding: spacing[5], gap: spacing[4] }}>
+              <Surface style={{ padding: spacing[5], gap: spacing[4] }}>
                 <Text size="lg" weight="bold">Yesterday's unfinished items</Text>
                 <Text size="sm" secondary>
                   You had {carryover.length} unfinished item{carryover.length !== 1 ? "s" : ""} yesterday. Bring them forward?
@@ -189,7 +189,7 @@ export default function TodayScreen() {
                     <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Yes, bring forward</Text>
                   </Pressable>
                 </View>
-              </GlassCard>
+              </Surface>
             </View>
           </Modal>
 
@@ -213,7 +213,7 @@ export default function TodayScreen() {
             </View>
 
             {/* Add input */}
-            <GlassCard style={{ marginBottom: spacing[4], padding: 0, overflow: "hidden" }}>
+            <Surface style={{ marginBottom: spacing[4], padding: 0, overflow: "hidden" }}>
               <View style={{
                 flexDirection: "row", alignItems: "center",
                 paddingHorizontal: spacing[4], paddingVertical: spacing[3],
@@ -247,7 +247,7 @@ export default function TodayScreen() {
                   </Pressable>
                 )}
               </View>
-            </GlassCard>
+            </Surface>
 
             {/* Empty state */}
             {items.length === 0 && (
@@ -277,7 +277,7 @@ export default function TodayScreen() {
                 }}>
                   TO DO · {active.length}
                 </Text>
-                <GlassCard style={{ overflow: "hidden", padding: 0 }}>
+                <Surface style={{ overflow: "hidden", padding: 0 }}>
                   <DraggableFlatList
                     data={active}
                     keyExtractor={i => i.id}
@@ -288,7 +288,7 @@ export default function TodayScreen() {
                     scrollEnabled={false}
                     activationDistance={Platform.OS === "web" ? 999 : 12}
                   />
-                </GlassCard>
+                </Surface>
               </View>
             )}
 
@@ -302,7 +302,7 @@ export default function TodayScreen() {
                 }}>
                   DONE · {completed.length}
                 </Text>
-                <GlassCard style={{ overflow: "hidden", padding: 0 }}>
+                <Surface style={{ overflow: "hidden", padding: 0 }}>
                   {completed.map((item, i) => (
                     <CompletedRow
                       key={item.id}
@@ -312,7 +312,7 @@ export default function TodayScreen() {
                       isLast={i === completed.length - 1}
                     />
                   ))}
-                </GlassCard>
+                </Surface>
               </View>
             )}
           </ScrollView>

@@ -14,3 +14,4 @@ export { GradientBackground }  from "./GradientBackground";
 export { Skeleton }            from "./Skeleton";
 export { SectionHeader }       from "./SectionHeader";
 export { TaskRow }             from "./TaskRow";
+export { Surface }             from "./Surface";

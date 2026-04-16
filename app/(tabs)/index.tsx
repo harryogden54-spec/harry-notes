@@ -7,7 +7,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { Text, SearchBar, EmptyState, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
+import { Text, SearchBar, EmptyState, Surface, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
@@ -185,15 +185,15 @@ export default function DashboardScreen() {
               <View style={{ marginTop: spacing[4], marginBottom: spacing[5] }}>
                 <SectionHeader label="Tasks" count={tasksLoaded ? openTasks.length : undefined} action={{ label: "See all", onPress: handleGoToTasks }} />
                 {!tasksLoaded ? (
-                  <GlassCard style={{ padding: spacing[4], gap: spacing[3] }}>
+                  <Surface style={{ padding: spacing[4], gap: spacing[3] }}>
                     <Skeleton height={16} borderRadius={6} />
                     <Skeleton height={16} borderRadius={6} width="80%" />
                     <Skeleton height={16} borderRadius={6} width="65%" />
-                  </GlassCard>
+                  </Surface>
                 ) : openTasks.length === 0 ? (
                   <EmptyState type="tasks" title="All clear" subtitle="No open tasks — enjoy the moment." />
                 ) : (
-                  <GlassCard style={{ overflow: "hidden" }}>
+                  <Surface style={{ overflow: "hidden" }}>
                     {overdueCount > 0 && (
                       <View style={{ paddingHorizontal: spacing[3], paddingTop: spacing[3], paddingBottom: spacing[1] }}>
                         <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.danger, fontFamily: fontFamily.semibold, textTransform: "uppercase" }}>
@@ -214,7 +214,7 @@ export default function DashboardScreen() {
                         <Text size="xs" style={{ color: colors.accent }}>{openTasks.length - 8} more tasks</Text>
                       </Pressable>
                     )}
-                  </GlassCard>
+                  </Surface>
                 )}
               </View>
 
@@ -245,13 +245,13 @@ export default function DashboardScreen() {
                       <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
                         {label} · {dayTasks.length}
                       </Text>
-                      <GlassCard style={{ overflow: "hidden" }}>
+                      <Surface style={{ overflow: "hidden" }}>
                         {dayTasks.map((task, i) => (
                           <View key={task.id} style={i === dayTasks.length - 1 ? { borderBottomWidth: 0 } : undefined}>
                             <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
                           </View>
                         ))}
-                      </GlassCard>
+                      </Surface>
                     </View>
                   );
                 })()}
@@ -290,7 +290,7 @@ export default function DashboardScreen() {
                 <View style={{ marginBottom: spacing[5] }}>
                   <SectionHeader label="Recent note" action={{ label: "All notes", onPress: () => router.push("/(tabs)/notes") }} />
                   <Pressable onPress={() => router.push(`/(tabs)/notes?openId=${recentNote.id}` as any)}>
-                    <GlassCard style={{ padding: spacing[4], gap: spacing[2] }}>
+                    <Surface style={{ padding: spacing[4], gap: spacing[2] }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
                         {recentNote.pinned && <Text size="xs" style={{ color: colors.accent }}>📌</Text>}
                         <Text size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
@@ -315,7 +315,7 @@ export default function DashboardScreen() {
                         </Text>
                       )}
                       <Text size="xs" style={{ color: colors.accent, marginTop: spacing[1] }}>→ Open</Text>
-                    </GlassCard>
+                    </Surface>
                   </Pressable>
                 </View>
               )}

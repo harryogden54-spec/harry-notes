@@ -10,7 +10,7 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-
 import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
-import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
+import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, Surface, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
@@ -415,7 +415,7 @@ function TaskItem({
       overshootRight={false}
       friction={2}
     >
-      <GlassCard
+      <Surface
         // @ts-ignore
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -428,7 +428,6 @@ function TaskItem({
           marginBottom: spacing[2],
           opacity: selected ? 0.85 : 1,
         }}
-        intensity={22}
       >
         {/* Header row */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], padding: spacing[3] }}>
@@ -536,7 +535,7 @@ function TaskItem({
             </View>
           </Animated.View>
         )}
-      </GlassCard>
+      </Surface>
     </Swipeable>
     </View>
   );
@@ -578,10 +577,9 @@ function AddTaskRow({ onAdd, inputRef }: {
   ];
 
   return (
-    <GlassCard
+    <Surface
       variant="elevated"
       style={{ borderColor: focused ? colors.accent : undefined, marginBottom: spacing[4] }}
-      intensity={22}
     >
       <View style={{ paddingVertical: spacing[2] + 2, paddingHorizontal: spacing[3], gap: spacing[2] }}>
         {/* Main input row */}
@@ -681,7 +679,7 @@ function AddTaskRow({ onAdd, inputRef }: {
           </Animated.View>
         )}
       </View>
-    </GlassCard>
+    </Surface>
   );
 }
 
@@ -741,11 +739,11 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
       </Pressable>
       {!collapsed && (
         tasks.length === 0 && emptyMessage ? (
-          <GlassCard style={{ borderRadius: radius.lg }} intensity={16}>
+          <Surface>
             <View style={{ padding: spacing[5], alignItems: "center" }}>
               <Text size="sm" secondary>{emptyMessage}</Text>
             </View>
-          </GlassCard>
+          </Surface>
         ) : (
           <DraggableFlatList
             data={sorted}
