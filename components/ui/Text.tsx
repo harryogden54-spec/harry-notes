@@ -1,7 +1,7 @@
 import React from "react";
-import { Text as RNText, TextProps, StyleSheet } from "react-native";
+import { Text as RNText, TextProps } from "react-native";
 import { useTheme } from "@/lib/useTheme";
-import { typography } from "@/lib/theme";
+import { typography, fontFamily } from "@/lib/theme";
 
 type Size = keyof typeof typography;
 type Weight = "regular" | "medium" | "semibold" | "bold";
@@ -14,11 +14,11 @@ interface Props extends TextProps {
   tertiary?: boolean;
 }
 
-const fontWeightMap: Record<Weight, "400" | "500" | "600" | "700"> = {
-  regular:  "400",
-  medium:   "500",
-  semibold: "600",
-  bold:     "700",
+const fontFamilyMap: Record<Weight, string> = {
+  regular:  fontFamily.regular,
+  medium:   fontFamily.medium,
+  semibold: fontFamily.semibold,
+  bold:     fontFamily.bold,
 };
 
 export function Text({
@@ -40,7 +40,7 @@ export function Text({
       style={[
         {
           ...typography[size],
-          fontWeight: fontWeightMap[weight],
+          fontFamily: fontFamilyMap[weight],
           color: textColor,
         },
         style,

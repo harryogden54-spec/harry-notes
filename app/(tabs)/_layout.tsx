@@ -3,7 +3,7 @@ import { Tabs, useRouter, usePathname } from "expo-router";
 import { Platform, Text, Animated, View, Pressable, useWindowDimensions } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { radius, spacing } from "@/lib/theme";
+import { radius, spacing, fontFamily } from "@/lib/theme";
 
 const NAV_ITEMS = [
   { name: "index",  label: "Home",  icon: "⌂", path: "/(tabs)/" },
@@ -54,7 +54,7 @@ function Sidebar() {
       {/* App name */}
       <View>
         <Text style={{
-          fontSize: 28, fontWeight: "800",
+          fontSize: 28, fontFamily: fontFamily.bold,
           color: colors.textPrimary, letterSpacing: -1,
           marginBottom: spacing[6], paddingHorizontal: spacing[2],
         }}>
@@ -86,7 +86,7 @@ function Sidebar() {
                   {item.icon}
                 </Text>
                 <Text style={{
-                  fontSize: 14, fontWeight: active ? "600" : "400",
+                  fontSize: 14, fontFamily: active ? fontFamily.semibold : fontFamily.regular,
                   color: active ? colors.accent : colors.textSecondary,
                 }}>
                   {item.label}
@@ -157,7 +157,7 @@ export default function TabLayout() {
           height: Platform.OS === "ios" ? 84 : 64,
           paddingBottom: Platform.OS === "ios" ? 24 : 8,
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "500", marginTop: -2 },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: fontFamily.medium, marginTop: -2 },
         headerShown: false,
       }}
     >

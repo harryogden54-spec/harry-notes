@@ -8,7 +8,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, SearchBar, EmptyState, GlassCard, GradientBackground, Skeleton } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks, type Task, type Priority } from "@/lib/TasksContext";
 import { useLists, type NoteList } from "@/lib/ListsContext";
 import { useNotes, type Note } from "@/lib/NotesContext";
@@ -74,7 +74,7 @@ function SectionHeader({ label, count, subtitle, action }: {
     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
       <Text style={{
         fontSize: 11, letterSpacing: 1.2,
-        color: colors.textSecondary, fontWeight: "600",
+        color: colors.textSecondary, fontFamily: fontFamily.semibold,
         textTransform: "uppercase", flex: 1,
       }}>
         {label}{count !== undefined ? ` · ${count}` : ""}
@@ -629,7 +629,7 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
     <View>
       {matchTasks.length > 0 && (
         <View style={{ marginBottom: spacing[5] }}>
-          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
             Tasks · {matchTasks.length}
           </Text>
           <GlassCard style={{ overflow: "hidden" }}>
@@ -643,7 +643,7 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
       )}
       {matchNotes.length > 0 && (
         <View style={{ marginBottom: spacing[5] }}>
-          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
             Notes · {matchNotes.length}
           </Text>
           {matchNotes.map(n => {
@@ -661,7 +661,7 @@ function SearchResults({ tasks, lists, notes, query, onTaskPress }: {
       )}
       {matchLists.length > 0 && (
         <View>
-          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
+          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
             Lists · {matchLists.length}
           </Text>
           {matchLists.map(l => {
@@ -847,7 +847,7 @@ export default function DashboardScreen() {
                   <GlassCard style={{ overflow: "hidden" }}>
                     {overdueCount > 0 && (
                       <View style={{ paddingHorizontal: spacing[3], paddingTop: spacing[3], paddingBottom: spacing[1] }}>
-                        <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.danger, fontWeight: "600", textTransform: "uppercase" }}>
+                        <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.danger, fontFamily: fontFamily.semibold, textTransform: "uppercase" }}>
                           Overdue
                         </Text>
                       </View>
@@ -894,7 +894,7 @@ export default function DashboardScreen() {
                   if (dayTasks.length === 0) return null;
                   return (
                     <View style={{ marginBottom: spacing[4] }}>
-                      <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[2] }}>
+                      <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
                         {calSelected === today ? "Today" : calSelected === tomorrow ? "Tomorrow" : new Date(calSelected + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · {dayTasks.length}
                       </Text>
                       <GlassCard style={{ overflow: "hidden" }}>

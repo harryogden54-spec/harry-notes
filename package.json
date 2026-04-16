@@ -10,6 +10,7 @@
     "deploy": "expo export --platform web && npx wrangler pages deploy dist --project-name harry-notes --commit-dirty=true --branch=main"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/native": "^7.1.8",

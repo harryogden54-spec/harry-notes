@@ -11,7 +11,7 @@ import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useLists, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
@@ -414,7 +414,7 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
               </Pressable>
               {editingName ? (
                 <TextInput value={nameVal} onChangeText={setNameVal} autoFocus onBlur={saveName} onSubmitEditing={saveName}
-                  style={[{ flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
+                  style={[{ flex: 1, color: colors.textPrimary, fontSize: 15, fontFamily: fontFamily.semibold },
                   // @ts-ignore
                   { outlineStyle: "none" }]} />
               ) : (

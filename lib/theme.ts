@@ -206,3 +206,12 @@ export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
 export function getColors(scheme: ColorScheme) {
   return scheme === "dark" ? colors : { ...colors, ...lightColors };
 }
+
+// ─── Font families ────────────────────────────────────────────────────────────
+
+export const fontFamily = {
+  regular:  "Inter_400Regular",
+  medium:   "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold:     "Inter_700Bold",
+} as const;

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Pressable } from "react-native";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
@@ -110,7 +110,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
                       : isPast
                       ? colors.textTertiary
                       : colors.textPrimary,
-                    fontWeight: isToday ? "700" : "400",
+                    fontFamily: isToday ? fontFamily.bold : fontFamily.regular,
                   }}
                 >
                   {day}

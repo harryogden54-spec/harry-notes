@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useNotes, type Note } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
@@ -109,7 +109,7 @@ function MarkdownToolbar({ body, selRef, onApply }: {
             size="sm"
             style={{
               color: colors.textSecondary,
-              fontWeight: t.bold ? "700" : "400",
+              fontFamily: t.bold ? fontFamily.bold : fontFamily.regular,
               fontStyle: t.italic ? "italic" : "normal",
             }}
           >
@@ -183,7 +183,7 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
             returnKeyType="next"
             onSubmitEditing={() => bodyRef.current?.focus()}
             style={[
-              { color: colors.textPrimary, fontSize: 22, fontWeight: "700", lineHeight: 30, marginBottom: spacing[2] },
+              { color: colors.textPrimary, fontSize: 22, fontFamily: fontFamily.bold, lineHeight: 30, marginBottom: spacing[2] },
               // @ts-ignore
               { outlineStyle: "none" },
             ]}
@@ -439,7 +439,7 @@ export default function NotesScreen() {
         {/* ── Sticky notes grid ─────────────────────────────────────────── */}
         {stickyNotes.length > 0 && (
           <View style={{ marginBottom: spacing[6] }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontWeight: "600", textTransform: "uppercase", marginBottom: spacing[3] }}>
+            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[3] }}>
               QUICK NOTES · {stickyNotes.length}
             </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>

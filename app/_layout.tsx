@@ -7,6 +7,7 @@ import "../global.css";
 
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { initDb } from "@/lib/db";
 import { requestNotificationPermission, scheduleTaskReminders } from "@/lib/notifications";
 import { useTasks } from "@/lib/TasksContext";
@@ -29,15 +30,22 @@ SplashScreen.preventAutoHideAsync();
 function AppShell() {
   const { scheme } = useThemeContext();
   const { tasks, loaded: tasksLoaded } = useTasks();
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
+    if (!fontsLoaded) return;
     // Fire-and-forget: don't block render on DB init
     if (Platform.OS === "web") {
       SplashScreen.hideAsync();
       return;
     }
     initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
-  }, []);
+  }, [fontsLoaded]);
 
   // Request permission once on first load, then reschedule whenever tasks change
   useEffect(() => {

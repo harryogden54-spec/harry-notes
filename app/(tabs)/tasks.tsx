@@ -11,7 +11,7 @@ import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
@@ -484,7 +484,7 @@ function TaskItem({
                 onChangeText={title => updateTask(task.id, { title })}
                 multiline
                 style={[
-                  { color: colors.textPrimary, fontSize: 15, fontWeight: "600", lineHeight: 22 },
+                  { color: colors.textPrimary, fontSize: 15, fontFamily: fontFamily.semibold, lineHeight: 22 },
                   // @ts-ignore
                   { outlineStyle: "none" },
                 ]}
