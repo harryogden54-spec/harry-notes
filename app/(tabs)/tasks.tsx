@@ -15,12 +15,9 @@ import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
+import { getTodayStr, getTomorrowStr, getNextWeekStr } from "@/lib/utils";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-function getTodayStr()    { return new Date().toISOString().slice(0, 10); }
-function getTomorrowStr() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); }
-function getNextWeekStr() { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); }
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
   urgent: { label: "Urgent", color: "#F26464" },

@@ -12,6 +12,7 @@ import { webContentStyle } from "@/lib/webLayout";
 import { useNotes, type Note } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { useStickyNotes, STICKY_COLOURS, type StickyNote } from "@/lib/StickyNotesContext";
+import { stripMarkdown } from "@/lib/utils";
 
 function animate() {
   if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -27,21 +28,6 @@ function timeAgo(iso: string): string {
   if (hours < 24) return `${hours}h ago`;
   if (days < 30)  return `${days}d ago`;
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-// ─── Markdown preview strip ───────────────────────────────────────────────────
-
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/^#{1,6}\s+/gm, "")   // headings
-    .replace(/\*\*(.+?)\*\*/g, "$1") // bold
-    .replace(/\*(.+?)\*/g, "$1")    // italic *
-    .replace(/__(.+?)__/g, "$1")    // bold __
-    .replace(/_(.+?)_/g, "$1")      // italic _
-    .replace(/`(.+?)`/g, "$1")      // inline code
-    .replace(/^[-*]\s+/gm, "")      // bullets
-    .replace(/^---+$/gm, "")        // hr
-    .trim();
 }
 
 // ─── Markdown helpers ─────────────────────────────────────────────────────────
