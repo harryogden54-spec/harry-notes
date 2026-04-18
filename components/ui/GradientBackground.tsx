@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
@@ -13,14 +13,11 @@ const GRADIENTS: Record<string, { dark: [string, string]; light: [string, string
 };
 
 export function GradientBackground({ children }: { children: React.ReactNode }) {
-  const { isDark, colors } = useTheme();
+  const { isDark } = useTheme();
   const { themeId } = useThemeContext();
 
   const entry = GRADIENTS[themeId] ?? GRADIENTS.default;
   const [from, to] = isDark ? entry.dark : entry.light;
-
-  // Decorative blobs
-  const blobOpacity = isDark ? 0.04 : 0.06;
 
   return (
     <View style={{ flex: 1 }}>
@@ -30,20 +27,7 @@ export function GradientBackground({ children }: { children: React.ReactNode }) 
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       />
-      {/* Decorative blobs */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-        <View style={{
-          position: "absolute", top: -120, right: -80,
-          width: 240, height: 240, borderRadius: 120,
-          backgroundColor: colors.accent, opacity: blobOpacity,
-        }} />
-        <View style={{
-          position: "absolute", bottom: 40, left: -100,
-          width: 240, height: 240, borderRadius: 120,
-          backgroundColor: colors.accentHover, opacity: blobOpacity * 0.7,
-        }} />
-      </View>
-      {children}
+{children}
     </View>
   );
 }
