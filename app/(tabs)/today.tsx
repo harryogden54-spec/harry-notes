@@ -11,6 +11,8 @@ import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
+import { useTasks } from "@/lib/TasksContext";
+import { getTodayStr } from "@/lib/utils";
 
 type TodayItem = {
   id: string;
@@ -45,6 +47,7 @@ async function purgeOldKeys() {
 
 export default function TodayScreen() {
   const { colors } = useTheme();
+  const { addTask } = useTasks();
   const [items, setItems]             = useState<TodayItem[]>([]);
   const [input, setInput]             = useState("");
   const [carryover, setCarryover]     = useState<TodayItem[]>([]);
@@ -146,6 +149,18 @@ export default function TodayScreen() {
         />
 
         <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.text}</Text>
+
+        <Pressable
+          onPress={() => {
+            addTask(item.text, getTodayStr());
+            deleteItem(item.id);
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          hitSlop={8}
+          style={{ paddingHorizontal: spacing[1.5], paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}
+        >
+          <Text size="xs" style={{ color: colors.textSecondary }}>→ Tasks</Text>
+        </Pressable>
 
         <Pressable onPress={() => deleteItem(item.id)} hitSlop={8}>
           <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
