@@ -11,6 +11,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, Surface, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
+import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { useStickyNotes, type StickyNote } from "@/lib/StickyNotesContext";
@@ -35,11 +36,23 @@ function greeting() {
   return "Good evening";
 }
 
+function syncedAgo(iso: string | null): string | null {
+  if (!iso) return null;
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 10) return "Synced just now";
+  if (diff < 60) return `Synced ${diff}s ago`;
+  const m = Math.floor(diff / 60);
+  if (m < 60) return `Synced ${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `Synced ${h}h ago`;
+}
+
 // ─── Dashboard screen ─────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
   const { colors }             = useTheme();
-  const { tasks, addTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
+  const { tasks, addTask, loaded: tasksLoaded, syncNow: syncTasks, lastSynced } = useTasks();
+  const { showToast } = useToast();
   const { lists, loaded: listsLoaded } = useLists();
   const { notes }              = useNotes();
   const { notes: stickyNotes, addNote: addStickyNote } = useStickyNotes();
@@ -50,6 +63,7 @@ export default function DashboardScreen() {
   const [showNoteSheet, setShowNoteSheet]   = useState(false);
   const [editingNote, setEditingNote]       = useState<StickyNote | null>(null);
   const [refreshing, setRefreshing]         = useState(false);
+  const [showShortcuts, setShowShortcuts]   = useState(false);
   const today                  = getTodayStr();
   const tomorrow               = getTomorrowStr();
   const now                    = new Date();
@@ -93,9 +107,13 @@ export default function DashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await syncTasks().catch(() => {});
+    try {
+      await syncTasks();
+    } catch {
+      showToast("Sync failed — check your connection");
+    }
     setRefreshing(false);
-  }, [syncTasks]);
+  }, [syncTasks, showToast]);
 
   const handleQuickAddTask = useCallback((title: string, dueDate?: string) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -112,11 +130,12 @@ export default function DashboardScreen() {
     if (Platform.OS !== "web") return;
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === "Escape") { setShowTaskSheet(false); setShowNoteSheet(false); setShowShortcuts(false); return; }
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "n" || e.key === "N") { e.preventDefault(); setShowTaskSheet(true); }
       if (e.key === "/") { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === "t" || e.key === "T") { e.preventDefault(); router.push("/(tabs)/today"); }
-      if (e.key === "Escape") { setShowTaskSheet(false); setShowNoteSheet(false); }
+      if (e.key === "?") { e.preventDefault(); setShowShortcuts(v => !v); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -149,6 +168,11 @@ export default function DashboardScreen() {
               <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
                 {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
               </Text>
+              {syncedAgo(lastSynced) && (
+                <Text size="xs" style={{ color: colors.textTertiary, marginTop: 2 }}>
+                  {syncedAgo(lastSynced)}
+                </Text>
+              )}
               {(overdueCount > 0 || todayCount > 0) && (
                 <View style={{ flexDirection: "row", gap: spacing[2], marginTop: spacing[2] }}>
                   {overdueCount > 0 && (
@@ -379,6 +403,48 @@ export default function DashboardScreen() {
 
       {/* ── Sticky note edit modal ────────────────────────────────────────────── */}
       <StickyNoteModal note={editingNote} visible={!!editingNote} onClose={() => setEditingNote(null)} />
+
+      {/* ── Keyboard shortcuts modal (web only) ──────────────────────────────── */}
+      {showShortcuts && Platform.OS === "web" && (
+        <Pressable
+          onPress={() => setShowShortcuts(false)}
+          style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 50, alignItems: "center", justifyContent: "center" } as any}
+        >
+          <Pressable onPress={e => e.stopPropagation()} style={{
+            backgroundColor: colors.bgSecondary,
+            borderWidth: 1,
+            borderColor: colors.bgBorder,
+            borderRadius: radius.xl,
+            padding: spacing[6],
+            width: 360,
+            gap: spacing[4],
+          }}>
+            <Text size="base" weight="semibold">Keyboard shortcuts</Text>
+            <View style={{ flexDirection: "row", gap: spacing[8] }}>
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                {([["N", "New task"], ["/", "Focus search"], ["T", "Go to Today"]] as [string, string][]).map(([key, desc]) => (
+                  <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text size="sm" secondary>{desc}</Text>
+                    <View style={{ backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
+                      <Text size="xs" weight="medium" style={{ color: colors.textPrimary, fontFamily: "monospace" as any }}>{key}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                {([["?", "Show shortcuts"], ["Esc", "Close"]] as [string, string][]).map(([key, desc]) => (
+                  <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text size="sm" secondary>{desc}</Text>
+                    <View style={{ backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
+                      <Text size="xs" weight="medium" style={{ color: colors.textPrimary, fontFamily: "monospace" as any }}>{key}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      )}
     </SafeAreaView>
     </GradientBackground>
   );

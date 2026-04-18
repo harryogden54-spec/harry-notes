@@ -1,6 +1,7 @@
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
 import { Platform, Text, Animated, View, Pressable, useWindowDimensions } from "react-native";
+import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
@@ -43,12 +44,40 @@ function useFadeTab() {
   return { opacity, onTabPress };
 }
 
+// ─── Active indicator dot ─────────────────────────────────────────────────────
+
+function ActiveBar({ active, accent }: { active: boolean; accent: string }) {
+  const scale = useSharedValue(active ? 1 : 0);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: scale.value }],
+    opacity: scale.value,
+  }));
+
+  // Animate on active change
+  React.useEffect(() => {
+    scale.value = withSpring(active ? 1 : 0, { damping: 18, stiffness: 250 });
+  }, [active]);
+
+  return (
+    <ReAnimated.View style={[{
+      position: "absolute",
+      left: 0,
+      top: "20%",
+      bottom: "20%",
+      width: 3,
+      borderRadius: 99,
+      backgroundColor: accent,
+    }, animStyle]} />
+  );
+}
+
 // ─── Sidebar (web / tablet) ───────────────────────────────────────────────────
 
-function Sidebar() {
+function Sidebar({ collapsed }: { collapsed: boolean }) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const isActive = (name: string) => {
     if (name === "index") return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/";
@@ -57,56 +86,99 @@ function Sidebar() {
 
   return (
     <View style={{
-      width: 220,
+      width: collapsed ? 56 : 220,
       height: "100%",
       backgroundColor: colors.bgPrimary,
       borderRightWidth: 1,
       borderRightColor: colors.bgBorder,
       paddingTop: Platform.OS === "web" ? 24 : 48,
       paddingBottom: 24,
-      paddingHorizontal: spacing[3],
+      paddingHorizontal: collapsed ? spacing[1] : spacing[3],
       justifyContent: "space-between",
+      overflow: "visible",
     }}>
       {/* App name */}
       <View>
-        <Text style={{
-          fontSize: 28, fontFamily: fontFamily.bold,
-          color: colors.textPrimary, letterSpacing: -1,
-          marginBottom: spacing[6], paddingHorizontal: spacing[2],
-        }}>
-          harry.
-        </Text>
+        {!collapsed && (
+          <Text style={{
+            fontSize: 28, fontFamily: fontFamily.bold,
+            color: colors.textPrimary, letterSpacing: -1,
+            marginBottom: spacing[6], paddingHorizontal: spacing[2],
+          }}>
+            harry.
+          </Text>
+        )}
+        {collapsed && <View style={{ height: spacing[6] + 28 + spacing[6] }} />}
 
         {/* Nav items */}
         <View style={{ gap: spacing[1] }}>
           {NAV_ITEMS.map(item => {
             const active = isActive(item.name);
+            const hovered = hoveredItem === item.name;
+            const showTooltip = collapsed && hovered;
+
             return (
-              <Pressable
-                key={item.name}
-                onPress={() => router.push(item.path as any)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing[3],
-                  paddingHorizontal: spacing[3],
-                  paddingVertical: spacing[2] + 2,
-                  borderRadius: radius.lg,
-                  backgroundColor: active ? `${colors.accent}20` : "transparent",
-                }}
-              >
-                <Ionicons
-                  name={active ? item.iconFilled : item.iconOutline}
-                  size={20}
-                  color={active ? colors.accent : colors.textSecondary}
-                />
-                <Text style={{
-                  fontSize: 14, fontFamily: active ? fontFamily.semibold : fontFamily.regular,
-                  color: active ? colors.accent : colors.textSecondary,
-                }}>
-                  {item.label}
-                </Text>
-              </Pressable>
+              <View key={item.name} style={{ position: "relative" }}>
+                <Pressable
+                  onPress={() => router.push(item.path as any)}
+                  // @ts-ignore — web-only hover events
+                  onHoverIn={() => setHoveredItem(item.name)}
+                  onHoverOut={() => setHoveredItem(null)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: collapsed ? 0 : spacing[3],
+                    paddingHorizontal: collapsed ? 0 : spacing[3],
+                    paddingVertical: spacing[2] + 2,
+                    borderRadius: radius.lg,
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    backgroundColor: active
+                      ? `${colors.accent}20`
+                      : hovered
+                      ? `${colors.accent}10`
+                      : "transparent",
+                  }}
+                >
+                  <ActiveBar active={active} accent={colors.accent} />
+                  <Ionicons
+                    name={active ? item.iconFilled : item.iconOutline}
+                    size={20}
+                    color={active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary}
+                  />
+                  {!collapsed && (
+                    <Text style={{
+                      fontSize: 14, fontFamily: active ? fontFamily.semibold : fontFamily.regular,
+                      color: active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary,
+                    }}>
+                      {item.label}
+                    </Text>
+                  )}
+                </Pressable>
+
+                {/* Tooltip (collapsed mode only) */}
+                {showTooltip && (
+                  <View style={{
+                    position: "absolute",
+                    left: 60,
+                    top: "50%",
+                    transform: [{ translateY: -12 }],
+                    backgroundColor: colors.bgSecondary,
+                    borderWidth: 1,
+                    borderColor: colors.bgBorder,
+                    borderRadius: radius.sm,
+                    paddingHorizontal: spacing[2],
+                    paddingVertical: spacing[1],
+                    zIndex: 100,
+                    // @ts-ignore
+                    pointerEvents: "none",
+                    whiteSpace: "nowrap",
+                  }}>
+                    <Text style={{ fontSize: 12, fontFamily: fontFamily.medium, color: colors.textPrimary }}>
+                      {item.label}
+                    </Text>
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
@@ -115,17 +187,30 @@ function Sidebar() {
       {/* Settings */}
       <Pressable
         onPress={() => router.push("/settings" as any)}
+        // @ts-ignore
+        onHoverIn={() => setHoveredItem("settings")}
+        onHoverOut={() => setHoveredItem(null)}
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: spacing[3],
-          paddingHorizontal: spacing[3],
+          gap: collapsed ? 0 : spacing[3],
+          paddingHorizontal: collapsed ? 0 : spacing[3],
           paddingVertical: spacing[2] + 2,
           borderRadius: radius.lg,
+          justifyContent: collapsed ? "center" : "flex-start",
+          backgroundColor: hoveredItem === "settings" ? `${colors.accent}10` : "transparent",
         }}
       >
-        <Ionicons name="settings-outline" size={20} color={colors.textTertiary} />
-        <Text style={{ fontSize: 14, fontFamily: fontFamily.regular, color: colors.textTertiary }}>Settings</Text>
+        <Ionicons
+          name="settings-outline"
+          size={20}
+          color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary}
+        />
+        {!collapsed && (
+          <Text style={{ fontSize: 14, fontFamily: fontFamily.regular, color: hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary }}>
+            Settings
+          </Text>
+        )}
       </Pressable>
     </View>
   );
@@ -139,11 +224,12 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
 
   const useSidebar = width >= 768;
+  const collapsed = width >= 768 && width < 1024;
 
   if (useSidebar) {
     return (
       <View style={{ flex: 1, flexDirection: "row" }}>
-        <Sidebar />
+        <Sidebar collapsed={collapsed} />
         <View style={{ flex: 1 }}>
           <Tabs
             screenOptions={{
