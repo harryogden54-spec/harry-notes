@@ -763,7 +763,7 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
 
 export default function TasksScreen() {
   const { colors } = useTheme();
-  const { tasks, addTask, loaded, syncStatus, syncNow, deleteTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
+  const { tasks, addTask, loaded, syncStatus, syncNow, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
   const { showToast } = useToast();
   const params = useLocalSearchParams<{ create?: string; taskId?: string; filter?: string }>();
 
@@ -776,6 +776,7 @@ export default function TasksScreen() {
   const [highlightId, setHighlightId]       = useState<string | null>(null);
   const [sortBy, setSortBy]                 = useState<SortBy>("priority");
   const [grouped, setGrouped]               = useState(true);
+  const [showArchive, setShowArchive]       = useState(false);
   const addInputRef    = useRef<TextInput | null>(null);
   const scrollViewRef  = useRef<RNScrollView>(null);
   const taskYPositions = useRef<Record<string, number>>({});
@@ -864,6 +865,7 @@ export default function TasksScreen() {
   }
 
   const visible = tasks.filter(t =>
+    !t.archived &&
     matchesSearch(t, search) &&
     (filterPriority ? t.priority === filterPriority : true)
   );
@@ -873,7 +875,8 @@ export default function TasksScreen() {
   const scheduled = visible.filter(isScheduled);
   const someday   = visible.filter(isSomeday);
   const done      = visible.filter(t => t.done);
-  const open      = tasks.filter(t => !t.done);
+  const open      = tasks.filter(t => !t.done && !t.archived);
+  const archived  = tasks.filter(t => t.archived);
   const focusTasks = [...overdue, ...today];
 
   const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy };
@@ -962,6 +965,21 @@ export default function TasksScreen() {
                     {selectMode ? "Cancel" : "Select"}
                   </Text>
                 </Pressable>
+                {archived.length > 0 && (
+                  <Pressable
+                    onPress={() => setShowArchive(v => !v)}
+                    style={{
+                      paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+                      borderRadius: radius.sm, borderWidth: 1,
+                      borderColor: showArchive ? colors.accent : colors.bgBorder,
+                      backgroundColor: showArchive ? `${colors.accent}18` : "transparent",
+                    }}
+                  >
+                    <Text size="xs" weight="medium" style={{ color: showArchive ? colors.accent : colors.textSecondary }}>
+                      Archive{archived.length > 0 ? ` · ${archived.length}` : ""}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </View>
             <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
@@ -1041,6 +1059,46 @@ export default function TasksScreen() {
               <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
               {done.length > 0    && <Section label="Completed" tasks={done}  {...sectionProps} />}
             </>
+          )}
+
+          {/* ── Archive ─────────────────────────────────────────────────── */}
+          {showArchive && archived.length > 0 && (
+            <View style={{ marginTop: spacing[4] }}>
+              <Text size="xs" weight="semibold" style={{
+                textTransform: "uppercase", letterSpacing: 1.2,
+                color: colors.textTertiary, fontSize: 11, marginBottom: spacing[3],
+              }}>
+                Archive · {archived.length}
+              </Text>
+              <Surface style={{ overflow: "hidden", padding: 0 }}>
+                {archived.map((task, i) => (
+                  <View key={task.id} style={{
+                    flexDirection: "row", alignItems: "center",
+                    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+                    gap: spacing[3],
+                    borderBottomWidth: i === archived.length - 1 ? 0 : 1,
+                    borderBottomColor: colors.bgBorder,
+                  }}>
+                    <View style={{
+                      width: 18, height: 18, borderRadius: 9,
+                      backgroundColor: colors.bgBorder,
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <View style={{ width: 8, height: 4, borderLeftWidth: 1.5, borderBottomWidth: 1.5, borderColor: colors.textTertiary, transform: [{ rotate: "-45deg" }, { translateY: -1 }] }} />
+                    </View>
+                    <Text size="sm" style={{ flex: 1, color: colors.textTertiary, textDecorationLine: "line-through", opacity: 0.7 }} numberOfLines={1}>
+                      {task.title}
+                    </Text>
+                    <Pressable onPress={() => unarchiveTask(task.id)} hitSlop={8}>
+                      <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
+                    </Pressable>
+                    <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
+                      <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </Surface>
+            </View>
           )}
         </ScrollView>
 

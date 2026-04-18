@@ -28,6 +28,7 @@ export type Task = {
   id: string;
   title: string;
   done: boolean;
+  archived?: boolean;
   due_date?: string;
   created_at: string;
   updated_at?: string;
@@ -51,6 +52,8 @@ type TasksContextValue = {
   updateTask: (id: string, updates: Partial<Omit<Task, "id" | "created_at">>) => void;
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => () => void;
+  archiveTask: (id: string) => void;
+  unarchiveTask: (id: string) => void;
   reorderTask: (id: string, direction: "up" | "down") => void;
   setSectionOrder: (reorderedSection: Task[]) => void;
   clearCompleted: () => void;
@@ -98,7 +101,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadLocal().then(async (local) => {
-      const localTasks = local;
+      // Auto-archive tasks completed 7+ days ago
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      const cutoffStr = cutoff.toISOString();
+      const localTasks = local.map(t =>
+        t.done && !t.archived && t.completed_at && t.completed_at < cutoffStr
+          ? { ...t, archived: true }
+          : t
+      );
       setTasks(localTasks);
       loadedRef.current = true;
       setLoaded(true);
@@ -185,6 +196,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const archiveTask = useCallback((id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? stamp({ ...t, archived: true }) : t));
+  }, []);
+
+  const unarchiveTask = useCallback((id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? stamp({ ...t, archived: false }) : t));
+  }, []);
+
   const deleteTask = useCallback((id: string): (() => void) => {
     const deleted = tasksRef.current.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
@@ -218,15 +237,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearCompleted = useCallback(() => {
-    const completed = tasksRef.current.filter(t => t.done);
-    setTasks(prev => prev.filter(t => !t.done));
-    completed.forEach(t => syncDelete("tasks", t.id));
+    setTasks(prev => prev.map(t => t.done && !t.archived ? stamp({ ...t, archived: true }) : t));
   }, []);
 
   return (
     <TasksContext.Provider value={{
       tasks, loaded, syncStatus, lastSynced,
-      addTask, updateTask, toggleTask, deleteTask, reorderTask, setSectionOrder, clearCompleted, syncNow,
+      addTask, updateTask, toggleTask, deleteTask, archiveTask, unarchiveTask,
+      reorderTask, setSectionOrder, clearCompleted, syncNow,
     }}>
       {children}
     </TasksContext.Provider>
