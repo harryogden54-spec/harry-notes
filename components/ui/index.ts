@@ -15,3 +15,4 @@ export { Skeleton }            from "./Skeleton";
 export { SectionHeader }       from "./SectionHeader";
 export { TaskRow }             from "./TaskRow";
 export { Surface }             from "./Surface";
+export { FocusTimer }          from "./FocusTimer";

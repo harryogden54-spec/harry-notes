@@ -4,9 +4,10 @@ import {
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/lib/useTheme";
-import { Text, Surface, GradientBackground } from "@/components/ui";
+import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
@@ -210,6 +211,11 @@ export default function TodayScreen() {
             <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
               <Text size="2xl" weight="bold">Today</Text>
               <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{getTodayLabel()}</Text>
+            </View>
+
+            {/* Focus timer */}
+            <View style={{ marginBottom: spacing[4] }}>
+              <FocusTimer />
             </View>
 
             {/* Add input */}
