@@ -357,11 +357,12 @@ function TaskItem({
   selectMode, selected, onSelect,
   onReorderUp, onReorderDown,
   onDelete, onDragStart, isDragging,
-  highlighted, onMeasureY,
+  highlighted, onMeasureY, onLongPress,
 }: {
   task: Task; isExpanded: boolean; onToggleExpand: () => void;
   selectMode: boolean; selected: boolean; onSelect: () => void;
   onReorderUp: () => void; onReorderDown: () => void;
+  onLongPress?: () => void;
   onDelete: () => void;
   onDragStart?: () => void;
   isDragging?: boolean;
@@ -438,6 +439,8 @@ function TaskItem({
           )}
           <Pressable
             onPress={selectMode ? onSelect : onToggleExpand}
+            onLongPress={!selectMode ? onLongPress : undefined}
+            delayLongPress={400}
             style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing[3] }}
           >
             <View style={{ flex: 1, gap: 3 }}>
@@ -685,7 +688,7 @@ function AddTaskRow({ onAdd, inputRef }: {
 
 // ─── Section ──────────────────────────────────────────────────────────────────
 
-function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selectMode, selectedIds, onSelect, onDelete, onReorderUp, onReorderDown, onReorder, highlightId, onTaskMeasureY, sortBy = "priority" }: {
+function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selectMode, selectedIds, onSelect, onDelete, onReorderUp, onReorderDown, onReorder, highlightId, onTaskMeasureY, sortBy = "priority", onLongPress }: {
   label: string; tasks: Task[]; expandedId: string | null;
   onToggleExpand: (id: string) => void; emptyMessage?: string;
   selectMode: boolean; selectedIds: Set<string>;
@@ -695,6 +698,7 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
   highlightId?: string | null;
   onTaskMeasureY?: (id: string, y: number) => void;
   sortBy?: SortBy;
+  onLongPress?: (id: string) => void;
 }) {
   const { colors } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
@@ -719,6 +723,7 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
         isDragging={isActive}
         highlighted={highlightId === t.id}
         onMeasureY={y => onTaskMeasureY?.(t.id, y)}
+        onLongPress={() => onLongPress?.(t.id)}
       />
     </ScaleDecorator>
   );
@@ -846,6 +851,12 @@ export default function TasksScreen() {
     });
   }, []);
 
+  const handleLongPress = useCallback((id: string) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectMode(true);
+    setSelectedIds(new Set([id]));
+  }, []);
+
   function handleBulkComplete() {
     selectedIds.forEach(id => { const t = tasks.find(t => t.id === id); if (t && !t.done) toggleTask(id); });
     showToast(`${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} completed`);
@@ -879,7 +890,7 @@ export default function TasksScreen() {
   const archived  = tasks.filter(t => t.archived);
   const focusTasks = [...overdue, ...today];
 
-  const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy };
+  const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy, onLongPress: handleLongPress };
 
   // Sync pill: show while syncing, then show "Synced ✓" for 2s
   const [pillText, setPillText] = useState<string | null>(null);
@@ -1102,23 +1113,48 @@ export default function TasksScreen() {
           )}
         </ScrollView>
 
-        {selectMode && selectedIds.size > 0 && (
+        {selectMode && (
           <View style={{
             flexDirection: "row", gap: spacing[2], padding: spacing[3],
             backgroundColor: colors.bgSecondary,
             borderTopWidth: 1, borderTopColor: colors.bgBorder,
+            flexWrap: "wrap",
           }}>
-            <Text size="sm" secondary style={{ flex: 1, alignSelf: "center" }}>
-              {selectedIds.size} selected
+            <Text size="sm" secondary style={{ alignSelf: "center", marginRight: spacing[1] }}>
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select tasks"}
             </Text>
-            <Pressable onPress={handleBulkComplete}
-              style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: colors.accent }}>
-              <Text size="sm" weight="medium" style={{ color: "#fff" }}>Complete</Text>
-            </Pressable>
-            <Pressable onPress={handleBulkDelete}
-              style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: `${colors.danger}20`, borderWidth: 1, borderColor: `${colors.danger}44` }}>
-              <Text size="sm" weight="medium" style={{ color: colors.danger }}>Delete</Text>
-            </Pressable>
+            {selectedIds.size > 0 && (
+              <>
+                <Pressable onPress={handleBulkComplete}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: colors.accent }}>
+                  <Text size="sm" weight="medium" style={{ color: "#fff" }}>Complete</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    selectedIds.forEach(id => updateTask(id, { due_date: getTodayStr() }));
+                    showToast(`Due date set to today for ${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""}`);
+                    setSelectedIds(new Set());
+                    setSelectMode(false);
+                  }}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder }}>
+                  <Text size="sm" weight="medium" style={{ color: colors.textSecondary }}>Today</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    selectedIds.forEach(id => archiveTask(id));
+                    showToast(`${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} archived`);
+                    setSelectedIds(new Set());
+                    setSelectMode(false);
+                  }}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder }}>
+                  <Text size="sm" weight="medium" style={{ color: colors.textSecondary }}>Archive</Text>
+                </Pressable>
+                <Pressable onPress={handleBulkDelete}
+                  style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: `${colors.danger}20`, borderWidth: 1, borderColor: `${colors.danger}44` }}>
+                  <Text size="sm" weight="medium" style={{ color: colors.danger }}>Delete</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         )}
       </KeyboardAvoidingView>
