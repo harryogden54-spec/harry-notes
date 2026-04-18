@@ -121,15 +121,86 @@ function MarkdownToolbar({ body, selRef, onApply }: {
   );
 }
 
+// ─── Wiki-link autocomplete ───────────────────────────────────────────────────
+
+/** Detects an open [[query at the cursor and returns the query string, or null */
+function getWikiQuery(text: string, cursorPos: number): string | null {
+  const before = text.slice(0, cursorPos);
+  const match  = before.match(/\[\[([^\][]*)$/);
+  return match ? match[1] : null;
+}
+
+function WikiLinkSuggestions({ query, notes, onSelect }: {
+  query: string;
+  notes: Note[];
+  onSelect: (title: string) => void;
+}) {
+  const { colors } = useTheme();
+  const lower = query.toLowerCase();
+  const suggestions = notes
+    .filter(n => (n.title || "Untitled").toLowerCase().includes(lower))
+    .slice(0, 5);
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="always"
+      style={{ borderTopWidth: 1, borderTopColor: colors.accent + "44", backgroundColor: colors.bgTertiary }}
+      contentContainerStyle={{ flexDirection: "row", gap: spacing[1], paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}
+    >
+      {suggestions.map(n => (
+        <Pressable
+          key={n.id}
+          onPress={() => onSelect(n.title || "Untitled")}
+          style={{
+            paddingHorizontal: spacing[3], paddingVertical: spacing[1],
+            borderRadius: radius.xl, borderWidth: 1,
+            borderColor: colors.accent + "60",
+            backgroundColor: colors.accent + "18",
+          }}
+        >
+          <Text size="xs" style={{ color: colors.accent }}>{n.title || "Untitled"}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
 // ─── Note Editor ──────────────────────────────────────────────────────────────
 
 function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
   const { colors } = useTheme();
-  const { updateNote, deleteNote, pinNote } = useNotes();
+  const { notes, updateNote, deleteNote, pinNote } = useNotes();
   const { showToast } = useToast();
   const bodyRef   = useRef<TextInput | null>(null);
   const selRef    = useRef<Sel>({ start: 0, end: 0 });
   const [cursor, setCursor] = useState<Sel | undefined>(undefined);
+
+  // Wiki-link autocomplete state
+  const [wikiQuery, setWikiQuery] = useState<string | null>(null);
+
+  function handleBodyChange(body: string) {
+    updateNote(note.id, { body });
+    setCursor(undefined);
+    const query = getWikiQuery(body, selRef.current.start);
+    setWikiQuery(query);
+  }
+
+  function handleWikiSelect(title: string) {
+    const pos  = selRef.current.start;
+    const before = note.body.slice(0, pos);
+    const after  = note.body.slice(pos);
+    // Replace the open [[ + partial query with [[Title]]
+    const replaced = before.replace(/\[\[([^\][]*)$/, `[[${title}]]`);
+    const newBody  = replaced + after;
+    const newCursorPos = replaced.length;
+    updateNote(note.id, { body: newBody });
+    setCursor({ start: newCursorPos, end: newCursorPos });
+    setWikiQuery(null);
+  }
 
   const wordCount = note.body.trim() ? note.body.trim().split(/\s+/).length : 0;
   const charCount = note.body.length;
@@ -191,10 +262,7 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
           <TextInput
             ref={bodyRef}
             value={note.body}
-            onChangeText={body => {
-              updateNote(note.id, { body });
-              setCursor(undefined);
-            }}
+            onChangeText={handleBodyChange}
             onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
             selection={cursor}
             placeholder="Start writing…"
@@ -218,12 +286,20 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
           <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {charCount} chars</Text>
         </View>
 
+        {wikiQuery !== null && (
+          <WikiLinkSuggestions
+            query={wikiQuery}
+            notes={notes.filter(n => n.id !== note.id)}
+            onSelect={handleWikiSelect}
+          />
+        )}
         <MarkdownToolbar
           body={note.body}
           selRef={selRef}
           onApply={(text, cur) => {
             updateNote(note.id, { body: text });
             setCursor(cur);
+            setWikiQuery(null);
           }}
         />
       </View>
