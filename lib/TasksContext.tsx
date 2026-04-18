@@ -31,6 +31,7 @@ export type Task = {
   due_date?: string;
   created_at: string;
   updated_at?: string;
+  completed_at?: string;
   description?: string;
   priority?: Priority;
   tags?: string[];
@@ -177,7 +178,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTask = useCallback((id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? stamp({ ...t, done: !t.done }) : t));
+    setTasks(prev => prev.map(t => {
+      if (t.id !== id) return t;
+      const done = !t.done;
+      return stamp({ ...t, done, completed_at: done ? new Date().toISOString() : undefined });
+    }));
   }, []);
 
   const deleteTask = useCallback((id: string): (() => void) => {

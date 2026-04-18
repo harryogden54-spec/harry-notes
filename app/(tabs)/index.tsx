@@ -24,6 +24,7 @@ import { SearchResults }      from "@/components/dashboard/SearchResults";
 import { ListShelfCard }      from "@/components/dashboard/ListShelfCard";
 import { PinnedListCard }     from "@/components/dashboard/PinnedListCard";
 import { StickyCard }         from "@/components/dashboard/StickyCard";
+import { WeeklyStatsCard }   from "@/components/dashboard/WeeklyStatsCard";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,6 +177,12 @@ export default function DashboardScreen() {
 
           {/* ── Search ───────────────────────────────────────────────────── */}
           <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
+
+          {!search.trim() && (
+            <View style={{ marginTop: spacing[4] }}>
+              <WeeklyStatsCard />
+            </View>
+          )}
 
           {search.trim() ? (
             <View style={{ marginTop: spacing[3] }}>
