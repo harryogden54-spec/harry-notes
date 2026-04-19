@@ -123,19 +123,30 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           setLastSynced(new Date().toISOString());
           return;
         }
-        setTasks(prev => {
-          const merged = [...prev];
-          for (const rem of remote) {
-            const idx = merged.findIndex(t => t.id === rem.id);
-            if (idx === -1) merged.push(rem);
-            else {
-              const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
-              const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
-              if (remoteUpdated > localUpdated) merged[idx] = rem;
+        const merged = await new Promise<Task[]>(resolve => {
+          setTasks(prev => {
+            const result = [...prev];
+            for (const rem of remote) {
+              const idx = result.findIndex(t => t.id === rem.id);
+              if (idx === -1) {
+                result.push(rem);
+              } else {
+                const localUpdated  = result[idx].updated_at ?? result[idx].created_at;
+                const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
+                if (remoteUpdated > localUpdated) {
+                  // Remote wins — but never un-archive a locally-archived task
+                  // (remote may pre-date the archived field being added to Supabase)
+                  result[idx] = { ...rem, archived: rem.archived ?? result[idx].archived };
+                }
+              }
             }
-          }
-          return merged;
+            resolve(result);
+            return result;
+          });
         });
+        // Push any locally-archived tasks that Supabase doesn't know about yet
+        const needsSync = merged.filter(t => t.archived);
+        if (needsSync.length > 0) syncUpsert("tasks", needsSync).catch(console.warn);
         setSyncStatus("synced");
         setLastSynced(new Date().toISOString());
       } catch {
@@ -165,7 +176,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           else {
             const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
             const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
-            if (remoteUpdated > localUpdated) merged[idx] = rem;
+            if (remoteUpdated > localUpdated) {
+              merged[idx] = { ...rem, archived: rem.archived ?? merged[idx].archived };
+            }
           }
         }
         return merged;

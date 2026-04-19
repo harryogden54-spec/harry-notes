@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Inter font-face (synchronous CSS fallback for web) ─────────────────────
+   These match the hashed filenames Metro bundles into dist/assets/.
+   useFonts() also injects these via JS, but rendering starts before that
+   resolves — so the CSS declarations here prevent the serif flash.        */
+@font-face {
+  font-family: 'Inter_400Regular';
+  src: url('/assets/node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.51b6ad87261f18b6433ec52871ddfabc.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter_500Medium';
+  src: url('/assets/node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.137ab18bace28dd0bd83eb3b8ed2bc54.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter_600SemiBold';
+  src: url('/assets/node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.a5f35888d2da465de352e0dcfaf33324.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter_700Bold';
+  src: url('/assets/node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.6e237de4f1f413afa2fcc45c77ac343a.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* ── Ionicons ────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Ionicons';
+  src: url('/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.b4eb097d35f44ed943676fd56f6bdc51.ttf') format('truetype');
+  font-display: block;
+}
