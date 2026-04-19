@@ -325,7 +325,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
           <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
         </View>
         {preview ? (
-          <Text size="xs" secondary numberOfLines={1} style={{ lineHeight: 18 }}>{preview}</Text>
+          <Text size="xs" secondary numberOfLines={2} style={{ lineHeight: 18 }}>{preview}</Text>
         ) : null}
       </GlassCard>
     </Pressable>

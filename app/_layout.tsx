@@ -32,13 +32,24 @@ SplashScreen.preventAutoHideAsync();
 function AppShell() {
   const { scheme } = useThemeContext();
   const { tasks, loaded: tasksLoaded } = useTasks();
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    ...Ionicons.font,
-  });
+  // On web we handle fonts via CSS @font-face in global.css. Calling useFonts
+  // on web makes expo-font inject runtime @font-face rules pointing at the
+  // Metro-hashed `/assets/node_modules/...` URLs, which Cloudflare Pages'
+  // SPA fallback serves as index.html. The browser registers those rules as
+  // failed and — because they share the same family name — overrides our
+  // working CSS rule, forcing serif fallback for every Inter family.
+  const [nativeFontsLoaded] = useFonts(
+    Platform.OS === "web"
+      ? {}
+      : {
+          Inter_400Regular,
+          Inter_500Medium,
+          Inter_600SemiBold,
+          Inter_700Bold,
+          ...Ionicons.font,
+        }
+  );
+  const fontsLoaded = Platform.OS === "web" ? true : nativeFontsLoaded;
 
   // All hooks must be declared before any conditional return.
   const isFirst = useRef(true);

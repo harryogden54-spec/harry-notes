@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "deploy": "expo export --platform web && node scripts/copy-fonts.js && npx wrangler pages deploy dist --project-name harry-notes --commit-dirty=true --branch=main"
+    "typecheck": "tsc --noEmit",
+    "deploy": "tsc --noEmit && expo export --platform web && node scripts/copy-fonts.js && npx wrangler pages deploy dist --project-name harry-notes --commit-dirty=true --branch=main"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

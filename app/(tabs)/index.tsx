@@ -66,8 +66,14 @@ export default function DashboardScreen() {
   const [showShortcuts, setShowShortcuts]   = useState(false);
   const today                  = getTodayStr();
   const tomorrow               = getTomorrowStr();
-  const now                    = new Date();
   const [calSelected, setCalSelected] = useState(today);
+
+  // Hydration guard — time-of-day values differ between server render and
+  // client hydration, causing React error #418. We render neutral placeholders
+  // on the first pass and swap in the real values after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const now = mounted ? new Date() : null;
 
   const noteFabScale = useSharedValue(1);
   const taskFabScale = useSharedValue(1);
@@ -164,11 +170,11 @@ export default function DashboardScreen() {
           {/* ── Header ───────────────────────────────────────────────────── */}
           <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
             <View style={{ flex: 1 }}>
-              <Text size="2xl" weight="bold">{greeting()}</Text>
+              <Text size="2xl" weight="bold">{mounted ? greeting() : "Good morning"}</Text>
               <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-                {now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+                {now ? now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) : ""}
               </Text>
-              {syncedAgo(lastSynced) && (
+              {mounted && syncedAgo(lastSynced) && (
                 <Text size="xs" style={{ color: colors.textTertiary, marginTop: 2 }}>
                   {syncedAgo(lastSynced)}
                 </Text>
@@ -334,7 +340,7 @@ export default function DashboardScreen() {
                           {recentNote.title || "Untitled"}
                         </Text>
                         <Text size="xs" secondary>
-                          {(() => {
+                          {mounted ? (() => {
                             const diff = Date.now() - new Date(recentNote.updated_at ?? recentNote.created_at).getTime();
                             const mins = Math.floor(diff / 60000);
                             const hours = Math.floor(diff / 3600000);
@@ -343,8 +349,7 @@ export default function DashboardScreen() {
                             if (mins < 60) return `${mins}m ago`;
                             if (hours < 24) return `${hours}h ago`;
                             return `${days}d ago`;
-                          })()}
-                        </Text>
+                          })() : ""}</Text>
                       </View>
                       {recentNote.body.trim() && (
                         <Text size="xs" secondary numberOfLines={2} style={{ lineHeight: 18 }}>
