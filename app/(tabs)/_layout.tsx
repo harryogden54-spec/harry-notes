@@ -172,6 +172,7 @@ function Sidebar({ collapsed }: { collapsed: boolean }) {
                     zIndex: 100,
                     // @ts-ignore
                     pointerEvents: "none",
+                    // @ts-ignore
                     whiteSpace: "nowrap",
                   }}>
                     <Text style={{ fontSize: 12, fontFamily: fontFamily.medium, color: colors.textPrimary }}>

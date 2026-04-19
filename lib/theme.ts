@@ -93,65 +93,17 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
   },
 };
 
-// ─── Backward-compat raw color maps (used in tailwind.config.js sync) ────────
+// ─── List colour palette (used in ListsContext and tailwind.config.js) ───────
 
-export const colors = {
-  // Backgrounds (default/Linear dark)
-  bgPrimary:   "#0D0D0D",
-  bgSecondary: "#141414",
-  bgTertiary:  "#1A1A1A",
-  bgBorder:    "#262626",
-
-  // Light mode
-  lightPrimary:   "#FFFFFF",
-  lightSecondary: "#F5F5F5",
-  lightTertiary:  "#EBEBEB",
-  lightBorder:    "#E0E0E0",
-
-  // Text
-  textPrimary:   "#F0F0F0",
-  textSecondary: "#9A9A9A",
-  textTertiary:  "#5A5A5A",
-  textInverse:   "#0D0D0D",
-
-  // Accent (default frost — overridden at runtime via useTheme)
-  accent:       "#88C0D0",
-  accentHover:  "#9DCFDF",
-  accentSubtle: "#17323A",
-
-  // Semantic
-  success: "#3DD68C",
-  warning: "#F5A623",
-  danger:  "#F26464",
-
-  // List palette
-  list: {
-    blue:   "#4A90D9",
-    purple: "#9B59B6",
-    green:  "#27AE60",
-    orange: "#E67E22",
-    red:    "#E74C3C",
-    yellow: "#F1C40F",
-    pink:   "#E91E8C",
-    teal:   "#1ABC9C",
-  },
-} as const;
-
-export const lightColors = {
-  bgPrimary:   colors.lightPrimary,
-  bgSecondary: colors.lightSecondary,
-  bgTertiary:  colors.lightTertiary,
-  bgBorder:    colors.lightBorder,
-  textPrimary:   "#0D0D0D",
-  textSecondary: "#4A4A4A",
-  textTertiary:  "#8A8A8A",
-  textInverse:   "#F0F0F0",
-  accent:       colors.accent,
-  accentHover:  colors.accentHover,
-  accentSubtle: "#DFF0F5",
-  success: "#1E8A5A",
-  warning: "#B86E00",
-  danger:  "#C0392B",
+export const LIST_COLORS = {
+  blue:   "#4A90D9",
+  purple: "#9B59B6",
+  green:  "#27AE60",
+  orange: "#E67E22",
+  red:    "#E74C3C",
+  yellow: "#F1C40F",
+  pink:   "#E91E8C",
+  teal:   "#1ABC9C",
 } as const;
 
 export const spacing = {
@@ -159,6 +111,7 @@ export const spacing = {
   1:   4,
   1.5: 6,
   2:   8,
+  2.5: 10,
   3:   12,
   4:   16,
   5:   20,
@@ -191,7 +144,7 @@ export const typography = {
 
 export type ColorScheme = "dark" | "light";
 
-// ─── Nord accent options (override accent within default/nord themes) ──────────
+// ─── Accent options (override accent within any theme) ────────────────────────
 
 export const ACCENT_OPTIONS = [
   { id: "frost",  label: "Frost",          color: "#88C0D0", hover: "#9DCFDF", subtle: "#17323A", lightSubtle: "#DFF0F5" },
@@ -202,10 +155,6 @@ export const ACCENT_OPTIONS = [
 ] as const;
 
 export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
-
-export function getColors(scheme: ColorScheme) {
-  return scheme === "dark" ? colors : { ...colors, ...lightColors };
-}
 
 // ─── Font families ────────────────────────────────────────────────────────────
 
