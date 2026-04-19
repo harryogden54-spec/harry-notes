@@ -71,9 +71,9 @@ function AppShell() {
     fadeOpacity.value = withTiming(0, { duration: 200 });
   }, [scheme]);
 
-  // Gate render until fonts are ready — prevents serif flash on web,
-  // splash screen stays visible on native until the hideAsync effect fires.
-  if (!fontsLoaded) return null;
+  // Gate render on native only — splash screen covers the wait.
+  // On web, render immediately; CSS @font-face handles the font swap.
+  if (!fontsLoaded && Platform.OS !== "web") return null;
 
   return (
     <NavThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>
