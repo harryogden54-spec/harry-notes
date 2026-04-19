@@ -93,19 +93,6 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
   },
 };
 
-// ─── List colour palette (used in ListsContext and tailwind.config.js) ───────
-
-export const LIST_COLORS = {
-  blue:   "#4A90D9",
-  purple: "#9B59B6",
-  green:  "#27AE60",
-  orange: "#E67E22",
-  red:    "#E74C3C",
-  yellow: "#F1C40F",
-  pink:   "#E91E8C",
-  teal:   "#1ABC9C",
-} as const;
-
 export const spacing = {
   0.5: 2,
   1:   4,
