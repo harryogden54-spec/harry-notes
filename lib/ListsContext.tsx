@@ -120,7 +120,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setSyncStatus("error");
       }
-    });
+    }).catch(() => setSyncStatus("error"));
   }, []);
 
   // Sync when app comes to foreground

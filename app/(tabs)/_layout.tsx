@@ -18,11 +18,12 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { name: "index",  label: "Home",  iconOutline: "home-outline",          iconFilled: "home",          path: "/(tabs)/" },
-  { name: "today",  label: "Today", iconOutline: "today-outline",         iconFilled: "today",         path: "/(tabs)/today" },
-  { name: "tasks",  label: "Tasks", iconOutline: "checkbox-outline",      iconFilled: "checkbox",      path: "/(tabs)/tasks" },
-  { name: "lists",  label: "Lists", iconOutline: "list-outline",          iconFilled: "list",          path: "/(tabs)/lists" },
-  { name: "notes",  label: "Notes", iconOutline: "document-text-outline", iconFilled: "document-text", path: "/(tabs)/notes" },
+  { name: "index",    label: "Home",     iconOutline: "home-outline",          iconFilled: "home",          path: "/(tabs)/" },
+  { name: "today",    label: "Today",    iconOutline: "today-outline",         iconFilled: "today",         path: "/(tabs)/today" },
+  { name: "tasks",    label: "Tasks",    iconOutline: "checkbox-outline",      iconFilled: "checkbox",      path: "/(tabs)/tasks" },
+  { name: "lists",    label: "Lists",    iconOutline: "list-outline",          iconFilled: "list",          path: "/(tabs)/lists" },
+  { name: "notes",    label: "Notes",    iconOutline: "document-text-outline", iconFilled: "document-text", path: "/(tabs)/notes" },
+  { name: "calendar", label: "Calendar", iconOutline: "calendar-outline",      iconFilled: "calendar",      path: "/(tabs)/calendar" },
 ];
 
 function TabIcon({ focused, color, iconOutline, iconFilled }: {
@@ -285,6 +286,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notes"
         options={{ title: "Notes", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="document-text-outline" iconFilled="document-text" /> }}
+        listeners={{ tabPress: onTabPress }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{ title: "Calendar", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="calendar-outline" iconFilled="calendar" /> }}
         listeners={{ tabPress: onTabPress }}
       />
     </Tabs>

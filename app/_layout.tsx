@@ -9,6 +9,7 @@ import { Platform, StyleSheet } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
+import { Ionicons } from "@expo/vector-icons";
 import { initDb } from "@/lib/db";
 import { requestNotificationPermission, scheduleTaskReminders } from "@/lib/notifications";
 import { useTasks } from "@/lib/TasksContext";
@@ -36,7 +37,14 @@ function AppShell() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    ...Ionicons.font,
   });
+
+  // All hooks must be declared before any conditional return.
+  const isFirst = useRef(true);
+  const fadeOpacity = useSharedValue(0);
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: fadeOpacity.value }));
+  const overlayColor = scheme === "dark" ? "#0D0D0D" : "#FFFFFF";
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -57,15 +65,15 @@ function AppShell() {
   }, [tasks, tasksLoaded]);
 
   // Theme cross-fade: flash an opaque overlay then fade it out on scheme change
-  const isFirst = useRef(true);
-  const fadeOpacity = useSharedValue(0);
-  const fadeStyle = useAnimatedStyle(() => ({ opacity: fadeOpacity.value }));
-  const overlayColor = scheme === "dark" ? "#0D0D0D" : "#FFFFFF";
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return; }
     fadeOpacity.value = 1;
     fadeOpacity.value = withTiming(0, { duration: 200 });
   }, [scheme]);
+
+  // Gate render until fonts are ready — prevents serif flash on web,
+  // splash screen stays visible on native until the hideAsync effect fires.
+  if (!fontsLoaded) return null;
 
   return (
     <NavThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>

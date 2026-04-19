@@ -10,11 +10,17 @@ export const supabase = createClient(
 export async function syncFetch<T extends { id: string }>(
   table: string
 ): Promise<T[]> {
-  const { data, error } = await supabase
-    .from(table)
-    .select("id, data, updated_at");
-  if (error) { console.warn(`syncFetch ${table}:`, error.message); return []; }
-  return (data ?? []).map((row: any) => ({ ...row.data, _updated_at: row.updated_at })) as T[];
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select("id, data, updated_at");
+    if (error) { console.warn(`syncFetch ${table}:`, error.message); return []; }
+    return (data ?? []).map((row: any) => ({ ...row.data, _updated_at: row.updated_at })) as T[];
+  } catch (e) {
+    // Network unavailable on startup — fail silently, local data takes over
+    console.warn(`syncFetch ${table}: network error`, e);
+    return [];
+  }
 }
 
 export async function syncUpsert<T extends { id: string }>(

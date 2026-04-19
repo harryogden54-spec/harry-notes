@@ -269,7 +269,8 @@ function ListItemRow({
                 color: item.done ? colors.textTertiary : colors.textPrimary,
                 textDecorationLine: item.done ? "line-through" : "none",
               }}>
-                {item.content}
+                {/* fallback for items stored with legacy `text` field name */}
+                {item.content || (item as any).text || ""}
               </Text>
             </Pressable>
           )}

@@ -141,7 +141,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setSyncStatus("error");
       }
-    });
+    }).catch(() => setSyncStatus("error"));
   }, []);
 
   // Sync when app comes to foreground
