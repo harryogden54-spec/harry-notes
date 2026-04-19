@@ -208,7 +208,7 @@ export default function DashboardScreen() {
           {/* ── Search ───────────────────────────────────────────────────── */}
           <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
 
-          {!search.trim() && (
+          {!search.trim() && mounted && (
             <View style={{ marginTop: spacing[4] }}>
               <WeeklyStatsCard />
             </View>
