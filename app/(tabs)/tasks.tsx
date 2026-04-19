@@ -90,7 +90,7 @@ function Chip({ label, color, onRemove, active, onPress }: {
           ? (color ?? colors.accent)
           : (color ? `${color}40` : colors.bgBorder),
         borderRadius: 99,
-        paddingHorizontal: spacing[2], paddingVertical: 3,
+        paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
       }}
     >
       <Text size="xs" style={{ color: active ? (color ?? colors.accent) : (color ?? colors.textSecondary) }}>{label}</Text>
@@ -108,8 +108,8 @@ function Chip({ label, color, onRemove, active, onPress }: {
 function MetaRow({ icon, children }: { icon: string; children: React.ReactNode }) {
   const { colors } = useTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[3], minHeight: 28 }}>
-      <Text size="sm" style={{ color: colors.textTertiary, width: 16, marginTop: 2 }}>{icon}</Text>
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[2.5], minHeight: 22 }}>
+      <Text size="xs" style={{ color: colors.textTertiary, width: 14, marginTop: 2 }}>{icon}</Text>
       <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing[1] }}>
         {children}
       </View>
@@ -477,13 +477,13 @@ function TaskItem({
         {isExpanded && !selectMode && (
           <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)}>
             <Divider />
-            <View style={{ padding: spacing[3], gap: spacing[4] }}>
+            <View style={{ padding: spacing[3], gap: spacing[2.5] }}>
               <TextInput
                 value={task.title}
                 onChangeText={title => updateTask(task.id, { title })}
                 multiline
                 style={[
-                  { color: colors.textPrimary, fontSize: 15, fontFamily: fontFamily.semibold, lineHeight: 22 },
+                  { color: colors.textPrimary, fontSize: 14, fontFamily: fontFamily.semibold, lineHeight: 20 },
                   // @ts-ignore
                   { outlineStyle: "none" },
                 ]}
@@ -494,9 +494,9 @@ function TaskItem({
                 placeholder="Add notes…"
                 placeholderTextColor={colors.textTertiary}
                 multiline
-                numberOfLines={3}
+                numberOfLines={2}
                 style={[
-                  { color: colors.textSecondary, fontSize: 13, lineHeight: 20, minHeight: 56, textAlignVertical: "top" },
+                  { color: colors.textSecondary, fontSize: 13, lineHeight: 18, minHeight: 36, textAlignVertical: "top" },
                   // @ts-ignore
                   { outlineStyle: "none" },
                 ]}
@@ -519,7 +519,7 @@ function TaskItem({
                 <TagsEditor tags={tags} onChange={tags => updateTask(task.id, { tags })} />
               </MetaRow>
               <Divider />
-              <View style={{ gap: spacing[2] }}>
+              <View style={{ gap: spacing[1.5] }}>
                 <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
                   Subtasks{subtasks.length > 0 ? ` · ${doneSubtasks}/${subtasks.length}` : ""}
                 </Text>
@@ -553,6 +553,7 @@ function AddTaskRow({ onAdd, inputRef }: {
   const [quickDate, setQuickDate]       = useState<string | undefined>();
   const [quickCat, setQuickCat]         = useState<TaskCategory | undefined>();
   const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const showOptions = focused || value.length > 0 || !!quickDate || !!quickCat;
   const today    = getTodayStr();
@@ -568,6 +569,7 @@ function AddTaskRow({ onAdd, inputRef }: {
     setValue("");
     setQuickDate(undefined);
     setQuickCat(undefined);
+    setShowDatePicker(false);
   }
 
   const DATE_PRESETS = [
@@ -615,24 +617,53 @@ function AddTaskRow({ onAdd, inputRef }: {
             <Divider />
             <View style={{ gap: spacing[2], paddingTop: spacing[2] }}>
               {/* Date row */}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
-                <Text size="xs" style={{ color: colors.textTertiary, width: 32 }}>Date</Text>
-                {DATE_PRESETS.map(p => (
-                  <Pressable
-                    key={p.date}
-                    onPress={() => setQuickDate(d => d === p.date ? undefined : p.date)}
-                    style={{
-                      paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
-                      borderRadius: 99, borderWidth: 1,
-                      borderColor: quickDate === p.date ? dueDateColor : colors.bgBorder,
-                      backgroundColor: quickDate === p.date ? `${dueDateColor}18` : "transparent",
-                    }}
-                  >
-                    <Text size="xs" style={{ color: quickDate === p.date ? dueDateColor : colors.textSecondary }}>
-                      {p.label}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View style={{ gap: spacing[1.5] }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
+                  <Text size="xs" style={{ color: colors.textTertiary, width: 32 }}>Date</Text>
+                  {quickDate && !DATE_PRESETS.find(p => p.date === quickDate) ? (
+                    // Custom date chosen from picker — show as chip
+                    <>
+                      <Chip
+                        label={formatDate(quickDate)}
+                        color={dueDateColor}
+                        onRemove={() => { setQuickDate(undefined); setShowDatePicker(false); }}
+                      />
+                      <Pressable onPress={() => setShowDatePicker(v => !v)}>
+                        <Text size="xs" style={{ color: colors.textTertiary }}>Change</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      {DATE_PRESETS.map(p => (
+                        <Pressable
+                          key={p.date}
+                          onPress={() => { setQuickDate(d => d === p.date ? undefined : p.date); setShowDatePicker(false); }}
+                          style={{
+                            paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
+                            borderRadius: 99, borderWidth: 1,
+                            borderColor: quickDate === p.date ? dueDateColor : colors.bgBorder,
+                            backgroundColor: quickDate === p.date ? `${dueDateColor}18` : "transparent",
+                          }}
+                        >
+                          <Text size="xs" style={{ color: quickDate === p.date ? dueDateColor : colors.textSecondary }}>
+                            {p.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      <Pressable onPress={() => setShowDatePicker(v => !v)}>
+                        <Text size="xs" style={{ color: showDatePicker ? colors.accent : colors.textTertiary }}>
+                          Pick date…
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+                {showDatePicker && (
+                  <DatePicker
+                    value={quickDate}
+                    onChange={d => { setQuickDate(d ?? undefined); setShowDatePicker(false); }}
+                  />
+                )}
               </View>
 
               {/* Category row */}

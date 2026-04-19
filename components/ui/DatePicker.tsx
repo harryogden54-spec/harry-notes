@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -60,13 +61,13 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
       {/* Month nav */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing[2] }}>
         <Pressable onPress={prevMonth} hitSlop={8} style={{ padding: spacing[1] }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>‹</Text>
+          <Ionicons name="chevron-back" size={14} color={colors.textSecondary} />
         </Pressable>
         <Text size="xs" weight="semibold" style={{ color: colors.textPrimary }}>
           {MONTHS[view.m]} {view.y}
         </Text>
         <Pressable onPress={nextMonth} hitSlop={8} style={{ padding: spacing[1] }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>›</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </Pressable>
       </View>
 

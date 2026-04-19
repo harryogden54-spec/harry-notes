@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { View, Pressable, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { Surface } from "./Surface";
 import { useTheme } from "@/lib/useTheme";
@@ -130,9 +131,7 @@ export function FocusTimer() {
               alignItems: "center", justifyContent: "center",
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 16, lineHeight: 20 }}>
-              {running ? "⏸" : "▶"}
-            </Text>
+            <Ionicons name={running ? "pause" : "play"} size={16} color="#fff" />
           </Pressable>
           {(running || remaining !== PRESETS[mode]) && (
             <Pressable
@@ -144,7 +143,7 @@ export function FocusTimer() {
                 alignItems: "center", justifyContent: "center",
               }}
             >
-              <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 18 }}>↺</Text>
+              <Ionicons name="refresh" size={16} color={colors.textSecondary} />
             </Pressable>
           )}
         </View>
