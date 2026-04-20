@@ -143,6 +143,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           setLastSynced(new Date().toISOString());
           return;
         }
+        const remoteMap = new Map(remote.map(r => [r.id, r]));
         const merged = await new Promise<Task[]>(resolve => {
           setTasks(prev => {
             const result = [...prev];
@@ -155,7 +156,6 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
                 const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
                 if (remoteUpdated > localUpdated) {
                   // Remote wins — but never un-archive a locally-archived task
-                  // (remote may pre-date the archived field being added to Supabase)
                   result[idx] = { ...rem, archived: rem.archived ?? result[idx].archived };
                 }
               }
@@ -164,8 +164,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
             return result;
           });
         });
-        // Push any locally-archived tasks that Supabase doesn't know about yet
-        const needsSync = merged.filter(t => t.archived);
+        // Push any local tasks that are newer than what Supabase has
+        const needsSync = merged.filter(t => {
+          const rem = remoteMap.get(t.id);
+          const localUpdated  = t.updated_at ?? t.created_at;
+          const remoteUpdated = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
+          return localUpdated > remoteUpdated;
+        });
         if (needsSync.length > 0) syncUpsert("tasks", needsSync).catch(console.warn);
         setSyncStatus("synced");
         setLastSynced(new Date().toISOString());
@@ -188,21 +193,32 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setSyncStatus("syncing");
     try {
       const remote = await syncFetch<Task & { _updated_at: string }>("tasks");
-      setTasks(prev => {
-        const merged = [...prev];
-        for (const rem of remote) {
-          const idx = merged.findIndex(t => t.id === rem.id);
-          if (idx === -1) merged.push(rem);
-          else {
-            const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
-            const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
-            if (remoteUpdated > localUpdated) {
-              merged[idx] = { ...rem, archived: rem.archived ?? merged[idx].archived };
-            }
+      const remoteMap = new Map(remote.map(r => [r.id, r]));
+      const local = tasksRef.current;
+
+      const merged = [...local];
+      for (const rem of remote) {
+        const idx = merged.findIndex(t => t.id === rem.id);
+        if (idx === -1) merged.push(rem);
+        else {
+          const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
+          const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
+          if (remoteUpdated > localUpdated) {
+            merged[idx] = { ...rem, archived: rem.archived ?? merged[idx].archived };
           }
         }
-        return merged;
+      }
+      setTasks(merged);
+
+      // Push any local tasks that are newer than what Supabase has
+      const toUpsert = merged.filter(t => {
+        const rem = remoteMap.get(t.id);
+        const localUpdated  = t.updated_at ?? t.created_at;
+        const remoteUpdated = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
+        return localUpdated > remoteUpdated;
       });
+      if (toUpsert.length > 0) await syncUpsert("tasks", toUpsert).catch(console.warn);
+
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
     } catch {
@@ -270,7 +286,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearCompleted = useCallback(() => {
-    setTasks(prev => prev.map(t => t.done && !t.archived ? stamp({ ...t, archived: true }) : t));
+    const toArchive = tasksRef.current
+      .filter(t => t.done && !t.archived)
+      .map(t => stamp({ ...t, archived: true }));
+    if (toArchive.length === 0) return;
+    const archivedIds = new Set(toArchive.map(t => t.id));
+    const archivedMap = new Map(toArchive.map(t => [t.id, t]));
+    setTasks(prev => prev.map(t => archivedIds.has(t.id) ? archivedMap.get(t.id)! : t));
+    syncUpsert("tasks", toArchive).catch(console.warn);
   }, []);
 
   return (
