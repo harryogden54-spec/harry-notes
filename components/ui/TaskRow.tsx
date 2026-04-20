@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Pressable } from "react-native";
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming,
+} from "react-native-reanimated";
 import { Text } from "./Text";
 import { Checkbox } from "./Checkbox";
 import { useTheme } from "@/lib/useTheme";
@@ -21,28 +24,57 @@ export function TaskRow({ task, onPress }: Props) {
   const due           = task.due_date ? formatDueDate(task.due_date, today, tomorrow, colors.danger, colors.accent) : null;
   const isOverdue     = !task.done && !!task.due_date && task.due_date < today;
 
+  // Animated strikethrough — scales from center so it appears to wipe across
+  const strikeAnim = useSharedValue(task.done ? 1 : 0);
+  useEffect(() => {
+    strikeAnim.value = withTiming(task.done ? 1 : 0, { duration: 180 });
+  }, [task.done]);
+  const strikeStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: strikeAnim.value }],
+    opacity: strikeAnim.value,
+  }));
+
   return (
     <Pressable
       onPress={onPress}
       style={{
         flexDirection: "row", alignItems: "center", gap: spacing[3],
-        paddingVertical: spacing[3], paddingHorizontal: spacing[3],
+        paddingVertical: spacing[2] + 4, paddingHorizontal: spacing[3],
         borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
       }}
     >
       <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text
-          size="sm"
-          weight="medium"
-          numberOfLines={1}
-          style={{
-            color: task.done ? colors.textTertiary : isOverdue ? colors.danger : colors.textPrimary,
-            textDecorationLine: task.done ? "line-through" : "none",
-          }}
-        >
-          {task.title}
-        </Text>
+        {/* Title with animated strikethrough overlay */}
+        <View style={{ position: "relative" }}>
+          <Text
+            size="sm"
+            weight={task.done ? "regular" : "medium"}
+            numberOfLines={1}
+            style={{
+              color: task.done ? colors.textTertiary : isOverdue ? colors.danger : colors.textPrimary,
+            }}
+          >
+            {task.title}
+          </Text>
+          {/* Animated line — sits at vertical midpoint of text */}
+          <Animated.View
+            style={[
+              {
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: "50%",
+                height: 1,
+                backgroundColor: colors.textTertiary,
+                // @ts-ignore — transformOrigin for web left-to-right feel
+                transformOrigin: "left center",
+              },
+              strikeStyle,
+            ]}
+          />
+        </View>
+
         {(task.tags ?? []).length > 0 && (
           <View style={{ flexDirection: "row", gap: spacing[1] }}>
             {(task.tags ?? []).slice(0, 3).map(tag => (

@@ -71,16 +71,36 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const loadedRef   = useRef(false);
-  const tasksRef    = useRef<Task[]>([]);
+  const loadedRef      = useRef(false);
+  const tasksRef       = useRef<Task[]>([]);
+  const syncDebounce   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef  = useRef<string | null>(null);
 
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+  useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
 
-  // Persist locally on every change; Supabase sync only on explicit triggers
+  // Persist locally on every change + debounced push to Supabase
   useEffect(() => {
     if (!loadedRef.current) return;
     storage.set("tasks", tasks);
     if (Platform.OS !== "web") dbSaveTasks(tasks).catch(console.error);
+
+    // Debounce Supabase upsert so rapid mutations (e.g. toggling many tasks)
+    // are batched into a single network call after 1.5 s of quiet.
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
+    syncDebounce.current = setTimeout(() => {
+      const snapshot = tasksRef.current;
+      if (snapshot.length === 0) return;
+      // Only push tasks that were locally mutated after the last successful sync.
+      // This prevents a pull (setTasks from syncNow) from echoing remote data
+      // back to Supabase with a bumped updated_at, which would cause false conflicts.
+      const cutoff = lastSyncedRef.current;
+      const dirty = cutoff
+        ? snapshot.filter(t => (t.updated_at ?? t.created_at) > cutoff)
+        : snapshot;
+      if (dirty.length === 0) return;
+      syncUpsert("tasks", dirty).catch(console.warn);
+    }, 1500);
   }, [tasks]);
 
   useEffect(() => {

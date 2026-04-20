@@ -16,8 +16,8 @@ export function SectionHeader({ label, count, subtitle, action }: Props) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
       <Text style={{
-        fontSize: 11, letterSpacing: 1.2,
-        color: colors.textSecondary, fontFamily: fontFamily.semibold,
+        fontSize: 10, letterSpacing: 1.5,
+        color: colors.textTertiary, fontFamily: fontFamily.semibold,
         textTransform: "uppercase", flex: 1,
       }}>
         {label}{count !== undefined ? ` · ${count}` : ""}

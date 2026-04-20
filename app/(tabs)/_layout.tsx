@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
 import { Platform, Text, Animated, View, Pressable, useWindowDimensions } from "react-native";
-import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
+import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
@@ -106,11 +106,23 @@ function OfflineBanner() {
 
 // ─── Sidebar (web / tablet) ───────────────────────────────────────────────────
 
+// Group divider index: insert a divider before "calendar" (index 5)
+const NAV_DIVIDER_BEFORE = 5;
+
 function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggleCollapse: () => void }) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Animated chevron rotation (0 = expanded → pointing left; 1 = collapsed → pointing right)
+  const chevronRot = useSharedValue(collapsed ? 1 : 0);
+  useEffect(() => {
+    chevronRot.value = withTiming(collapsed ? 1 : 0, { duration: 200 });
+  }, [collapsed]);
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRot.value * 180}deg` }],
+  }));
 
   const isActive = (name: string) => {
     if (name === "index") return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/";
@@ -121,7 +133,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
     <View style={{
       width: collapsed ? 56 : 220,
       height: "100%",
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.bgSecondary,
       borderRightWidth: 1,
       borderRightColor: colors.bgBorder,
       paddingTop: Platform.OS === "web" ? 24 : 48,
@@ -158,28 +170,40 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
               borderRadius: radius.md,
               borderWidth: 1,
               borderColor: hoveredItem === "__toggle" ? colors.bgBorder : "transparent",
-              backgroundColor: hoveredItem === "__toggle" ? colors.bgSecondary : "transparent",
+              backgroundColor: hoveredItem === "__toggle" ? colors.bgTertiary : "transparent",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons
-              name={collapsed ? "chevron-forward-outline" : "chevron-back-outline"}
-              size={14}
-              color={colors.textTertiary}
-            />
+            {/* Rotates: left-arrow when expanded, right-arrow when collapsed */}
+            <ReAnimated.View style={chevronStyle}>
+              <Ionicons name="chevron-back-outline" size={14} color={colors.textTertiary} />
+            </ReAnimated.View>
           </Pressable>
         </View>
 
         {/* Nav items */}
-        <View style={{ gap: spacing[1] }}>
-          {NAV_ITEMS.map(item => {
+        <View style={{ gap: 2 }}>
+          {NAV_ITEMS.map((item, idx) => {
             const active = isActive(item.name);
             const hovered = hoveredItem === item.name;
             const showTooltip = collapsed && hovered;
 
             return (
               <View key={item.name} style={{ position: "relative" }}>
+                {/* Group divider before "calendar" */}
+                {idx === NAV_DIVIDER_BEFORE && !collapsed && (
+                  <View style={{
+                    height: 1,
+                    backgroundColor: colors.bgBorder,
+                    marginVertical: spacing[2],
+                    marginHorizontal: spacing[1],
+                  }} />
+                )}
+                {idx === NAV_DIVIDER_BEFORE && collapsed && (
+                  <View style={{ height: spacing[2] }} />
+                )}
+
                 <Pressable
                   onPress={() => router.push(item.path as any)}
                   // @ts-ignore — web-only hover events
@@ -190,26 +214,24 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                     alignItems: "center",
                     gap: collapsed ? 0 : spacing[3],
                     paddingHorizontal: collapsed ? 0 : spacing[3],
-                    paddingVertical: spacing[2] + 2,
-                    borderRadius: radius.lg,
+                    paddingVertical: spacing[2],
+                    borderRadius: radius.md,
                     justifyContent: collapsed ? "center" : "flex-start",
-                    backgroundColor: active
-                      ? `${colors.accent}20`
-                      : hovered
-                      ? `${colors.accent}10`
-                      : "transparent",
+                    // Active: no fill — left border indicator (ActiveBar) does the work
+                    backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
                   }}
                 >
                   <ActiveBar active={active} accent={colors.accent} />
                   <Ionicons
                     name={active ? item.iconFilled : item.iconOutline}
-                    size={20}
+                    size={19}
                     color={active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary}
                   />
                   {!collapsed && (
                     <Text style={{
-                      fontSize: 14, fontFamily: active ? fontFamily.semibold : fontFamily.regular,
-                      color: active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary,
+                      fontSize: 13,
+                      fontFamily: active ? fontFamily.medium : fontFamily.regular,
+                      color: active ? colors.textPrimary : hovered ? colors.textPrimary : colors.textSecondary,
                     }}>
                       {item.label}
                     </Text>
@@ -257,19 +279,19 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
           alignItems: "center",
           gap: collapsed ? 0 : spacing[3],
           paddingHorizontal: collapsed ? 0 : spacing[3],
-          paddingVertical: spacing[2] + 2,
-          borderRadius: radius.lg,
+          paddingVertical: spacing[2],
+          borderRadius: radius.md,
           justifyContent: collapsed ? "center" : "flex-start",
-          backgroundColor: hoveredItem === "settings" ? `${colors.accent}10` : "transparent",
+          backgroundColor: hoveredItem === "settings" ? `${colors.accent}0C` : "transparent",
         }}
       >
         <Ionicons
           name="settings-outline"
-          size={20}
+          size={19}
           color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary}
         />
         {!collapsed && (
-          <Text style={{ fontSize: 14, fontFamily: fontFamily.regular, color: hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary }}>
+          <Text style={{ fontSize: 13, fontFamily: fontFamily.regular, color: hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary }}>
             Settings
           </Text>
         )}
