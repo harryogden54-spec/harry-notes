@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { radius, spacing, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
-import { QuickAddSheet } from "@/components/dashboard/QuickAddSheet";
+import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -78,6 +78,39 @@ function ActiveBar({ active, accent }: { active: boolean; accent: string }) {
 function OfflineBanner() {
   const { colors } = useTheme();
   const { syncStatus, syncNow } = useTasks();
+  const [networkOffline, setNetworkOffline] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const onOffline = () => setNetworkOffline(true);
+    const onOnline  = () => setNetworkOffline(false);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online",  onOnline);
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online",  onOnline);
+    };
+  }, []);
+
+  if (networkOffline) {
+    return (
+      <View style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing[2],
+        paddingHorizontal: spacing[3],
+        paddingVertical: spacing[1] + 2,
+        backgroundColor: `${colors.warning}18`,
+        borderBottomWidth: 1,
+        borderBottomColor: `${colors.warning}30`,
+      }}>
+        <Ionicons name="cloud-offline-outline" size={13} color={colors.warning} />
+        <Text style={{ fontSize: 11, fontFamily: fontFamily.medium, color: colors.warning, flex: 1 }}>
+          You're offline — changes will sync when reconnected
+        </Text>
+      </View>
+    );
+  }
 
   if (syncStatus !== "error") return null;
 
@@ -359,7 +392,7 @@ export default function TabLayout() {
   const { onTabPress } = useFadeTab();
   const { width } = useWindowDimensions();
   const router = useRouter();
-  const { addTask } = useTasks();
+  const { addTask, updateTask } = useTasks();
 
   const autoCollapsed = width >= 768 && width < 1024;
   const useSidebar = width >= 768;
@@ -426,10 +459,10 @@ export default function TabLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  const handleQuickAddTask = useCallback((title: string, dueDate?: string) => {
-    addTask(title, dueDate);
-    setShowQuickAdd(false);
-  }, [addTask]);
+  const handleQuickAddTask = useCallback((title: string, dueDate?: string, category?: import("@/lib/TasksContext").TaskCategory, uniCourse?: import("@/lib/TasksContext").UniCourse) => {
+    const id = addTask(title, dueDate);
+    if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
+  }, [addTask, updateTask]);
 
   if (useSidebar) {
     return (
@@ -453,11 +486,7 @@ export default function TabLayout() {
         </View>
 
         {/* Global quick-add (Cmd+K) */}
-        {showQuickAdd && (
-          <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 100 } as any} pointerEvents="box-none">
-            <QuickAddSheet visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
-          </View>
-        )}
+        <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
 
         {/* Global shortcuts panel */}
         {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}

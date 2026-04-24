@@ -28,7 +28,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     storage.get<AccentId>("accent_id").then(v => {
       if (v && ACCENT_OPTIONS.some(a => a.id === v)) setAccentIdState(v);
     });
-    storage.get<ThemeId>("theme_id").then(v => {
+    storage.get<ThemeId>("theme-v2").then(v => {
       if (v && (v in THEMES)) setThemeIdState(v);
     });
   }, []);
@@ -48,7 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   function setThemeId(id: ThemeId) {
     setThemeIdState(id);
-    storage.set("theme_id", id);
+    storage.set("theme-v2", id);
   }
 
   return (

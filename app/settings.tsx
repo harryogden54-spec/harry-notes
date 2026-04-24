@@ -3,7 +3,7 @@ import { View, ScrollView, SafeAreaView, Pressable, Switch, Platform, Alert } fr
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
-import { ACCENT_OPTIONS, THEMES } from "@/lib/theme";
+import { ACCENT_OPTIONS, THEMES, type ThemeId } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
@@ -146,6 +146,63 @@ export default function SettingsScreen() {
           <Text size="2xl" weight="bold">Settings</Text>
         </View>
 
+        {/* ── Theme picker ─────────────────────────────────────────────────── */}
+        <View style={{ marginBottom: spacing[6] }}>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
+            Theme
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3], paddingHorizontal: spacing[4] }}>
+            {(Object.entries(THEMES) as [ThemeId, typeof THEMES[ThemeId]][]).map(([id, def]) => {
+              const active = themeId === id;
+              const tokens = scheme === "dark" ? def.dark : def.light;
+              const bgLabel = def.background?.type ?? "gradient";
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => setThemeId(id)}
+                  style={{
+                    width: "46%" as any,
+                    borderRadius: radius.xl,
+                    borderWidth: active ? 2 : 1,
+                    borderColor: active ? colors.accent : colors.bgBorder,
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Colour swatch strip */}
+                  <View style={{ flexDirection: "row", height: 36 }}>
+                    <View style={{ flex: 1, backgroundColor: tokens.bgPrimary }} />
+                    <View style={{ flex: 1, backgroundColor: tokens.bgSecondary }} />
+                    <View style={{ flex: 1, backgroundColor: tokens.accent }} />
+                  </View>
+                  {/* Label area */}
+                  <View style={{
+                    padding: spacing[2.5],
+                    backgroundColor: active ? `${colors.accent}14` : colors.bgSecondary,
+                    gap: spacing[0.5],
+                  }}>
+                    <Text size="xs" weight={active ? "semibold" : "medium"} style={{ color: active ? colors.accent : colors.textPrimary }}>
+                      {def.label}
+                    </Text>
+                    <Text size="xs" style={{ color: colors.textTertiary, textTransform: "capitalize" }}>
+                      {bgLabel}
+                    </Text>
+                  </View>
+                  {active && (
+                    <View style={{
+                      position: "absolute", top: spacing[1], right: spacing[1],
+                      width: 18, height: 18, borderRadius: 9,
+                      backgroundColor: colors.accent,
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Text style={{ color: "#fff", fontSize: 10, lineHeight: 18 }}>✓</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <Section title="Appearance">
           <SettingRow
             label="Dark mode"
@@ -155,39 +212,6 @@ export default function SettingsScreen() {
                 trackColor={{ false: colors.bgBorder, true: colors.accent }} thumbColor="#fff" />
             }
           />
-          <Divider />
-          {/* Theme selector */}
-          <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3] }}>
-            <Text size="xs" secondary style={{ marginBottom: spacing[2] }}>Theme</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
-              {(Object.entries(THEMES) as [import("@/lib/theme").ThemeId, typeof THEMES[keyof typeof THEMES]][]).map(([id, def]) => {
-                const active = themeId === id;
-                const swatch = def.dark.bgSecondary;
-                const accentSwatch = def.dark.accent;
-                return (
-                  <Pressable
-                    key={id}
-                    onPress={() => setThemeId(id)}
-                    style={{
-                      flexDirection: "row", alignItems: "center", gap: spacing[1.5],
-                      paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-                      borderRadius: radius.xl, borderWidth: active ? 2 : 1,
-                      borderColor: active ? colors.accent : colors.bgBorder,
-                      backgroundColor: active ? `${colors.accent}18` : colors.bgSecondary,
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", gap: 3 }}>
-                      <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: swatch, borderWidth: 1, borderColor: `${swatch}80` }} />
-                      <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: accentSwatch }} />
-                    </View>
-                    <Text size="xs" weight={active ? "semibold" : undefined} style={{ color: active ? colors.accent : colors.textSecondary }}>
-                      {def.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
           <Divider />
           {/* Accent override (only shown for default/Linear theme) */}
           {themeId === "default" && (
@@ -219,7 +243,6 @@ export default function SettingsScreen() {
               <Divider />
             </>
           )}
-          <Divider />
           {/* Live preview strip */}
           <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
             <View style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.lg, backgroundColor: colors.accent }}>

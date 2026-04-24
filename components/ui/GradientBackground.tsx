@@ -30,6 +30,36 @@ const GRADIENTS: Record<string, {
     light: ["#E8EEF5", "#F7F9FC", "#EEF3F9"],
     glow:  "#4A90D9",
   },
+  rose:      {
+    dark:  ["#180F14", "#1E1518", "#1C1218"],
+    light: ["#F5E8ED", "#FDF4F6", "#F8EEF2"],
+    glow:  "#D4849A",
+  },
+  forest:    {
+    dark:  ["#091210", "#0D1810", "#0F1A12"],
+    light: ["#E0EEE3", "#F2F8F3", "#E8F4EA"],
+    glow:  "#6DBF7E",
+  },
+  dusk:      {
+    dark:  ["#0A0616", "#100B1E", "#0E0918"],
+    light: ["#EAE2FA", "#F8F5FF", "#F0ECFF"],
+    glow:  "#C8A870",
+  },
+  steel:     {
+    dark:  ["#0E141C", "#141A22", "#121820"],
+    light: ["#E4EBF4", "#F2F5F8", "#EAF0F6"],
+    glow:  "#7A9AB8",
+  },
+  sand:      {
+    dark:  ["#141008", "#1C1810", "#1A160E"],
+    light: ["#EEE8D4", "#FAF6EE", "#F5F0E4"],
+    glow:  "#C8A86A",
+  },
+  midnight:  {
+    dark:  ["#030508", "#050810", "#04060C"],
+    light: ["#E4ECFF", "#F0F4FF", "#EAF0FF"],
+    glow:  "#3A7AFF",
+  },
 };
 
 export function GradientBackground({ children }: { children: React.ReactNode }) {

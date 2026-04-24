@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput, Pressable,
-  KeyboardAvoidingView, Platform, RefreshControl, type ScrollView as RNScrollView,
+  KeyboardAvoidingView, Platform, RefreshControl, Modal,
+  type ScrollView as RNScrollView, useWindowDimensions,
 } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -370,6 +371,8 @@ function TaskItem({
   const { updateTask } = useTasks();
   const [hovered, setHovered] = useState(false);
   const today = getTodayStr();
+  const { width } = useWindowDimensions();
+  const desktopMode = Platform.OS === "web" && width > 1024;
 
   const priorityColor = task.priority ? PRIORITY_CONFIG[task.priority]?.color : undefined;
   const overdue       = !task.done && !!task.due_date && task.due_date < today;
@@ -474,7 +477,7 @@ function TaskItem({
           )}
         </View>
 
-        {isExpanded && !selectMode && (
+        {isExpanded && !selectMode && !desktopMode && (
           <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)}>
             <Divider />
             <View style={{ padding: spacing[3], gap: spacing[2.5] }}>
@@ -538,6 +541,144 @@ function TaskItem({
       </Surface>
     </Swipeable>
     </View>
+  );
+}
+
+// ─── Task Detail Panel ────────────────────────────────────────────────────────
+
+function TaskDetailPanel({ task, onClose }: { task: Task; onClose?: () => void }) {
+  const { colors } = useTheme();
+  const { updateTask, deleteTask, toggleTask } = useTasks();
+  const { showToast } = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const subtasks = task.subtasks ?? [];
+  const tags     = task.tags ?? [];
+  const doneSubtasks = subtasks.filter(s => s.done).length;
+
+  function handleDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    const undo = deleteTask(task.id);
+    onClose?.();
+    showToast("Task deleted", { label: "Undo", onPress: undo });
+  }
+
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: spacing[5], gap: spacing[4], paddingBottom: spacing[16] }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Header: Complete + Close */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], justifyContent: "space-between" }}>
+        <Pressable
+          onPress={() => { toggleTask(task.id); onClose?.(); }}
+          style={{
+            flexDirection: "row", alignItems: "center", gap: spacing[2],
+            paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+            borderRadius: radius.lg, borderWidth: 1,
+            borderColor: task.done ? colors.success : colors.accent,
+            backgroundColor: task.done ? `${colors.success}18` : `${colors.accent}18`,
+          }}
+        >
+          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: task.done ? colors.success : colors.accent, alignItems: "center", justifyContent: "center" }}>
+            {task.done && <Text size="xs" style={{ color: "#fff", lineHeight: 14 }}>✓</Text>}
+          </View>
+          <Text size="xs" weight="semibold" style={{ color: task.done ? colors.success : colors.accent }}>
+            {task.done ? "Completed" : "Mark done"}
+          </Text>
+        </Pressable>
+        {onClose && (
+          <Pressable onPress={onClose} hitSlop={12}
+            style={{ width: 26, height: 26, borderRadius: 99, backgroundColor: colors.bgTertiary, alignItems: "center", justifyContent: "center" }}>
+            <Text size="sm" style={{ color: colors.textTertiary }}>✕</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Editable title */}
+      <TextInput
+        value={task.title}
+        onChangeText={title => updateTask(task.id, { title })}
+        multiline
+        placeholder="Task title"
+        placeholderTextColor={colors.textTertiary}
+        style={[
+          { color: task.done ? colors.textTertiary : colors.textPrimary, fontSize: 20, fontFamily: fontFamily.bold, lineHeight: 28,
+            textDecorationLine: task.done ? "line-through" : "none" },
+          // @ts-ignore
+          { outlineStyle: "none" },
+        ]}
+      />
+
+      {/* Description */}
+      <TextInput
+        value={task.description ?? ""}
+        onChangeText={description => updateTask(task.id, { description })}
+        placeholder="Add notes…"
+        placeholderTextColor={colors.textTertiary}
+        multiline
+        numberOfLines={4}
+        style={[
+          { color: colors.textSecondary, fontSize: 14, lineHeight: 21, minHeight: 72, textAlignVertical: "top",
+            backgroundColor: colors.bgTertiary, borderRadius: radius.lg, padding: spacing[3], borderWidth: 1, borderColor: colors.bgBorder },
+          // @ts-ignore
+          { outlineStyle: "none" },
+        ]}
+      />
+
+      <Divider />
+
+      {/* Metadata */}
+      <MetaRow icon="⬤">
+        <PrioritySelector value={task.priority} onChange={priority => updateTask(task.id, { priority })} />
+      </MetaRow>
+      <MetaRow icon="◷">
+        <DueDateSelector value={task.due_date} onChange={due_date => updateTask(task.id, { due_date })} />
+      </MetaRow>
+      <MetaRow icon="◈">
+        <CategorySelector
+          category={task.category}
+          uniCourse={task.uniCourse}
+          onChange={(category, uniCourse) => updateTask(task.id, { category, uniCourse })}
+        />
+      </MetaRow>
+      <MetaRow icon="#">
+        <TagsEditor tags={tags} onChange={tags => updateTask(task.id, { tags })} />
+      </MetaRow>
+
+      <Divider />
+
+      {/* Subtasks */}
+      <View style={{ gap: spacing[1.5] }}>
+        <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+          Subtasks{subtasks.length > 0 ? ` · ${doneSubtasks}/${subtasks.length}` : ""}
+        </Text>
+        <SubtasksList subtasks={subtasks} onChange={s => updateTask(task.id, { subtasks: s })} />
+      </View>
+
+      <Divider />
+
+      {/* Delete */}
+      {confirmDelete ? (
+        <View style={{ flexDirection: "row", gap: spacing[2], alignItems: "center" }}>
+          <Text size="xs" style={{ color: colors.danger, flex: 1 }}>Are you sure?</Text>
+          <Pressable onPress={handleDelete}
+            style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, backgroundColor: colors.danger }}>
+            <Text size="xs" weight="semibold" style={{ color: "#fff" }}>Delete</Text>
+          </Pressable>
+          <Pressable onPress={() => setConfirmDelete(false)}
+            style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}>
+            <Text size="xs" style={{ color: colors.textSecondary }}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable onPress={handleDelete}
+          style={{ alignSelf: "flex-start", paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: `${colors.danger}44`, backgroundColor: `${colors.danger}10` }}>
+          <Text size="xs" style={{ color: colors.danger }}>Delete task</Text>
+        </Pressable>
+      )}
+    </ScrollView>
   );
 }
 
@@ -799,8 +940,12 @@ export default function TasksScreen() {
   const { tasks, addTask, loaded, syncStatus, syncNow, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
   const { showToast } = useToast();
   const params = useLocalSearchParams<{ create?: string; taskId?: string; filter?: string }>();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width > 1024;
 
   const [expandedId, setExpandedId]         = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [search, setSearch]                 = useState("");
   const [filterPriority, setFilterPriority] = useState<Priority | null>(null);
   const [focusMode, setFocusMode]           = useState(false);
@@ -846,7 +991,7 @@ export default function TasksScreen() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "n" || e.key === "N") { e.preventDefault(); addInputRef.current?.focus(); }
-      if (e.key === "Escape") { setExpandedId(null); setSelectMode(false); setSelectedIds(new Set()); }
+      if (e.key === "Escape") { setExpandedId(null); setSelectedTaskId(null); setSelectMode(false); setSelectedIds(new Set()); }
       if (e.key === "f" || e.key === "F") { e.preventDefault(); setFocusMode(v => !v); }
     }
     window.addEventListener("keydown", onKey);
@@ -861,15 +1006,22 @@ export default function TasksScreen() {
   }, [addTask, updateTask]);
 
   const handleToggleExpand = useCallback((id: string) => {
-    setExpandedId(prev => prev === id ? null : id);
-  }, []);
+    if (isDesktop) {
+      setSelectedTaskId(prev => prev === id ? null : id);
+    } else {
+      setExpandedId(prev => prev === id ? null : id);
+      setSelectedTaskId(id);
+      setShowMobileDetail(true);
+    }
+  }, [isDesktop]);
 
   const handleDelete = useCallback((id: string) => {
     const undo = deleteTask(id);
     setExpandedId(null);
+    if (selectedTaskId === id) { setSelectedTaskId(null); setShowMobileDetail(false); }
     showToast("Task deleted", { label: "Undo", onPress: undo });
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-  }, [deleteTask, showToast]);
+  }, [deleteTask, showToast, selectedTaskId]);
 
   const handleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -918,7 +1070,8 @@ export default function TasksScreen() {
   const archived  = tasks.filter(t => t.archived);
   const focusTasks = [...overdue, ...today];
 
-  const sectionProps = { expandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy, onLongPress: handleLongPress };
+  const effectiveExpandedId = isDesktop ? selectedTaskId : expandedId;
+  const sectionProps = { expandedId: effectiveExpandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy, onLongPress: handleLongPress };
 
   // Sync pill: show while syncing, then show "Synced ✓" for 2s
   const [pillText, setPillText] = useState<string | null>(null);
@@ -963,7 +1116,11 @@ export default function TasksScreen() {
         </View>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={{ flex: 1, flexDirection: isDesktop ? "row" : "column" }}>
+      <KeyboardAvoidingView
+        style={{ flex: isDesktop ? undefined : 1, width: isDesktop ? 380 : undefined, borderRightWidth: isDesktop ? 1 : 0, borderRightColor: colors.bgBorder, overflow: "hidden" }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
@@ -1186,6 +1343,43 @@ export default function TasksScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* Right column — desktop detail panel */}
+      {isDesktop && (
+        <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
+          {selectedTaskId && tasks.find(t => t.id === selectedTaskId) ? (
+            <TaskDetailPanel
+              task={tasks.find(t => t.id === selectedTaskId)!}
+              onClose={() => setSelectedTaskId(null)}
+            />
+          ) : (
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing[2] }}>
+              <Text size="xl" style={{ color: colors.textTertiary }}>☑</Text>
+              <Text size="sm" secondary>Select a task to view details</Text>
+            </View>
+          )}
+        </View>
+      )}
+      </View>{/* end flex-row */}
+
+      {/* Mobile task detail modal */}
+      {!isDesktop && showMobileDetail && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (
+        <Modal
+          visible={showMobileDetail}
+          animationType="slide"
+          onRequestClose={() => { setShowMobileDetail(false); setSelectedTaskId(null); }}
+          statusBarTranslucent
+        >
+          <GradientBackground>
+            <SafeAreaView style={{ flex: 1 }}>
+              <TaskDetailPanel
+                task={tasks.find(t => t.id === selectedTaskId)!}
+                onClose={() => { setShowMobileDetail(false); setSelectedTaskId(null); }}
+              />
+            </SafeAreaView>
+          </GradientBackground>
+        </Modal>
+      )}
       </SafeAreaView>
     </GradientBackground>
   );
