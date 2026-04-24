@@ -26,6 +26,52 @@ import { StickyNoteModal }    from "@/components/dashboard/StickyNoteModal";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
 import { StickyCard }         from "@/components/dashboard/StickyCard";
 
+// ─── Pastel palette (mirrors notes.tsx) ──────────────────────────────────────
+
+const NOTE_PASTELS      = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
+const NOTE_PASTEL_BORDERS = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
+const NOTE_PASTEL_TEXT  = "#1A1A2E";
+
+function getPastelIndex(noteId: string): number {
+  let h = 0;
+  for (let i = 0; i < noteId.length; i++) h = (h * 31 + noteId.charCodeAt(i)) >>> 0;
+  return h % NOTE_PASTELS.length;
+}
+
+// ─── Circular progress ring ───────────────────────────────────────────────────
+
+function ProgressRing({ done, total, size = 32, color = "#5B6AD0" }: { done: number; total: number; size?: number; color?: string }) {
+  const pct = total === 0 ? 0 : Math.max(0, Math.min(1, done / total));
+  const deg = Math.round(pct * 360);
+  if (Platform.OS === "web") {
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden" }}>
+        <View style={{
+          width: size, height: size, borderRadius: size / 2,
+          // @ts-ignore
+          background: `conic-gradient(${color} ${deg}deg, rgba(120,120,120,0.15) ${deg}deg)`,
+        }}>
+          {/* Donut hole */}
+          <View style={{
+            position: "absolute", top: 5, left: 5,
+            width: size - 10, height: size - 10,
+            borderRadius: (size - 10) / 2,
+            backgroundColor: "transparent",
+          }} />
+        </View>
+      </View>
+    );
+  }
+  // Native fallback: plain ring
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      borderWidth: 3, borderColor: `${color}30`,
+      borderTopColor: pct > 0 ? color : `${color}30`,
+    }} />
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function greeting() {
@@ -182,34 +228,35 @@ function ListGridCard({ list, onPress }: { list: any; onPress: () => void }) {
   const { colors } = useTheme();
   const items = list.items ?? [];
   const doneCount = items.filter((i: any) => i.done).length;
-  const preview = items.slice(0, 4);
+  const preview = items.filter((i: any) => !i.done).slice(0, 3);
 
   return (
     <Pressable onPress={onPress} style={{ flex: 1 }}>
       <Surface style={{ padding: spacing[3], gap: spacing[2], flex: 1 }}>
+        {/* Header: color dot + name + progress ring */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
           <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: list.color }} />
           <Text size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
+          {items.length > 0 && (
+            <ProgressRing done={doneCount} total={items.length} size={28} color={list.color ?? colors.accent} />
+          )}
         </View>
+        {/* Preview items */}
         {preview.length > 0 ? (
           <View style={{ gap: spacing[0.5] }}>
             {preview.map((item: any) => (
-              <Text key={item.id} size="xs" secondary numberOfLines={1} style={{
-                textDecorationLine: item.done ? "line-through" : "none",
-                color: item.done ? colors.textTertiary : colors.textSecondary,
-              }}>
+              <Text key={item.id} size="xs" secondary numberOfLines={1}>
                 {item.content}
               </Text>
             ))}
           </View>
+        ) : items.length > 0 ? (
+          <Text size="xs" style={{ color: colors.accent }}>All done ✓</Text>
         ) : (
           <Text size="xs" secondary>Empty</Text>
         )}
-        {items.length > 4 && (
-          <Text size="xs" style={{ color: colors.textTertiary }}>+{items.length - 4} more</Text>
-        )}
         {items.length > 0 && (
-          <Text size="xs" style={{ color: colors.accent }}>
+          <Text size="xs" style={{ color: colors.textTertiary }}>
             {doneCount}/{items.length} done
           </Text>
         )}
@@ -463,46 +510,55 @@ export default function DashboardScreen() {
     </View>
   ) : null;
 
-  // Notes grid
+  // Notes grid (pastel cards, max 4)
   const notesGrid = sortedNotes.length > 0 ? (
     <View style={{ marginBottom: spacing[5] }}>
       <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: () => router.push("/(tabs)/notes") }} />
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3] }}>
-        {sortedNotes.slice(0, 6).map(note => (
-          <Pressable
-            key={note.id}
-            onPress={() => router.push(`/(tabs)/notes?openId=${note.id}` as any)}
-            style={{ width: "47%" as any }}
-          >
-            <Surface style={{ padding: spacing[3], gap: spacing[1.5], minHeight: 80 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1] }}>
-                {note.pinned && <Text size="xs" style={{ color: colors.accent }}>📌</Text>}
-                <Text size="xs" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+        {sortedNotes.slice(0, 4).map(note => {
+          const pi = getPastelIndex(note.id);
+          const bg = NOTE_PASTELS[pi];
+          const border = NOTE_PASTEL_BORDERS[pi];
+          return (
+            <Pressable
+              key={note.id}
+              onPress={() => router.push(`/(tabs)/notes?openId=${note.id}` as any)}
+              style={{ width: isDesktop ? "23.5%" as any : "48%" as any }}
+            >
+              <View style={{
+                backgroundColor: bg,
+                borderWidth: 1, borderColor: border,
+                borderRadius: 12,
+                padding: spacing[3],
+                gap: spacing[1],
+                minHeight: 90,
+              }}>
+                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: NOTE_PASTEL_TEXT }}>
                   {note.title || "Untitled"}
                 </Text>
+                {note.body.trim() && (
+                  <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, opacity: 0.75, lineHeight: 16 }}>
+                    {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
+                  </Text>
+                )}
+                {mounted && (
+                  <Text size="xs" style={{ color: NOTE_PASTEL_TEXT, opacity: 0.45, marginTop: "auto" as any }}>
+                    {(() => {
+                      const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
+                      const mins = Math.floor(diff / 60000);
+                      const hours = Math.floor(diff / 3600000);
+                      const days = Math.floor(diff / 86400000);
+                      if (mins < 1) return "just now";
+                      if (mins < 60) return `${mins}m ago`;
+                      if (hours < 24) return `${hours}h ago`;
+                      return `${days}d ago`;
+                    })()}
+                  </Text>
+                )}
               </View>
-              {note.body.trim() && (
-                <Text size="xs" secondary numberOfLines={3} style={{ lineHeight: 16 }}>
-                  {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
-                </Text>
-              )}
-              {mounted && (
-                <Text size="xs" style={{ color: colors.textTertiary, marginTop: "auto" as any }}>
-                  {(() => {
-                    const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
-                    const mins = Math.floor(diff / 60000);
-                    const hours = Math.floor(diff / 3600000);
-                    const days = Math.floor(diff / 86400000);
-                    if (mins < 1) return "just now";
-                    if (mins < 60) return `${mins}m ago`;
-                    if (hours < 24) return `${hours}h ago`;
-                    return `${days}d ago`;
-                  })()}
-                </Text>
-              )}
-            </Surface>
-          </Pressable>
-        ))}
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   ) : null;

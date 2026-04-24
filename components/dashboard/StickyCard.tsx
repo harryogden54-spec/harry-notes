@@ -24,7 +24,7 @@ export function StickyCard({ note, onPress }: Props) {
       }}>
         <Text
           size="xs"
-          numberOfLines={4}
+          numberOfLines={3}
           style={{ color: note.content ? colors.textPrimary : colors.textTertiary, lineHeight: 18 }}
         >
           {note.content || "Empty note"}
