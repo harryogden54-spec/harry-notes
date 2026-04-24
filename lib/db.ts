@@ -9,7 +9,7 @@ export function getDb(): SQLite.SQLiteDatabase {
   return _db;
 }
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -123,6 +123,14 @@ export async function initDb(): Promise<void> {
     if (!lNames.includes("pinned")) await db.execAsync("ALTER TABLE lists ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
   }
 
+  if (current < 5) {
+    // v5: add archived + completed_at to tasks (were tracked in memory but never persisted)
+    const tCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(tasks)");
+    const tNames = tCols.map(c => c.name);
+    if (!tNames.includes("archived"))     await db.execAsync("ALTER TABLE tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
+    if (!tNames.includes("completed_at")) await db.execAsync("ALTER TABLE tasks ADD COLUMN completed_at TEXT");
+  }
+
   if (current < SCHEMA_VERSION) {
     if (rows.length === 0) {
       await db.runAsync("INSERT INTO schema_version (version) VALUES (?)", SCHEMA_VERSION);
@@ -142,6 +150,7 @@ export async function dbLoadTasks(): Promise<any[]> {
     id: r.id,
     title: r.title,
     done: !!r.done,
+    archived: !!r.archived,
     due_date: r.due_date ?? undefined,
     priority: r.priority ?? undefined,
     description: r.description ?? undefined,
@@ -149,6 +158,7 @@ export async function dbLoadTasks(): Promise<any[]> {
     subtasks: r.subtasks ? JSON.parse(r.subtasks) : undefined,
     category: r.category ?? undefined,
     uniCourse: r.uni_course ?? undefined,
+    completed_at: r.completed_at ?? undefined,
     created_at: r.created_at,
     updated_at: r.updated_at,
   }));
@@ -161,10 +171,11 @@ export async function dbSaveTasks(tasks: any[]): Promise<void> {
     for (const t of tasks) {
       await db.runAsync(
         `INSERT INTO tasks
-           (id,title,done,due_date,priority,description,tags,subtasks,recurrence,category,uni_course,created_at,updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+           (id,title,done,archived,completed_at,due_date,priority,description,tags,subtasks,recurrence,category,uni_course,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
-          t.id, t.title, t.done ? 1 : 0, t.due_date ?? null,
+          t.id, t.title, t.done ? 1 : 0, t.archived ? 1 : 0, t.completed_at ?? null,
+          t.due_date ?? null,
           t.priority ?? null, t.description ?? null,
           t.tags      ? JSON.stringify(t.tags)     : null,
           t.subtasks  ? JSON.stringify(t.subtasks) : null,

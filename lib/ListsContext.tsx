@@ -61,19 +61,39 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const loadedRef   = useRef(false);
-  const listsRef    = useRef<NoteList[]>([]);
+  const loadedRef      = useRef(false);
+  const listsRef       = useRef<NoteList[]>([]);
+  const syncDebounce   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef  = useRef<string | null>(null);
 
   useEffect(() => { listsRef.current = lists; }, [lists]);
+  useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
 
-  // Persist locally on every change; Supabase sync only on explicit triggers
+  // Persist locally on every change + debounced push to Supabase
   useEffect(() => {
     if (!loadedRef.current) return;
     storage.set("lists", lists);
     if (Platform.OS !== "web") dbSaveLists(lists).catch(console.error);
+
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
+    syncDebounce.current = setTimeout(() => {
+      const snapshot = listsRef.current;
+      if (snapshot.length === 0) return;
+      const cutoff = lastSyncedRef.current;
+      const dirty = cutoff
+        ? snapshot.filter(l => (l.updated_at ?? l.created_at) > cutoff)
+        : snapshot;
+      if (dirty.length === 0) return;
+      syncUpsert("lists", dirty).catch(console.warn);
+    }, 1500);
   }, [lists]);
 
   useEffect(() => {
+    // 3-second safety net: mark loaded even if storage hangs
+    const loadTimeout = setTimeout(() => {
+      if (!loadedRef.current) { loadedRef.current = true; setLoaded(true); }
+    }, 3000);
+
     const loadLocal = async (): Promise<NoteList[]> => {
       if (Platform.OS !== "web") {
         try {
@@ -88,6 +108,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadLocal().then(async (local) => {
+      clearTimeout(loadTimeout);
       const localLists = local;
       setLists(localLists);
       loadedRef.current = true;
@@ -120,7 +141,8 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setSyncStatus("error");
       }
-    }).catch(() => setSyncStatus("error"));
+    }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
+    return () => clearTimeout(loadTimeout);
   }, []);
 
   // Sync when app comes to foreground
@@ -136,19 +158,30 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     setSyncStatus("syncing");
     try {
       const remote = await syncFetch<NoteList & { _updated_at: string }>("lists");
-      setLists(prev => {
-        const merged = [...prev];
-        for (const rem of remote) {
-          const idx = merged.findIndex(l => l.id === rem.id);
-          if (idx === -1) merged.push(rem);
-          else {
-            const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
-            const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
-            if (remoteUpdated > localUpdated) merged[idx] = rem;
-          }
+      const remoteMap = new Map(remote.map(r => [r.id, r]));
+      const local = listsRef.current;
+
+      const merged = [...local];
+      for (const rem of remote) {
+        const idx = merged.findIndex(l => l.id === rem.id);
+        if (idx === -1) merged.push(rem);
+        else {
+          const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
+          const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
+          if (remoteUpdated > localUpdated) merged[idx] = rem;
         }
-        return merged;
+      }
+      setLists(merged);
+
+      // Push any local lists newer than what Supabase has
+      const toUpsert = merged.filter(l => {
+        const rem = remoteMap.get(l.id);
+        const localUpdated  = l.updated_at ?? l.created_at;
+        const remoteUpdated = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
+        return localUpdated > remoteUpdated;
       });
+      if (toUpsert.length > 0) await syncUpsert("lists", toUpsert).catch(console.warn);
+
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
     } catch {
@@ -198,7 +231,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       ...original,
       id: `${Date.now()}`,
       name: `${original.name} (copy)`,
-      items: original.items.map(i => ({ ...i, id: `${Date.now()}-${Math.random()}`, done: false })),
+      items: (original.items ?? []).map(i => ({ ...i, id: `${Date.now()}-${Math.random()}`, done: false })),
       created_at: now,
       updated_at: now,
     };

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import "react-native-reanimated";
 import "../global.css";
 
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
@@ -17,6 +17,7 @@ import { TasksProvider } from "@/lib/TasksContext";
 import { ListsProvider } from "@/lib/ListsContext";
 import { NotesProvider } from "@/lib/NotesContext";
 import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
+import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
 import { StickyNotesProvider } from "@/lib/StickyNotesContext";
 import { ToastContainer } from "@/components/ui";
@@ -30,17 +31,17 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 function AppShell() {
-  const { scheme } = useThemeContext();
+  const { scheme, themeReady } = useThemeContext();
+  const { colors } = useTheme();
   const { tasks, loaded: tasksLoaded } = useTasks();
-  // On web we handle fonts via CSS @font-face in global.css. Calling useFonts
-  // on web makes expo-font inject runtime @font-face rules pointing at the
-  // Metro-hashed `/assets/node_modules/...` URLs, which Cloudflare Pages'
-  // SPA fallback serves as index.html. The browser registers those rules as
-  // failed and — because they share the same family name — overrides our
-  // working CSS rule, forcing serif fallback for every Inter family.
+  // On web we handle Inter via CSS @font-face in global.css. We do NOT load
+  // Inter via useFonts on web because expo-font would inject @font-face rules
+  // pointing at Metro-hashed URLs that Cloudflare Pages serves as index.html,
+  // overriding the working CSS rule and causing serif fallback.
+  // We DO load Ionicons via useFonts on web — different family name, safe.
   const [nativeFontsLoaded] = useFonts(
     Platform.OS === "web"
-      ? {}
+      ? { ...Ionicons.font }
       : {
           Inter_400Regular,
           Inter_500Medium,
@@ -49,7 +50,7 @@ function AppShell() {
           ...Ionicons.font,
         }
   );
-  const fontsLoaded = Platform.OS === "web" ? true : nativeFontsLoaded;
+  const fontsLoaded = nativeFontsLoaded ?? false;
 
   // All hooks must be declared before any conditional return.
   const isFirst = useRef(true);
@@ -82,9 +83,10 @@ function AppShell() {
     fadeOpacity.value = withTiming(0, { duration: 200 });
   }, [scheme]);
 
-  // Gate render on native only — splash screen covers the wait.
-  // On web, render immediately; CSS @font-face handles the font swap.
-  if (!fontsLoaded && Platform.OS !== "web") return null;
+  // Gate render on native until fonts loaded.
+  // Gate render on web until Ionicons font loaded AND theme resolved (prevents flash).
+  if (!fontsLoaded) return null;
+  if (!themeReady) return <View style={{ flex: 1, backgroundColor: colors.bgPrimary }} />;
 
   return (
     <NavThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>

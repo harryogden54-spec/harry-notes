@@ -40,18 +40,38 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const loadedRef                   = useRef(false);
   const notesRef                    = useRef<Note[]>([]);
+  const syncDebounce                = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef               = useRef<string | null>(null);
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
+  useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
 
-  // Persist locally on every change; Supabase sync only on explicit triggers
+  // Persist locally on every change + debounced push to Supabase
   useEffect(() => {
     if (!loadedRef.current) return;
     storage.set("notes", notes);
     if (Platform.OS !== "web") dbSaveNotes(notes).catch(console.error);
+
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
+    syncDebounce.current = setTimeout(() => {
+      const snapshot = notesRef.current;
+      if (snapshot.length === 0) return;
+      const cutoff = lastSyncedRef.current;
+      const dirty = cutoff
+        ? snapshot.filter(n => (n.updated_at ?? n.created_at) > cutoff)
+        : snapshot;
+      if (dirty.length === 0) return;
+      syncUpsert("notes", dirty).catch(console.warn);
+    }, 1500);
   }, [notes]);
 
   // Load from local storage then sync from remote
   useEffect(() => {
+    // 3-second safety net: mark loaded even if storage hangs
+    const loadTimeout = setTimeout(() => {
+      if (!loadedRef.current) { loadedRef.current = true; setLoaded(true); }
+    }, 3000);
+
     const loadLocal = async (): Promise<Note[]> => {
       if (Platform.OS !== "web") {
         try {
@@ -66,6 +86,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadLocal().then(async (local) => {
+      clearTimeout(loadTimeout);
       const localNotes = local;
       setNotes(localNotes);
       loadedRef.current = true;
@@ -98,7 +119,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setSyncStatus("error");
       }
-    }).catch(() => setSyncStatus("error"));
+    }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
+    return () => clearTimeout(loadTimeout);
   }, []);
 
   // Sync when app comes to foreground
@@ -114,19 +136,30 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     setSyncStatus("syncing");
     try {
       const remote = await syncFetch<Note & { _updated_at: string }>("notes");
-      setNotes(prev => {
-        const merged = [...prev];
-        for (const rem of remote) {
-          const idx = merged.findIndex(n => n.id === rem.id);
-          if (idx === -1) merged.push(rem);
-          else {
-            const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
-            const remoteUp = (rem as any)._updated_at ?? rem.updated_at ?? "";
-            if (remoteUp > localUp) merged[idx] = rem;
-          }
+      const remoteMap = new Map(remote.map(r => [r.id, r]));
+      const local = notesRef.current;
+
+      const merged = [...local];
+      for (const rem of remote) {
+        const idx = merged.findIndex(n => n.id === rem.id);
+        if (idx === -1) merged.push(rem);
+        else {
+          const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
+          const remoteUp = (rem as any)._updated_at ?? rem.updated_at ?? "";
+          if (remoteUp > localUp) merged[idx] = rem;
         }
-        return merged;
+      }
+      setNotes(merged);
+
+      // Push any local notes newer than what Supabase has
+      const toUpsert = merged.filter(n => {
+        const rem = remoteMap.get(n.id);
+        const localUp  = n.updated_at ?? n.created_at;
+        const remoteUp = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
+        return localUp > remoteUp;
       });
+      if (toUpsert.length > 0) await syncUpsert("notes", toUpsert).catch(console.warn);
+
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
     } catch {

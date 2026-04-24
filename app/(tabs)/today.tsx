@@ -53,7 +53,12 @@ export default function TodayScreen() {
   const [carryover, setCarryover]     = useState<TodayItem[]>([]);
   const [showCarryover, setShowCarryover] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
+  const [mounted, setMounted]         = useState(false);
   const inputRef = useRef<TextInput | null>(null);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const dateLabel = mounted ? getTodayLabel() : "";
 
   const todayKey     = getTodayKey();
   const yesterdayKey = getYesterdayKey();
@@ -225,7 +230,7 @@ export default function TodayScreen() {
             {/* Header */}
             <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
               <Text size="2xl" weight="bold">Today</Text>
-              <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{getTodayLabel()}</Text>
+              <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{dateLabel}</Text>
             </View>
 
             {/* Focus timer */}

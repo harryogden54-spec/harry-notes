@@ -6,8 +6,15 @@ import {
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
-import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useLocalSearchParams } from "expo-router";
+
+// DraggableFlatList is native-only — on web use a plain map
+const DraggableFlatList = Platform.OS !== "web"
+  ? require("react-native-draggable-flatlist").default
+  : null;
+const ScaleDecorator = Platform.OS !== "web"
+  ? require("react-native-draggable-flatlist").ScaleDecorator
+  : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
@@ -431,26 +438,37 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
             <Divider />
 
-            {/* Active items — draggable */}
+            {/* Active items — draggable on native, plain list on web */}
             {activeItems.length > 0 && (
-              <DraggableFlatList
-                data={activeItems}
-                keyExtractor={i => i.id}
-                renderItem={({ item, drag, isActive }: RenderItemParams<ListItem>) => (
-                  <ScaleDecorator>
-                    <ListItemRow
-                      item={item}
-                      listId={list.id}
-                      otherLists={otherLists}
-                      drag={drag}
-                      isDragActive={isActive}
-                    />
-                  </ScaleDecorator>
-                )}
-                onDragEnd={({ data }) => reorderItems(list.id, [...data, ...doneItems])}
-                scrollEnabled={false}
-                activationDistance={Platform.OS === "web" ? 999 : 12}
-              />
+              Platform.OS === "web" ? (
+                activeItems.map(item => (
+                  <ListItemRow
+                    key={item.id}
+                    item={item}
+                    listId={list.id}
+                    otherLists={otherLists}
+                  />
+                ))
+              ) : (
+                <DraggableFlatList
+                  data={activeItems}
+                  keyExtractor={(i: ListItem) => i.id}
+                  renderItem={({ item, drag, isActive }: any) => (
+                    <ScaleDecorator>
+                      <ListItemRow
+                        item={item}
+                        listId={list.id}
+                        otherLists={otherLists}
+                        drag={drag}
+                        isDragActive={isActive}
+                      />
+                    </ScaleDecorator>
+                  )}
+                  onDragEnd={({ data }: any) => reorderItems(list.id, [...data, ...doneItems])}
+                  scrollEnabled={false}
+                  activationDistance={12}
+                />
+              )
             )}
             {/* Done items — non-draggable, sink to bottom */}
             {doneItems.map(item => (

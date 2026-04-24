@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal, RefreshControl,
+  useWindowDimensions,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
@@ -13,6 +14,17 @@ import { useNotes, type Note } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { useStickyNotes, STICKY_COLOURS, type StickyNote } from "@/lib/StickyNotesContext";
 import { stripMarkdown } from "@/lib/utils";
+
+// Pastel palette for note cards (exception to no-hardcoded-colors rule — by spec)
+const NOTE_PASTELS = ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"] as const;
+const NOTE_PASTEL_BORDERS = ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"] as const;
+const NOTE_PASTEL_TEXT = "#1A1A2E";
+
+function getPastelIndex(noteId: string): number {
+  let hash = 0;
+  for (let i = 0; i < noteId.length; i++) hash = (hash * 31 + noteId.charCodeAt(i)) >>> 0;
+  return hash % NOTE_PASTELS.length;
+}
 
 function animate() {
   if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -293,12 +305,14 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
   );
 }
 
-// ─── Note Card ────────────────────────────────────────────────────────────────
+// ─── Note Card (pastel grid card) ────────────────────────────────────────────
 
 function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
-  const { colors } = useTheme();
   const { pinNote } = useNotes();
-  const preview = stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "");
+  const idx    = getPastelIndex(note.id);
+  const bgColor     = NOTE_PASTELS[idx];
+  const borderColor = NOTE_PASTEL_BORDERS[idx];
+  const preview = stripMarkdown(note.body.trim());
 
   return (
     <Pressable
@@ -307,27 +321,47 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
         pinNote(note.id);
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }}
-      style={{ marginBottom: spacing[2] }}
+      style={{ flex: 1 }}
     >
-      <GlassCard style={{
-        borderColor: note.pinned ? colors.accent : undefined,
-        padding: spacing[4],
+      <View style={{
+        backgroundColor: bgColor,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor,
+        padding: spacing[3],
         gap: spacing[1],
+        minHeight: 90,
       }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
-          {note.pinned && <Text size="xs" style={{ color: colors.accent }}>📌</Text>}
-          <Text size="sm" weight="semibold" style={{
-            flex: 1,
-            color: note.title ? colors.textPrimary : colors.textTertiary,
-          }} numberOfLines={1}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
+          {note.pinned && <Text size="xs" style={{ color: NOTE_PASTEL_TEXT }}>📌</Text>}
+          <Text
+            size="xs"
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              fontFamily: fontFamily.semibold,
+              color: note.title ? NOTE_PASTEL_TEXT : `${NOTE_PASTEL_TEXT}80`,
+            }}
+          >
             {note.title || "Untitled"}
           </Text>
-          <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
         </View>
         {preview ? (
-          <Text size="xs" secondary numberOfLines={2} style={{ lineHeight: 18 }}>{preview}</Text>
+          <Text
+            size="xs"
+            numberOfLines={3}
+            style={{ color: `${NOTE_PASTEL_TEXT}CC`, lineHeight: 17 }}
+          >
+            {preview}
+          </Text>
         ) : null}
-      </GlassCard>
+        <Text
+          size="xs"
+          style={{ color: `${NOTE_PASTEL_TEXT}60`, marginTop: "auto" as any, fontSize: 10 }}
+        >
+          {timeAgo(note.updated_at ?? note.created_at)}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -405,6 +439,8 @@ function StickyNoteModal({ note, visible, onClose }: {
 
 export default function NotesScreen() {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width > 1024;
   const { notes, addNote, loaded, syncNow } = useNotes();
   const { notes: stickyNotes } = useStickyNotes();
   const [refreshing, setRefreshing] = useState(false);
@@ -543,11 +579,23 @@ export default function NotesScreen() {
             {pinned.length > 0 && (
               <>
                 <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>Pinned</Text>
-                {pinned.map(n => <NoteCard key={n.id} note={n} onOpen={() => { animate(); setOpenId(n.id); }} />)}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2], marginBottom: spacing[3] }}>
+                  {pinned.map(n => (
+                    <View key={n.id} style={{ width: isDesktop ? "31.5%" as any : "48%" as any }}>
+                      <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
+                    </View>
+                  ))}
+                </View>
                 {unpinned.length > 0 && <Divider style={{ marginVertical: spacing[3] }} />}
               </>
             )}
-            {unpinned.map(n => <NoteCard key={n.id} note={n} onOpen={() => { animate(); setOpenId(n.id); }} />)}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+              {unpinned.map(n => (
+                <View key={n.id} style={{ width: isDesktop ? "31.5%" as any : "48%" as any }}>
+                  <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
+                </View>
+              ))}
+            </View>
           </>
         )}
       </ScrollView>

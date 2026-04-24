@@ -13,24 +13,36 @@ type ThemeContextValue = {
   setAccentId: (id: AccentId) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
+  themeReady: boolean;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const device = (useColorScheme() ?? "dark") as Scheme;
-  const [override, setOverride]   = useState<Scheme | null>("dark"); // default dark
-  const [accentId, setAccentIdState] = useState<AccentId>("frost");
-  const [themeId, setThemeIdState]   = useState<ThemeId>("nord");
+  const [override, setOverride]       = useState<Scheme | null>(null);
+  const [accentId, setAccentIdState]  = useState<AccentId>("frost");
+  const [themeId, setThemeIdState]    = useState<ThemeId>("nord");
+  const [themeReady, setThemeReady]   = useState(false);
 
   useEffect(() => {
-    storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); });
-    storage.get<AccentId>("accent_id").then(v => {
-      if (v && ACCENT_OPTIONS.some(a => a.id === v)) setAccentIdState(v);
+    // Timeout fallback — mark ready even if storage hangs
+    const timeout = setTimeout(() => setThemeReady(true), 2000);
+
+    Promise.all([
+      storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); }),
+      storage.get<AccentId>("accent_id").then(v => {
+        if (v && ACCENT_OPTIONS.some(a => a.id === v)) setAccentIdState(v);
+      }),
+      storage.get<ThemeId>("theme-v2").then(v => {
+        if (v && (v in THEMES)) setThemeIdState(v);
+      }),
+    ]).finally(() => {
+      clearTimeout(timeout);
+      setThemeReady(true);
     });
-    storage.get<ThemeId>("theme-v2").then(v => {
-      if (v && (v in THEMES)) setThemeIdState(v);
-    });
+
+    return () => clearTimeout(timeout);
   }, []);
 
   const scheme = override ?? device;
@@ -52,7 +64,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ scheme, toggle, isManual: !!override, accentId, setAccentId, themeId, setThemeId }}>
+    <ThemeContext.Provider value={{ scheme, toggle, isManual: !!override, accentId, setAccentId, themeId, setThemeId, themeReady }}>
       {children}
     </ThemeContext.Provider>
   );

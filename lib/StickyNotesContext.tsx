@@ -34,10 +34,13 @@ export function StickyNotesProvider({ children }: { children: React.ReactNode })
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    const loadTimeout = setTimeout(() => setLoaded(true), 3000);
     storage.get<StickyNote[]>(STORAGE_KEY).then(local => {
+      clearTimeout(loadTimeout);
       setNotes(local ?? []);
       setLoaded(true);
-    });
+    }).catch(() => { clearTimeout(loadTimeout); setLoaded(true); });
+    return () => clearTimeout(loadTimeout);
   }, []);
 
   useEffect(() => {

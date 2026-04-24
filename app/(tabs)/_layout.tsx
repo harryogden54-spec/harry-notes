@@ -1,12 +1,14 @@
 import React, { useRef, useCallback, useState, useEffect } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
-import { Platform, Text, Animated, View, Pressable, useWindowDimensions } from "react-native";
+import { Platform, Text, Animated, View, Pressable, useWindowDimensions, ScrollView } from "react-native";
 import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { radius, spacing, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
+import { useLists } from "@/lib/ListsContext";
+import { getTodayStr } from "@/lib/utils";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -142,13 +144,38 @@ function OfflineBanner() {
 // Group divider index: insert a divider before "calendar" (index 5)
 const NAV_DIVIDER_BEFORE = 5;
 
+function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
+  const { colors } = useTheme();
+  if (collapsed) return <View style={{ height: 1, backgroundColor: colors.bgBorder, marginVertical: spacing[2], marginHorizontal: spacing[1] }} />;
+  return (
+    <Text style={{
+      fontSize: 11, letterSpacing: 1.2,
+      color: colors.textSecondary,
+      fontFamily: fontFamily.semibold,
+      textTransform: "uppercase",
+      paddingHorizontal: spacing[3],
+      paddingTop: spacing[3],
+      paddingBottom: spacing[1],
+    }}>
+      {label}
+    </Text>
+  );
+}
+
 function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggleCollapse: () => void }) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const { tasks } = useTasks();
+  const { lists } = useLists();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  // Animated chevron rotation (0 = expanded → pointing left; 1 = collapsed → pointing right)
+  const today = getTodayStr();
+  const nextWeek = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })();
+  const overdueCount  = tasks.filter(t => !t.done && !t.archived && !!t.due_date && t.due_date < today).length;
+  const thisWeekCount = tasks.filter(t => !t.done && !t.archived && !!t.due_date && t.due_date >= today && t.due_date <= nextWeek).length;
+
+  // Animated chevron rotation
   const chevronRot = useSharedValue(collapsed ? 1 : 0);
   useEffect(() => {
     chevronRot.value = withTiming(collapsed ? 1 : 0, { duration: 200 });
@@ -171,27 +198,27 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
       borderRightColor: colors.bgBorder,
       paddingTop: Platform.OS === "web" ? 24 : 48,
       paddingBottom: 24,
-      paddingHorizontal: collapsed ? spacing[1] : spacing[3],
-      justifyContent: "space-between",
-      overflow: "visible",
+      paddingHorizontal: collapsed ? spacing[1] : 0,
+      overflow: "hidden",
     }}>
-      <View>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing[4] }}>
         {/* App name + collapse toggle */}
         <View style={{
           flexDirection: "row",
           alignItems: "center",
           justifyContent: collapsed ? "center" : "space-between",
-          marginBottom: spacing[6],
-          paddingHorizontal: collapsed ? 0 : spacing[2],
+          marginBottom: spacing[5],
+          paddingHorizontal: collapsed ? 0 : spacing[3],
         }}>
-          {!collapsed && (
-            <Text style={{
-              fontSize: 28, fontFamily: fontFamily.bold,
-              color: colors.textPrimary, letterSpacing: -1,
-            }}>
-              harry.
-            </Text>
-          )}
+          <Text style={{
+            fontSize: collapsed ? 16 : 22,
+            fontFamily: fontFamily.bold,
+            color: colors.textPrimary,
+            letterSpacing: -1,
+            textAlign: collapsed ? "center" : "left",
+          }}>
+            {collapsed ? "h." : "harry."}
+          </Text>
           <Pressable
             onPress={onToggleCollapse}
             // @ts-ignore — web-only hover events
@@ -199,7 +226,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
             onHoverOut={() => setHoveredItem(null)}
             hitSlop={8}
             style={{
-              width: 28, height: 28,
+              width: 26, height: 26,
               borderRadius: radius.md,
               borderWidth: 1,
               borderColor: hoveredItem === "__toggle" ? colors.bgBorder : "transparent",
@@ -208,15 +235,14 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
               justifyContent: "center",
             }}
           >
-            {/* Rotates: left-arrow when expanded, right-arrow when collapsed */}
             <ReAnimated.View style={chevronStyle}>
-              <Ionicons name="chevron-back-outline" size={14} color={colors.textTertiary} />
+              <Ionicons name="chevron-back-outline" size={13} color={colors.textTertiary} />
             </ReAnimated.View>
           </Pressable>
         </View>
 
         {/* Nav items */}
-        <View style={{ gap: 2 }}>
+        <View style={{ gap: 2, paddingHorizontal: collapsed ? 0 : spacing[2] }}>
           {NAV_ITEMS.map((item, idx) => {
             const active = isActive(item.name);
             const hovered = hoveredItem === item.name;
@@ -224,40 +250,31 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
 
             return (
               <View key={item.name} style={{ position: "relative" }}>
-                {/* Group divider before "calendar" */}
-                {idx === NAV_DIVIDER_BEFORE && !collapsed && (
+                {idx === NAV_DIVIDER_BEFORE && (
                   <View style={{
-                    height: 1,
-                    backgroundColor: colors.bgBorder,
-                    marginVertical: spacing[2],
-                    marginHorizontal: spacing[1],
+                    height: 1, backgroundColor: colors.bgBorder,
+                    marginVertical: spacing[2], marginHorizontal: spacing[1],
                   }} />
                 )}
-                {idx === NAV_DIVIDER_BEFORE && collapsed && (
-                  <View style={{ height: spacing[2] }} />
-                )}
-
                 <Pressable
                   onPress={() => router.push(item.path as any)}
-                  // @ts-ignore — web-only hover events
+                  // @ts-ignore
                   onHoverIn={() => setHoveredItem(item.name)}
                   onHoverOut={() => setHoveredItem(null)}
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
+                    flexDirection: "row", alignItems: "center",
                     gap: collapsed ? 0 : spacing[3],
                     paddingHorizontal: collapsed ? 0 : spacing[3],
                     paddingVertical: spacing[2],
                     borderRadius: radius.md,
                     justifyContent: collapsed ? "center" : "flex-start",
-                    // Active: no fill — left border indicator (ActiveBar) does the work
                     backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
                   }}
                 >
                   <ActiveBar active={active} accent={colors.accent} />
                   <Ionicons
                     name={active ? item.iconFilled : item.iconOutline}
-                    size={19}
+                    size={18}
                     color={active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary}
                   />
                   {!collapsed && (
@@ -271,19 +288,14 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                   )}
                 </Pressable>
 
-                {/* Tooltip (collapsed mode only) */}
                 {showTooltip && (
                   <View style={{
-                    position: "absolute",
-                    left: 60,
-                    top: "50%",
+                    position: "absolute", left: 60, top: "50%",
                     transform: [{ translateY: -12 }],
                     backgroundColor: colors.bgSecondary,
-                    borderWidth: 1,
-                    borderColor: colors.bgBorder,
+                    borderWidth: 1, borderColor: colors.bgBorder,
                     borderRadius: radius.sm,
-                    paddingHorizontal: spacing[2],
-                    paddingVertical: spacing[1],
+                    paddingHorizontal: spacing[2], paddingVertical: spacing[1],
                     zIndex: 100,
                     // @ts-ignore
                     pointerEvents: "none",
@@ -299,7 +311,107 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
             );
           })}
         </View>
-      </View>
+
+        {/* ── LISTS section ──────────────────────────────────────────── */}
+        {lists.length > 0 && (
+          <View style={{ marginTop: spacing[2] }}>
+            <SectionLabel label="Lists" collapsed={collapsed} />
+            <View style={{ gap: 1, paddingHorizontal: collapsed ? 0 : spacing[2] }}>
+              {lists.slice(0, 8).map(list => {
+                const hovered = hoveredItem === `list_${list.id}`;
+                return (
+                  <Pressable
+                    key={list.id}
+                    onPress={() => router.push("/(tabs)/lists" as any)}
+                    // @ts-ignore
+                    onHoverIn={() => setHoveredItem(`list_${list.id}`)}
+                    onHoverOut={() => setHoveredItem(null)}
+                    style={{
+                      flexDirection: "row", alignItems: "center",
+                      gap: collapsed ? 0 : spacing[2],
+                      paddingHorizontal: collapsed ? 0 : spacing[3],
+                      paddingVertical: spacing[1.5],
+                      borderRadius: radius.sm,
+                      justifyContent: collapsed ? "center" : "flex-start",
+                      backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
+                    }}
+                  >
+                    <View style={{
+                      width: collapsed ? 7 : 7, height: collapsed ? 7 : 7,
+                      borderRadius: 99, backgroundColor: list.color,
+                      flexShrink: 0,
+                    }} />
+                    {!collapsed && (
+                      <>
+                        <Text style={{
+                          flex: 1, fontSize: 12, fontFamily: fontFamily.regular,
+                          color: colors.textSecondary,
+                        }} numberOfLines={1}>
+                          {list.name}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: colors.textTertiary, fontFamily: fontFamily.regular }}>
+                          {list.items?.length ?? 0}
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ── FILTERS section ────────────────────────────────────────── */}
+        <View style={{ marginTop: spacing[2] }}>
+          <SectionLabel label="Filters" collapsed={collapsed} />
+          <View style={{ gap: 1, paddingHorizontal: collapsed ? 0 : spacing[2] }}>
+            {[
+              { id: "overdue",   label: "Overdue",       count: overdueCount,  icon: "warning-outline" as IoniconName,   color: colors.danger },
+              { id: "thisweek", label: "Due this week", count: thisWeekCount, icon: "calendar-outline" as IoniconName,  color: colors.accent },
+            ].map(f => {
+              const hovered = hoveredItem === `filter_${f.id}`;
+              return (
+                <Pressable
+                  key={f.id}
+                  onPress={() => router.push(`/(tabs)/tasks?filter=${f.id}` as any)}
+                  // @ts-ignore
+                  onHoverIn={() => setHoveredItem(`filter_${f.id}`)}
+                  onHoverOut={() => setHoveredItem(null)}
+                  style={{
+                    flexDirection: "row", alignItems: "center",
+                    gap: collapsed ? 0 : spacing[2],
+                    paddingHorizontal: collapsed ? 0 : spacing[3],
+                    paddingVertical: spacing[1.5],
+                    borderRadius: radius.sm,
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    backgroundColor: hovered ? `${f.color}0C` : "transparent",
+                  }}
+                >
+                  <Ionicons name={f.icon} size={14} color={f.count > 0 ? f.color : colors.textTertiary} />
+                  {!collapsed && (
+                    <>
+                      <Text style={{
+                        flex: 1, fontSize: 12, fontFamily: fontFamily.regular,
+                        color: f.count > 0 ? f.color : colors.textSecondary,
+                      }}>
+                        {f.label}
+                      </Text>
+                      {f.count > 0 && (
+                        <View style={{
+                          backgroundColor: `${f.color}20`, borderRadius: 99,
+                          paddingHorizontal: 5, paddingVertical: 1,
+                        }}>
+                          <Text style={{ fontSize: 10, color: f.color, fontFamily: fontFamily.medium }}>{f.count}</Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </ScrollView>
 
       {/* Bottom: Settings */}
       <Pressable
@@ -308,19 +420,20 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
         onHoverIn={() => setHoveredItem("settings")}
         onHoverOut={() => setHoveredItem(null)}
         style={{
-          flexDirection: "row",
-          alignItems: "center",
+          flexDirection: "row", alignItems: "center",
           gap: collapsed ? 0 : spacing[3],
-          paddingHorizontal: collapsed ? 0 : spacing[3],
+          paddingHorizontal: collapsed ? 0 : spacing[5],
           paddingVertical: spacing[2],
           borderRadius: radius.md,
           justifyContent: collapsed ? "center" : "flex-start",
           backgroundColor: hoveredItem === "settings" ? `${colors.accent}0C` : "transparent",
+          borderTopWidth: 1, borderTopColor: colors.bgBorder,
+          marginTop: spacing[2],
         }}
       >
         <Ionicons
           name="settings-outline"
-          size={19}
+          size={18}
           color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary}
         />
         {!collapsed && (
@@ -394,7 +507,7 @@ export default function TabLayout() {
   const router = useRouter();
   const { addTask, updateTask } = useTasks();
 
-  const autoCollapsed = width >= 768 && width < 1024;
+  const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;
 
   // Manual sidebar collapse overrides the breakpoint auto-collapse

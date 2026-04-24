@@ -104,6 +104,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, [tasks]);
 
   useEffect(() => {
+    // 3-second safety net: mark loaded even if storage hangs
+    const loadTimeout = setTimeout(() => {
+      if (!loadedRef.current) { loadedRef.current = true; setLoaded(true); }
+    }, 3000);
+
     const loadLocal = async (): Promise<Task[]> => {
       if (Platform.OS !== "web") {
         try {
@@ -121,6 +126,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadLocal().then(async (local) => {
+      clearTimeout(loadTimeout);
       // Auto-archive tasks completed 7+ days ago
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
@@ -177,7 +183,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       } catch {
         setSyncStatus("error");
       }
-    }).catch(() => setSyncStatus("error"));
+    }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
+    return () => clearTimeout(loadTimeout);
   }, []);
 
   // Sync when app comes to foreground
