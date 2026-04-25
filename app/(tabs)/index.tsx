@@ -459,11 +459,62 @@ export default function DashboardScreen() {
     </View>
   ) : null;
 
+  const { width } = useWindowDimensions();
+  const isWide = Platform.OS === "web" && width >= 720;
+
   const mainContent = (
     <>
       {overdueBanner}
-      {tasksCard}
-      {todayCard}
+      {isWide ? (
+        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[5], alignItems: "flex-start" }}>
+          <View style={{ flex: 3 }}>
+            <SectionHeader
+              label="Tasks"
+              count={tasksLoaded ? openTasks.length : undefined}
+              action={{ label: "All tasks", onPress: handleGoToTasks }}
+            />
+            {!tasksLoaded ? (
+              <Surface style={{ padding: spacing[4], gap: spacing[3] }}>
+                <Skeleton height={16} borderRadius={6} />
+                <Skeleton height={16} borderRadius={6} width="80%" />
+              </Surface>
+            ) : openTasks.length === 0 ? (
+              <Surface style={{ padding: spacing[4], alignItems: "center" }}>
+                <Text size="sm" secondary>No open tasks</Text>
+              </Surface>
+            ) : (
+              <Surface style={{ overflow: "hidden" }}>
+                {tasksCardItems.map((task, i) => (
+                  <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      {task.priority && (
+                        <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLORS[task.priority] }} />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
+                      </View>
+                    </View>
+                  </View>
+                ))}
+                {tasksOverflow > 0 && (
+                  <Pressable onPress={handleGoToTasks} style={{ padding: spacing[3], alignItems: "center", borderTopWidth: 1, borderTopColor: colors.bgBorder }}>
+                    <Text size="xs" style={{ color: colors.accent }}>View all {openTasks.length} tasks →</Text>
+                  </Pressable>
+                )}
+              </Surface>
+            )}
+          </View>
+          <View style={{ flex: 2 }}>
+            <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
+            <TodayCard />
+          </View>
+        </View>
+      ) : (
+        <>
+          {tasksCard}
+          {todayCard}
+        </>
+      )}
       {calendarSection}
       {stickyRow}
       {listsGrid}
@@ -484,19 +535,21 @@ export default function DashboardScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: spacing[6], paddingVertical: spacing[4], paddingBottom: spacing[24] }}
+          contentContainerStyle={{ paddingVertical: spacing[4], paddingBottom: spacing[24] }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
         >
-          {headerSection}
-          <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
+          <View style={Platform.OS === "web" ? { alignSelf: "center", width: "100%", maxWidth: 860, paddingHorizontal: 80 } : { paddingHorizontal: spacing[4] }}>
+            {headerSection}
+            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
 
-          {search.trim() ? (
-            <View style={{ marginTop: spacing[3] }}>
-              <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
-                onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
-            </View>
-          ) : mainContent}
+            {search.trim() ? (
+              <View style={{ marginTop: spacing[3] }}>
+                <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
+              </View>
+            ) : mainContent}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 

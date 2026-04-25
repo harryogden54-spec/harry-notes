@@ -35,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [accentId, setAccentIdState]   = useState<AccentId>("frost");
   const [themeId, setThemeIdState]     = useState<ThemeId>("nord");
   const [bgStyle, setBgStyleState]     = useState<BgStyle>("gradient");
-  const [bgGraphic, setBgGraphicState] = useState<BgGraphic>("none");
+  const [bgGraphic, setBgGraphicState] = useState<BgGraphic>("geometric");
   const [themeReady, setThemeReady]    = useState(false);
 
   useEffect(() => {

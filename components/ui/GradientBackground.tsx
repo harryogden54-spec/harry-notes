@@ -21,7 +21,7 @@ function GeometricPattern({ accent }: { accent: string }) {
       <View
         pointerEvents="none"
         style={[
-          { position: "absolute", inset: 0, opacity: 0.045 } as any,
+          { position: "absolute", inset: 0, opacity: 0.12 } as any,
           // @ts-ignore web-only
           { backgroundImage: `url("data:image/svg+xml,${enc}")`, backgroundSize: "40px 40px" },
         ]}
