@@ -576,43 +576,47 @@ export default function DashboardScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {isDesktop ? (
-          // ─── Desktop: two-column above fold ───────────────────────────────
-          <View style={{ flex: 1, flexDirection: "row" }}>
-            {/* Left column: tasks + below-fold content */}
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{ padding: spacing[5], paddingBottom: spacing[16] }}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-            >
-              {headerSection}
-              <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
+          // ─── Desktop: padded single column, tasks + today side-by-side ────
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: spacing[12], paddingVertical: spacing[5], paddingBottom: spacing[16] }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+          >
+            {headerSection}
+            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
 
-              {search.trim() ? (
-                <View style={{ marginTop: spacing[3] }}>
-                  <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
-                    onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
+            {search.trim() ? (
+              <View style={{ marginTop: spacing[3] }}>
+                <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
+              </View>
+            ) : (
+              <>
+                {overdueBanner}
+                {/* Tasks + Today side-by-side */}
+                <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "flex-start", marginBottom: spacing[5] }}>
+                  <View style={{ flex: 1 }}>
+                    {todayTasksSection}
+                  </View>
+                  <View style={{
+                    width: 300,
+                    backgroundColor: colors.bgSecondary,
+                    borderRadius: radius.xl,
+                    borderWidth: 1,
+                    borderColor: colors.bgBorder,
+                    overflow: "hidden",
+                    minHeight: 260,
+                  }}>
+                    <TodayWidget />
+                  </View>
                 </View>
-              ) : (
-                <>
-                  {overdueBanner}
-                  {todayTasksSection}
-                  {calendarSection}
-                  {stickyRow}
-                  {listsGrid}
-                  {notesGrid}
-                </>
-              )}
-            </ScrollView>
-
-            {/* Right column: Today checklist widget */}
-            <View style={{
-              width: 340,
-              borderLeftWidth: 1, borderLeftColor: colors.bgBorder,
-              backgroundColor: colors.bgSecondary,
-            }}>
-              <TodayWidget />
-            </View>
-          </View>
+                {calendarSection}
+                {stickyRow}
+                {listsGrid}
+                {notesGrid}
+              </>
+            )}
+          </ScrollView>
         ) : (
           // ─── Mobile: stacked ───────────────────────────────────────────────
           <ScrollView
