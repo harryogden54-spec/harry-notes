@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
-import { Platform, Text, Animated, View, Pressable, useWindowDimensions, ScrollView } from "react-native";
+import { Platform, Text, Animated, View, Pressable, useWindowDimensions, ScrollView, TextInput } from "react-native";
 import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -10,6 +10,8 @@ import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
 import { getTodayStr } from "@/lib/utils";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
+import { SearchResults } from "@/components/dashboard/SearchResults";
+import { useNotes } from "@/lib/NotesContext";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -22,12 +24,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { name: "index",    label: "Home",     iconOutline: "home-outline",          iconFilled: "home",          path: "/(tabs)/" },
-  { name: "today",    label: "Today",    iconOutline: "today-outline",         iconFilled: "today",         path: "/(tabs)/today" },
-  { name: "tasks",    label: "Tasks",    iconOutline: "checkbox-outline",      iconFilled: "checkbox",      path: "/(tabs)/tasks" },
-  { name: "lists",    label: "Lists",    iconOutline: "list-outline",          iconFilled: "list",          path: "/(tabs)/lists" },
-  { name: "notes",    label: "Notes",    iconOutline: "document-text-outline", iconFilled: "document-text", path: "/(tabs)/notes" },
-  { name: "calendar", label: "Calendar", iconOutline: "calendar-outline",      iconFilled: "calendar",      path: "/(tabs)/calendar" },
+  { name: "index", label: "Home",  iconOutline: "home-outline",          iconFilled: "home",          path: "/(tabs)/" },
+  { name: "today", label: "Today", iconOutline: "today-outline",         iconFilled: "today",         path: "/(tabs)/today" },
+  { name: "tasks", label: "Tasks", iconOutline: "checkbox-outline",      iconFilled: "checkbox",      path: "/(tabs)/tasks" },
+  { name: "lists", label: "Lists", iconOutline: "list-outline",          iconFilled: "list",          path: "/(tabs)/lists" },
+  { name: "notes", label: "Notes", iconOutline: "document-text-outline", iconFilled: "document-text", path: "/(tabs)/notes" },
 ];
 
 function TabIcon({ focused, color, iconOutline, iconFilled }: {
@@ -108,7 +109,7 @@ function OfflineBanner() {
       }}>
         <Ionicons name="cloud-offline-outline" size={13} color={colors.warning} />
         <Text style={{ fontSize: 11, fontFamily: fontFamily.medium, color: colors.warning, flex: 1 }}>
-          You're offline — changes will sync when reconnected
+          Offline — changes will sync when reconnected
         </Text>
       </View>
     );
@@ -141,9 +142,6 @@ function OfflineBanner() {
 
 // ─── Sidebar (web / tablet) ───────────────────────────────────────────────────
 
-// Group divider index: insert a divider before "calendar" (index 5)
-const NAV_DIVIDER_BEFORE = 5;
-
 function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
   const { colors } = useTheme();
   if (collapsed) return <View style={{ height: 1, backgroundColor: colors.bgBorder, marginVertical: spacing[2], marginHorizontal: spacing[1] }} />;
@@ -154,7 +152,7 @@ function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean 
       fontFamily: fontFamily.semibold,
       textTransform: "uppercase",
       paddingHorizontal: spacing[3],
-      paddingTop: spacing[3],
+      paddingTop: spacing[4],
       paddingBottom: spacing[1],
     }}>
       {label}
@@ -191,7 +189,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
 
   return (
     <View style={{
-      width: collapsed ? 56 : 220,
+      width: collapsed ? 48 : 220,
       height: "100%",
       backgroundColor: colors.bgSecondary,
       borderRightWidth: 1,
@@ -210,15 +208,16 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
           marginBottom: spacing[5],
           paddingHorizontal: collapsed ? 0 : spacing[3],
         }}>
-          <Text style={{
-            fontSize: collapsed ? 16 : 22,
-            fontFamily: fontFamily.bold,
-            color: colors.textPrimary,
-            letterSpacing: -1,
-            textAlign: collapsed ? "center" : "left",
-          }}>
-            {collapsed ? "h." : "harry."}
-          </Text>
+          {!collapsed && (
+            <Text style={{
+              fontSize: 22,
+              fontFamily: fontFamily.bold,
+              color: colors.textPrimary,
+              letterSpacing: -1,
+            }}>
+              harry.
+            </Text>
+          )}
           <Pressable
             onPress={onToggleCollapse}
             // @ts-ignore — web-only hover events
@@ -243,19 +242,13 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
 
         {/* Nav items */}
         <View style={{ gap: 2, paddingHorizontal: collapsed ? 0 : spacing[2] }}>
-          {NAV_ITEMS.map((item, idx) => {
+          {NAV_ITEMS.map((item) => {
             const active = isActive(item.name);
             const hovered = hoveredItem === item.name;
             const showTooltip = collapsed && hovered;
 
             return (
               <View key={item.name} style={{ position: "relative" }}>
-                {idx === NAV_DIVIDER_BEFORE && (
-                  <View style={{
-                    height: 1, backgroundColor: colors.bgBorder,
-                    marginVertical: spacing[2], marginHorizontal: spacing[1],
-                  }} />
-                )}
                 <Pressable
                   onPress={() => router.push(item.path as any)}
                   // @ts-ignore
@@ -280,7 +273,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                   {!collapsed && (
                     <Text style={{
                       fontSize: 13,
-                      fontFamily: active ? fontFamily.medium : fontFamily.regular,
+                      fontFamily: active ? fontFamily.semibold : fontFamily.regular,
                       color: active ? colors.textPrimary : hovered ? colors.textPrimary : colors.textSecondary,
                     }}>
                       {item.label}
@@ -290,7 +283,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
 
                 {showTooltip && (
                   <View style={{
-                    position: "absolute", left: 60, top: "50%",
+                    position: "absolute", left: 56, top: "50%",
                     transform: [{ translateY: -12 }],
                     backgroundColor: colors.bgSecondary,
                     borderWidth: 1, borderColor: colors.bgBorder,
@@ -337,7 +330,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                     }}
                   >
                     <View style={{
-                      width: collapsed ? 7 : 7, height: collapsed ? 7 : 7,
+                      width: 7, height: 7,
                       borderRadius: 99, backgroundColor: list.color,
                       flexShrink: 0,
                     }} />
@@ -452,14 +445,13 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   const { colors } = useTheme();
   const shortcuts: [string, string][] = [
     ["Cmd+K", "Quick-add task"],
+    ["/",     "Global search"],
     ["N",     "New task (Tasks screen)"],
-    ["/",     "Focus search"],
     ["F",     "Toggle Focus mode"],
     ["G then H", "Go to Home"],
     ["G then T", "Go to Tasks"],
     ["G then L", "Go to Lists"],
     ["G then N", "Go to Notes"],
-    ["G then C", "Go to Calendar"],
     ["?",     "Show this panel"],
     ["Esc",   "Close / cancel"],
   ];
@@ -498,6 +490,112 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Global search modal ──────────────────────────────────────────────────────
+
+function GlobalSearchModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { colors } = useTheme();
+  const { tasks } = useTasks();
+  const { lists } = useLists();
+  const { notes } = useNotes();
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setQuery("");
+      setTimeout(() => inputRef.current?.focus(), 80);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !visible) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={{ position: "absolute", inset: 0, zIndex: 150, backgroundColor: "rgba(0,0,0,0.6)" } as any}>
+      <Pressable style={{ position: "absolute", inset: 0 } as any} onPress={onClose} />
+      <View style={{
+        position: "absolute",
+        top: 80,
+        left: "50%",
+        transform: [{ translateX: -280 }],
+        width: 560,
+        maxWidth: "90%" as any,
+        backgroundColor: colors.bgSecondary,
+        borderRadius: radius.xl,
+        borderWidth: 1,
+        borderColor: colors.bgBorder,
+        overflow: "hidden",
+        // @ts-ignore
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.4,
+        shadowRadius: 32,
+      }}>
+        {/* Search input */}
+        <View style={{
+          flexDirection: "row", alignItems: "center", gap: spacing[3],
+          paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+          borderBottomWidth: query.length > 0 ? 1 : 0,
+          borderBottomColor: colors.bgBorder,
+        }}>
+          <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
+          <TextInput
+            ref={inputRef}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search tasks, lists, notes…"
+            placeholderTextColor={colors.textTertiary}
+            style={[
+              { flex: 1, color: colors.textPrimary, fontSize: 16, fontFamily: fontFamily.regular },
+              // @ts-ignore
+              { outlineStyle: "none" },
+            ]}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery("")} hitSlop={8}>
+              <Text style={{ fontSize: 12, color: colors.textTertiary }}>✕</Text>
+            </Pressable>
+          )}
+          <View style={{ backgroundColor: colors.bgTertiary, borderRadius: radius.sm, paddingHorizontal: spacing[1.5], paddingVertical: 2, borderWidth: 1, borderColor: colors.bgBorder }}>
+            <Text style={{ fontSize: 11, fontFamily: "monospace" as any, color: colors.textTertiary }}>Esc</Text>
+          </View>
+        </View>
+        {/* Results */}
+        {query.trim().length >= 1 && (
+          <ScrollView
+            style={{ maxHeight: 480 }}
+            contentContainerStyle={{ padding: spacing[4] }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <SearchResults
+              tasks={tasks.filter(t => !t.done && !t.archived)}
+              lists={lists}
+              notes={notes}
+              query={query.trim()}
+              onTaskPress={() => onClose()}
+            />
+          </ScrollView>
+        )}
+        {query.trim().length === 0 && (
+          <View style={{ padding: spacing[4], paddingTop: spacing[3] }}>
+            <Text style={{ fontSize: 12, fontFamily: fontFamily.regular, color: colors.textTertiary }}>
+              Type to search across tasks, lists, and notes
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export default function TabLayout() {
@@ -510,13 +608,13 @@ export default function TabLayout() {
   const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;
 
-  // Manual sidebar collapse overrides the breakpoint auto-collapse
   const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
   const collapsed = manualCollapsed !== null ? manualCollapsed : autoCollapsed;
 
-  // Global quick-add
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
+  const pathname = usePathname();
+  const [showQuickAdd, setShowQuickAdd]       = useState(false);
+  const [showShortcuts, setShowShortcuts]     = useState(false);
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   // Global keyboard shortcuts (web only)
   useEffect(() => {
@@ -528,7 +626,6 @@ export default function TabLayout() {
       const tag = (e.target as HTMLElement)?.tagName;
       const isInput = tag === "INPUT" || tag === "TEXTAREA";
 
-      // Cmd+K / Ctrl+K — global quick-add (works even in inputs)
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setShowQuickAdd(v => !v);
@@ -538,16 +635,16 @@ export default function TabLayout() {
       if (e.key === "Escape") {
         setShowQuickAdd(false);
         setShowShortcuts(false);
+        setShowGlobalSearch(false);
         gPressed = false;
         return;
       }
 
       if (isInput) return;
 
-      // ? → shortcuts help
+      if (e.key === "/") { e.preventDefault(); setShowGlobalSearch(v => !v); return; }
       if (e.key === "?") { e.preventDefault(); setShowShortcuts(v => !v); return; }
 
-      // g-prefix nav shortcuts
       if (e.key === "g" || e.key === "G") {
         e.preventDefault();
         gPressed = true;
@@ -563,7 +660,6 @@ export default function TabLayout() {
         else if (key === "t") { e.preventDefault(); router.push("/(tabs)/tasks" as any); }
         else if (key === "l") { e.preventDefault(); router.push("/(tabs)/lists" as any); }
         else if (key === "n") { e.preventDefault(); router.push("/(tabs)/notes" as any); }
-        else if (key === "c") { e.preventDefault(); router.push("/(tabs)/calendar" as any); }
         return;
       }
     }
@@ -595,14 +691,14 @@ export default function TabLayout() {
             {NAV_ITEMS.map(item => (
               <Tabs.Screen key={item.name} name={item.name} />
             ))}
+            {/* Hidden: keep calendar routable but not in nav */}
+            <Tabs.Screen name="calendar" options={{ href: null }} />
           </Tabs>
         </View>
 
-        {/* Global quick-add (Cmd+K) */}
         <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
-
-        {/* Global shortcuts panel */}
         {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
+        <GlobalSearchModal visible={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
       </View>
     );
   }
@@ -610,6 +706,40 @@ export default function TabLayout() {
   return (
     <>
       <OfflineBanner />
+      {/* FAB — floating quick-add button for mobile */}
+      <View
+        style={{
+          position: "absolute",
+          bottom: Platform.OS === "ios" ? 100 : 76,
+          right: spacing[5],
+          zIndex: 50,
+        }}
+        pointerEvents="box-none"
+      >
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (pathname.includes("/lists")) router.push("/(tabs)/lists?create=1" as any);
+            else if (pathname.includes("/notes")) router.push("/(tabs)/notes?create=1" as any);
+            else setShowQuickAdd(true);
+          }}
+          style={{
+            width: 52, height: 52,
+            borderRadius: 99,
+            backgroundColor: colors.accent,
+            alignItems: "center", justifyContent: "center",
+            // @ts-ignore
+            shadowColor: colors.accent,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.4,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+        >
+          <Ionicons name="add" size={26} color="#fff" />
+        </Pressable>
+      </View>
+      <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
       <Tabs
         screenOptions={{
           tabBarActiveTintColor:   colors.accent,
@@ -627,7 +757,7 @@ export default function TabLayout() {
       >
         <Tabs.Screen
           name="index"
-          options={{ title: "Home",  tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="home-outline" iconFilled="home" /> }}
+          options={{ title: "Home", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="home-outline" iconFilled="home" /> }}
           listeners={{ tabPress: onTabPress }}
         />
         <Tabs.Screen
@@ -650,11 +780,8 @@ export default function TabLayout() {
           options={{ title: "Notes", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="document-text-outline" iconFilled="document-text" /> }}
           listeners={{ tabPress: onTabPress }}
         />
-        <Tabs.Screen
-          name="calendar"
-          options={{ title: "Calendar", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="calendar-outline" iconFilled="calendar" /> }}
-          listeners={{ tabPress: onTabPress }}
-        />
+        {/* Hidden from tab bar */}
+        <Tabs.Screen name="calendar" options={{ href: null }} />
       </Tabs>
     </>
   );

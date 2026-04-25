@@ -26,8 +26,7 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
   const q = query.toLowerCase();
   const matchTasks = tasks.filter(t =>
     t.title.toLowerCase().includes(q) ||
-    t.description?.toLowerCase().includes(q) ||
-    (t.tags ?? []).some(tag => tag.includes(q))
+    t.description?.toLowerCase().includes(q)
   );
   const matchLists = lists.filter(l =>
     l.name.toLowerCase().includes(q) ||
@@ -84,14 +83,25 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
           {matchLists.map(l => {
             const color = l.color ?? colors.accent;
             const items = l.items ?? [];
+            const done = items.filter(i => i.type === "checkbox" && i.done).length;
+            const total = items.filter(i => i.type === "checkbox").length;
             return (
-              <GlassCard key={l.id} style={{ padding: spacing[3], marginBottom: spacing[2], borderLeftWidth: 3, borderLeftColor: color }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: color }} />
-                  <Text size="sm" weight="semibold">{l.name}</Text>
-                  <Text size="xs" secondary style={{ marginLeft: "auto" as any }}>{items.length} items</Text>
-                </View>
-              </GlassCard>
+              <Pressable key={l.id} onPress={() => router.push("/(tabs)/lists" as any)}>
+                <GlassCard style={{ padding: spacing[3], marginBottom: spacing[2], borderLeftWidth: 3, borderLeftColor: color }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: color }} />
+                    <Text size="sm" weight="semibold">{l.name}</Text>
+                    <Text size="xs" secondary style={{ marginLeft: "auto" as any }}>
+                      {total > 0 ? `${done}/${total}` : `${items.length} items`}
+                    </Text>
+                  </View>
+                  {total > 0 && (
+                    <View style={{ height: 3, borderRadius: 99, backgroundColor: `${color}30`, marginTop: spacing[2] }}>
+                      <View style={{ height: 3, borderRadius: 99, backgroundColor: color, width: `${total > 0 ? Math.round(done / total * 100) : 0}%` as any }} />
+                    </View>
+                  )}
+                </GlassCard>
+              </Pressable>
             );
           })}
         </View>

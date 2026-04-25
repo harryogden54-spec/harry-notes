@@ -4,11 +4,10 @@ import {
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
-import * as Notifications from "expo-notifications";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/lib/useTheme";
-import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { Text, Surface, GradientBackground } from "@/components/ui";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
 import { useTasks } from "@/lib/TasksContext";
@@ -20,8 +19,13 @@ type TodayItem = {
   done: boolean;
 };
 
+const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
+
 function getTodayLabel() {
-  return new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const d = new Date();
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
 function getTodayKey() {
@@ -34,20 +38,9 @@ function getYesterdayKey() {
   return `today_items_${d.toISOString().slice(0, 10)}`;
 }
 
-/** Purge today_items_ keys older than 7 days */
-async function purgeOldKeys() {
-  try {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    // AsyncStorage doesn't have getAllKeys exposed via our wrapper, so we skip bulk purge
-    // on first run; individual day keys naturally age out of usage.
-  } catch { /* noop */ }
-}
-
 export default function TodayScreen() {
   const { colors } = useTheme();
-  const { addTask } = useTasks();
+  const { tasks } = useTasks();
   const [items, setItems]             = useState<TodayItem[]>([]);
   const [input, setInput]             = useState("");
   const [carryover, setCarryover]     = useState<TodayItem[]>([]);
@@ -66,7 +59,6 @@ export default function TodayScreen() {
   // Load persisted items + check carryover
   useEffect(() => {
     (async () => {
-      await purgeOldKeys();
       const saved = await storage.get<TodayItem[]>(todayKey);
       if (saved) setItems(saved);
 
@@ -88,6 +80,22 @@ export default function TodayScreen() {
   const active    = items.filter(i => !i.done);
   const completed = items.filter(i => i.done);
 
+  // Suggestions: overdue + today tasks sorted by priority, not already in list
+  const todayStr = getTodayStr();
+  const existingTexts = new Set(items.map(i => i.text.toLowerCase()));
+  const suggestions = tasks
+    .filter(t =>
+      !t.done && !t.archived &&
+      !!t.due_date && t.due_date <= todayStr &&
+      !existingTexts.has(t.title.toLowerCase())
+    )
+    .sort((a, b) => {
+      const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
+      const bi = b.priority ? PRIORITY_ORDER.indexOf(b.priority as any) : 99;
+      return ai - bi;
+    })
+    .slice(0, 6);
+
   function addItem() {
     const text = input.trim();
     if (!text) return;
@@ -95,6 +103,11 @@ export default function TodayScreen() {
     const next: TodayItem[] = [{ id: `t_${Date.now()}`, text, done: false }, ...items];
     setItems(next);
     setInput("");
+  }
+
+  function addSuggestion(title: string) {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setItems(prev => [{ id: `t_${Date.now()}`, text: title, done: false }, ...prev]);
   }
 
   const toggleItem = useCallback((id: string) => {
@@ -120,7 +133,6 @@ export default function TodayScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Today tab has no remote sync — just a short delay for UX
     setTimeout(() => setRefreshing(false), 600);
   }, []);
 
@@ -154,18 +166,6 @@ export default function TodayScreen() {
         />
 
         <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.text}</Text>
-
-        <Pressable
-          onPress={() => {
-            addTask(item.text, getTodayStr());
-            deleteItem(item.id);
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
-          hitSlop={8}
-          style={{ paddingHorizontal: spacing[1.5], paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}
-        >
-          <Text size="xs" style={{ color: colors.textSecondary }}>→ Tasks</Text>
-        </Pressable>
 
         <Pressable onPress={() => deleteItem(item.id)} hitSlop={8}>
           <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
@@ -233,11 +233,6 @@ export default function TodayScreen() {
               <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{dateLabel}</Text>
             </View>
 
-            {/* Focus timer */}
-            <View style={{ marginBottom: spacing[4] }}>
-              <FocusTimer />
-            </View>
-
             {/* Add input */}
             <Surface style={{ marginBottom: spacing[4], padding: 0, overflow: "hidden" }}>
               <View style={{
@@ -275,9 +270,9 @@ export default function TodayScreen() {
               </View>
             </Surface>
 
-            {/* Empty state */}
+            {/* Empty state + suggestions */}
             {items.length === 0 && (
-              <View style={{ alignItems: "center", paddingVertical: spacing[16], gap: spacing[3] }}>
+              <View style={{ alignItems: "center", paddingVertical: spacing[10], gap: spacing[3] }}>
                 <View style={{
                   width: 64, height: 64, borderRadius: 32,
                   backgroundColor: `${colors.accent}18`,
@@ -288,8 +283,44 @@ export default function TodayScreen() {
                 </View>
                 <Text size="base" weight="semibold">Nothing yet</Text>
                 <Text size="sm" secondary style={{ textAlign: "center" }}>
-                  Add what you want to get done today.{"\n"}Resets when you close the app.
+                  Add what you want to get done today.{"\n"}Resets daily at midnight.
                 </Text>
+              </View>
+            )}
+
+            {/* Suggestions (only when list is empty and there are overdue/today tasks) */}
+            {items.length === 0 && suggestions.length > 0 && (
+              <View style={{ marginTop: spacing[2] }}>
+                <Text size="xs" weight="semibold" style={{
+                  textTransform: "uppercase", letterSpacing: 1.2,
+                  color: colors.textSecondary, fontSize: 11,
+                  marginBottom: spacing[2],
+                }}>
+                  SUGGESTED · {suggestions.length}
+                </Text>
+                <Surface style={{ overflow: "hidden", padding: 0 }}>
+                  {suggestions.map((task, i) => (
+                    <View key={task.id} style={{
+                      flexDirection: "row", alignItems: "center",
+                      paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+                      gap: spacing[3],
+                      borderBottomWidth: i === suggestions.length - 1 ? 0 : 1,
+                      borderBottomColor: colors.bgBorder,
+                    }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: task.due_date && task.due_date < todayStr ? colors.danger : colors.warning }} />
+                      <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{task.title}</Text>
+                      {task.due_date && task.due_date < todayStr && (
+                        <Text size="xs" style={{ color: colors.danger, marginRight: spacing[1] }}>Overdue</Text>
+                      )}
+                      <Pressable
+                        onPress={() => addSuggestion(task.title)}
+                        style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: `${colors.accent}18`, borderWidth: 1, borderColor: `${colors.accent}40` }}
+                      >
+                        <Text size="xs" style={{ color: colors.accent }} weight="medium">+ Add</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </Surface>
               </View>
             )}
 
@@ -313,6 +344,9 @@ export default function TodayScreen() {
                     }}
                     scrollEnabled={false}
                     activationDistance={Platform.OS === "web" ? 999 : 12}
+                    removeClippedSubviews={Platform.OS !== "web"}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
                   />
                 </Surface>
               </View>

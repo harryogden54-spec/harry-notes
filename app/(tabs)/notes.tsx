@@ -9,11 +9,83 @@ import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, SearchBar, EmptyState, GlassCard, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { webContentStyle } from "@/lib/webLayout";
 import { useNotes, type Note } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
-import { useStickyNotes, STICKY_COLOURS, type StickyNote } from "@/lib/StickyNotesContext";
+import { useStickyNotes, type StickyNote } from "@/lib/StickyNotesContext";
 import { stripMarkdown } from "@/lib/utils";
+
+// ─── Markdown renderer ────────────────────────────────────────────────────────
+
+function renderInline(text: string, colors: ReturnType<typeof useTheme>["colors"]): React.ReactNode {
+  // Parse bold, italic, code, wiki-links inline
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let keyIdx = 0;
+
+  const patterns: [RegExp, (inner: string) => React.ReactNode][] = [
+    [/\*\*(.+?)\*\*/s, (s) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{s}</Text>],
+    [/__(.+?)__/s,     (s) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{s}</Text>],
+    [/_(.+?)_/s,       (s) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{s}</Text>],
+    [/\*(.+?)\*/s,     (s) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{s}</Text>],
+    [/`(.+?)`/s,       (s) => <Text key={keyIdx++} style={{ fontFamily: "monospace" as any, fontSize: 13, color: colors.accent, backgroundColor: colors.bgTertiary }}>{` ${s} `}</Text>],
+    [/\[\[(.+?)\]\]/s, (s) => <Text key={keyIdx++} style={{ color: colors.accent, textDecorationLine: "underline" }}>{s}</Text>],
+  ];
+
+  while (remaining.length > 0) {
+    let earliest: { index: number; match: RegExpMatchArray; render: (s: string) => React.ReactNode } | null = null;
+    for (const [regex, render] of patterns) {
+      const m = remaining.match(regex);
+      if (m && m.index !== undefined) {
+        if (!earliest || m.index < earliest.index) {
+          earliest = { index: m.index, match: m, render };
+        }
+      }
+    }
+    if (!earliest) {
+      parts.push(<Text key={keyIdx++} style={{ color: colors.textSecondary }}>{remaining}</Text>);
+      break;
+    }
+    if (earliest.index > 0) {
+      parts.push(<Text key={keyIdx++} style={{ color: colors.textSecondary }}>{remaining.slice(0, earliest.index)}</Text>);
+    }
+    parts.push(earliest.render(earliest.match[1]));
+    remaining = remaining.slice(earliest.index + earliest.match[0].length);
+  }
+  return parts;
+}
+
+function MarkdownView({ body, colors }: { body: string; colors: ReturnType<typeof useTheme>["colors"] }) {
+  const lines = body.split("\n");
+  const nodes: React.ReactNode[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const key = `md-${i}`;
+
+    if (line.startsWith("### ")) {
+      nodes.push(<Text key={key} style={{ fontSize: 15, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[3], marginBottom: spacing[1] }}>{renderInline(line.slice(4), colors)}</Text>);
+    } else if (line.startsWith("## ")) {
+      nodes.push(<Text key={key} style={{ fontSize: 18, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[4], marginBottom: spacing[1.5] }}>{renderInline(line.slice(3), colors)}</Text>);
+    } else if (line.startsWith("# ")) {
+      nodes.push(<Text key={key} style={{ fontSize: 22, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[5], marginBottom: spacing[2] }}>{renderInline(line.slice(2), colors)}</Text>);
+    } else if (line.match(/^---+$/)) {
+      nodes.push(<View key={key} style={{ height: 1, backgroundColor: colors.bgBorder, marginVertical: spacing[3] }} />);
+    } else if (line.match(/^[-*] /)) {
+      nodes.push(
+        <View key={key} style={{ flexDirection: "row", gap: spacing[2], marginVertical: 2 }}>
+          <Text style={{ color: colors.textTertiary, fontSize: 15, lineHeight: 24 }}>•</Text>
+          <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 15, lineHeight: 24 }}>{renderInline(line.slice(2), colors)}</Text>
+        </View>
+      );
+    } else if (line.trim() === "") {
+      nodes.push(<View key={key} style={{ height: spacing[2] }} />);
+    } else {
+      nodes.push(<Text key={key} style={{ color: colors.textSecondary, fontSize: 15, lineHeight: 24 }}>{renderInline(line, colors)}</Text>);
+    }
+  }
+
+  return <View style={{ gap: 0 }}>{nodes}</View>;
+}
 
 // Pastel palette for note cards (exception to no-hardcoded-colors rule — by spec)
 const NOTE_PASTELS = ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"] as const;
@@ -121,7 +193,6 @@ function MarkdownToolbar({ body, selRef, onApply }: {
 
 // ─── Wiki-link autocomplete ───────────────────────────────────────────────────
 
-/** Detects an open [[query at the cursor and returns the query string, or null */
 function getWikiQuery(text: string, cursorPos: number): string | null {
   const before = text.slice(0, cursorPos);
   const match  = before.match(/\[\[([^\][]*)$/);
@@ -169,13 +240,34 @@ function WikiLinkSuggestions({ query, notes, onSelect }: {
 
 // ─── Note Editor ──────────────────────────────────────────────────────────────
 
-function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
+function NoteEditor({
+  note,
+  onClose,
+  showBackButton = true,
+}: {
+  note: Note;
+  onClose: () => void;
+  showBackButton?: boolean;
+}) {
   const { colors } = useTheme();
   const { notes, updateNote, deleteNote, pinNote } = useNotes();
   const { showToast } = useToast();
-  const bodyRef   = useRef<TextInput | null>(null);
-  const selRef    = useRef<Sel>({ start: 0, end: 0 });
+  const titleRef   = useRef<TextInput | null>(null);
+  const bodyRef    = useRef<TextInput | null>(null);
+  const selRef     = useRef<Sel>({ start: 0, end: 0 });
   const [cursor, setCursor] = useState<Sel | undefined>(undefined);
+
+  const [preview, setPreview] = useState(false);
+
+  // Auto-focus title when note has no title (new/untitled notes)
+  useEffect(() => {
+    if (!note.title) {
+      setTimeout(() => titleRef.current?.focus(), 50);
+    }
+  }, [note.id]);
+
+  // Exit preview when note changes
+  useEffect(() => { setPreview(false); }, [note.id]);
 
   // Wiki-link autocomplete state
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
@@ -191,7 +283,6 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
     const pos  = selRef.current.start;
     const before = note.body.slice(0, pos);
     const after  = note.body.slice(pos);
-    // Replace the open [[ + partial query with [[Title]]
     const replaced = before.replace(/\[\[([^\][]*)$/, `[[${title}]]`);
     const newBody  = replaced + after;
     const newCursorPos = replaced.length;
@@ -212,11 +303,28 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
           paddingHorizontal: spacing[4], paddingVertical: spacing[3],
           borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
         }}>
-          <Pressable onPress={onClose} hitSlop={12} style={{ padding: spacing[1] }}>
-            <Text size="sm" style={{ color: colors.accent }}>← Back</Text>
-          </Pressable>
+          {showBackButton && (
+            <Pressable onPress={onClose} hitSlop={12} style={{ padding: spacing[1] }}>
+              <Text size="sm" style={{ color: colors.accent }}>← Back</Text>
+            </Pressable>
+          )}
           <View style={{ flex: 1 }} />
           <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+          <Pressable
+            onPress={() => setPreview(v => !v)}
+            hitSlop={12}
+            style={{
+              paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
+              borderRadius: radius.sm,
+              borderWidth: 1,
+              borderColor: preview ? colors.accent : colors.bgBorder,
+              backgroundColor: preview ? `${colors.accent}14` : "transparent",
+            }}
+          >
+            <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
+              {preview ? "Edit" : "Preview"}
+            </Text>
+          </Pressable>
           <Pressable
             onPress={() => {
               pinNote(note.id);
@@ -243,36 +351,51 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
           </Pressable>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing[4], gap: spacing[3], ...webContentStyle }} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: spacing[4], gap: spacing[3] }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Title always editable */}
           <TextInput
+            ref={titleRef}
             value={note.title}
             onChangeText={title => updateNote(note.id, { title })}
             placeholder="Title"
             placeholderTextColor={colors.textTertiary}
             returnKeyType="next"
-            onSubmitEditing={() => bodyRef.current?.focus()}
+            onSubmitEditing={() => { setPreview(false); bodyRef.current?.focus(); }}
             style={[
               { color: colors.textPrimary, fontSize: 22, fontFamily: fontFamily.bold, lineHeight: 30, marginBottom: spacing[2] },
               // @ts-ignore
               { outlineStyle: "none" },
             ]}
           />
-          <TextInput
-            ref={bodyRef}
-            value={note.body}
-            onChangeText={handleBodyChange}
-            onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
-            selection={cursor}
-            placeholder="Start writing…"
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            textAlignVertical="top"
-            style={[
-              { color: colors.textSecondary, fontSize: 15, lineHeight: 24, minHeight: 300 },
-              // @ts-ignore
-              { outlineStyle: "none" },
-            ]}
-          />
+
+          {preview ? (
+            /* Preview mode: rendered markdown */
+            note.body.trim()
+              ? <MarkdownView body={note.body} colors={colors} />
+              : <Text size="sm" tertiary style={{ fontStyle: "italic" }}>Nothing to preview yet.</Text>
+          ) : (
+            /* Edit mode: raw text input */
+            <TextInput
+              ref={bodyRef}
+              value={note.body}
+              onChangeText={handleBodyChange}
+              onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
+              selection={cursor}
+              placeholder="Start writing…"
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              textAlignVertical="top"
+              style={[
+                { color: colors.textSecondary, fontSize: 15, lineHeight: 24, minHeight: 300 },
+                // @ts-ignore
+                { outlineStyle: "none" },
+              ]}
+            />
+          )}
         </ScrollView>
 
         {/* Word count footer */}
@@ -284,14 +407,14 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
           <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {charCount} chars</Text>
         </View>
 
-        {wikiQuery !== null && (
+        {!preview && wikiQuery !== null && (
           <WikiLinkSuggestions
             query={wikiQuery}
             notes={notes.filter(n => n.id !== note.id)}
             onSelect={handleWikiSelect}
           />
         )}
-        <MarkdownToolbar
+        {!preview && <MarkdownToolbar
           body={note.body}
           selRef={selRef}
           onApply={(text, cur) => {
@@ -299,13 +422,59 @@ function NoteEditor({ note, onClose }: { note: Note; onClose: () => void }) {
             setCursor(cur);
             setWikiQuery(null);
           }}
-        />
+        />}
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Note Card (pastel grid card) ────────────────────────────────────────────
+// ─── Note Index Row (desktop left pane) ──────────────────────────────────────
+
+function NoteIndexRow({ note, isSelected, onSelect }: {
+  note: Note;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const { colors } = useTheme();
+  const idx = getPastelIndex(note.id);
+  const accentColor = NOTE_PASTELS[idx];
+  const preview = stripMarkdown(note.body.trim()).slice(0, 120);
+
+  return (
+    <Pressable
+      onPress={onSelect}
+      style={{
+        paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+        backgroundColor: isSelected ? colors.bgTertiary : "transparent",
+        borderLeftWidth: 2,
+        borderLeftColor: isSelected ? accentColor : "transparent",
+        gap: spacing[0.5],
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
+        {note.pinned && <Text size="xs" style={{ color: colors.accent }}>📌</Text>}
+        <Text
+          size="sm"
+          weight={isSelected ? "semibold" : "regular"}
+          numberOfLines={1}
+          style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}
+        >
+          {note.title || "Untitled"}
+        </Text>
+        <Text size="xs" tertiary style={{ flexShrink: 0 }}>
+          {timeAgo(note.updated_at ?? note.created_at)}
+        </Text>
+      </View>
+      {preview ? (
+        <Text size="xs" secondary numberOfLines={1}>{preview}</Text>
+      ) : (
+        <Text size="xs" tertiary numberOfLines={1}>No content</Text>
+      )}
+    </Pressable>
+  );
+}
+
+// ─── Note Card (pastel grid card — mobile) ────────────────────────────────────
 
 function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
   const { pinNote } = useNotes();
@@ -440,7 +609,7 @@ function StickyNoteModal({ note, visible, onClose }: {
 export default function NotesScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === "web" && width > 1024;
+  const isDesktop = Platform.OS === "web" && width > 768;
   const { notes, addNote, loaded, syncNow } = useNotes();
   const { notes: stickyNotes } = useStickyNotes();
   const [refreshing, setRefreshing] = useState(false);
@@ -484,18 +653,6 @@ export default function NotesScreen() {
     );
   }
 
-  // Show editor when a note is open
-  const openNote = notes.find(n => n.id === openId);
-  if (openNote) {
-    return (
-      <GradientBackground>
-        <SafeAreaView style={{ flex: 1 }}>
-          <NoteEditor note={openNote} onClose={() => { animate(); setOpenId(null); }} />
-        </SafeAreaView>
-      </GradientBackground>
-    );
-  }
-
   const filtered = notes.filter(n => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -505,108 +662,186 @@ export default function NotesScreen() {
   const pinned   = filtered.filter(n => n.pinned);
   const unpinned = filtered.filter(n => !n.pinned);
 
-  return (
-    <GradientBackground>
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
-        }
-      >
+  // ── Mobile: full-screen editor when a note is open ───────────────────────────
+  if (!isDesktop) {
+    const openNote = notes.find(n => n.id === openId);
+    if (openNote) {
+      return (
+        <GradientBackground>
+          <SafeAreaView style={{ flex: 1 }}>
+            <NoteEditor note={openNote} onClose={() => { animate(); setOpenId(null); }} showBackButton />
+          </SafeAreaView>
+        </GradientBackground>
+      );
+    }
 
-        {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
-          <View>
-            <Text size="2xl" weight="bold">Notes</Text>
-            <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-              {notes.length > 0 ? `${notes.length} note${notes.length !== 1 ? "s" : ""}` : "No notes yet"}
-            </Text>
-          </View>
-          <Pressable
-            onPress={handleNew}
-            style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.lg, backgroundColor: colors.accent }}
+    return (
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1 }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16] }}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+            }
           >
-            <Text style={{ color: "#fff", fontSize: 16, lineHeight: 20 }}>+</Text>
-            <Text size="sm" weight="medium" style={{ color: "#fff" }}>New note</Text>
-          </Pressable>
-        </View>
-
-        {/* ── Sticky notes grid ─────────────────────────────────────────── */}
-        {stickyNotes.length > 0 && (
-          <View style={{ marginBottom: spacing[6] }}>
-            <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[3] }}>
-              QUICK NOTES · {stickyNotes.length}
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
-              {stickyNotes.map(n => (
-                <Pressable
-                  key={n.id}
-                  onPress={() => setEditingSticky(n)}
-                  style={{ width: "48%" as any }}
-                >
-                  <GlassCard style={{
-                    borderLeftWidth: 3, borderLeftColor: n.colour,
-                    padding: spacing[3], minHeight: 72,
-                  }}>
-                    <Text
-                      size="xs"
-                      numberOfLines={4}
-                      style={{ color: n.content ? colors.textPrimary : colors.textTertiary, lineHeight: 18 }}
-                    >
-                      {n.content || "Empty note"}
-                    </Text>
-                  </GlassCard>
-                </Pressable>
-              ))}
+            {/* Header */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
+              <View>
+                <Text size="2xl" weight="bold">Notes</Text>
+                <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
+                  {notes.length > 0 ? `${notes.length} note${notes.length !== 1 ? "s" : ""}` : "No notes yet"}
+                </Text>
+              </View>
+              <Pressable
+                onPress={handleNew}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.lg, backgroundColor: colors.accent }}
+              >
+                <Text style={{ color: "#fff", fontSize: 16, lineHeight: 20 }}>+</Text>
+                <Text size="sm" weight="medium" style={{ color: "#fff" }}>New note</Text>
+              </Pressable>
             </View>
-            <Divider style={{ marginTop: spacing[4] }} />
-          </View>
-        )}
 
-        {notes.length > 1 && <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />}
+            {/* Sticky notes */}
+            {stickyNotes.length > 0 && (
+              <View style={{ marginBottom: spacing[6] }}>
+                <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[3] }}>
+                  QUICK NOTES · {stickyNotes.length}
+                </Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+                  {stickyNotes.map(n => (
+                    <Pressable key={n.id} onPress={() => setEditingSticky(n)} style={{ width: "48%" as any }}>
+                      <GlassCard style={{ borderLeftWidth: 3, borderLeftColor: n.colour, padding: spacing[3], minHeight: 72 }}>
+                        <Text size="xs" numberOfLines={4} style={{ color: n.content ? colors.textPrimary : colors.textTertiary, lineHeight: 18 }}>
+                          {n.content || "Empty note"}
+                        </Text>
+                      </GlassCard>
+                    </Pressable>
+                  ))}
+                </View>
+                <Divider style={{ marginTop: spacing[4] }} />
+              </View>
+            )}
 
-        {filtered.length === 0 ? (
-          <EmptyState
-            type="notes"
-            title={search ? "No notes match" : "No notes yet"}
-            subtitle={search ? "Try a different search term." : 'Tap "New note" to start writing.\nLong-press any note to pin it.'}
-          />
-        ) : (
-          <>
-            {pinned.length > 0 && (
+            {notes.length > 1 && <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />}
+
+            {filtered.length === 0 ? (
+              <EmptyState
+                type="notes"
+                title={search ? "No notes match" : "No notes yet"}
+                subtitle={search ? "Try a different search term." : "Capture a thought."}
+              />
+            ) : (
               <>
-                <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>Pinned</Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2], marginBottom: spacing[3] }}>
-                  {pinned.map(n => (
-                    <View key={n.id} style={{ width: isDesktop ? "31.5%" as any : "48%" as any }}>
+                {pinned.length > 0 && (
+                  <>
+                    <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>Pinned</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2], marginBottom: spacing[3] }}>
+                      {pinned.map(n => (
+                        <View key={n.id} style={{ width: "48%" as any }}>
+                          <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
+                        </View>
+                      ))}
+                    </View>
+                    {unpinned.length > 0 && <Divider style={{ marginVertical: spacing[3] }} />}
+                  </>
+                )}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+                  {unpinned.map(n => (
+                    <View key={n.id} style={{ width: "48%" as any }}>
                       <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
                     </View>
                   ))}
                 </View>
-                {unpinned.length > 0 && <Divider style={{ marginVertical: spacing[3] }} />}
               </>
             )}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
-              {unpinned.map(n => (
-                <View key={n.id} style={{ width: isDesktop ? "31.5%" as any : "48%" as any }}>
-                  <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
-                </View>
-              ))}
-            </View>
-          </>
-        )}
-      </ScrollView>
+          </ScrollView>
 
-      {/* Sticky note edit modal */}
-      <StickyNoteModal
-        note={editingSticky}
-        visible={!!editingSticky}
-        onClose={() => setEditingSticky(null)}
-      />
-    </SafeAreaView>
+          <StickyNoteModal note={editingSticky} visible={!!editingSticky} onClose={() => setEditingSticky(null)} />
+        </SafeAreaView>
+      </GradientBackground>
+    );
+  }
+
+  // ── Desktop: two-pane layout ──────────────────────────────────────────────────
+  const openNote = notes.find(n => n.id === openId) ?? null;
+
+  // Sort: pinned first, then by updated_at desc
+  const sortedNotes = [...filtered].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    return (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at);
+  });
+
+  return (
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flex: 1, flexDirection: "row" }}>
+          {/* Left pane — notes index */}
+          <View style={{ width: 300, borderRightWidth: 1, borderRightColor: colors.bgBorder, flexShrink: 0 }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: spacing[16] }}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+            >
+              {/* Pane header */}
+              <View style={{
+                flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: spacing[3],
+              }}>
+                <Text size="xl" weight="bold">Notes</Text>
+                <Pressable
+                  onPress={handleNew}
+                  style={{ width: 28, height: 28, borderRadius: radius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 18, lineHeight: 22 }}>+</Text>
+                </Pressable>
+              </View>
+
+              {notes.length > 1 && (
+                <View style={{ paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
+                  <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />
+                </View>
+              )}
+
+              {sortedNotes.length === 0 ? (
+                <View style={{ padding: spacing[4] }}>
+                  <Text size="sm" secondary>{search ? "No notes match." : 'Tap + to create a note.'}</Text>
+                </View>
+              ) : (
+                sortedNotes.map(n => (
+                  <NoteIndexRow
+                    key={n.id}
+                    note={n}
+                    isSelected={openId === n.id}
+                    onSelect={() => setOpenId(n.id)}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </View>
+
+          {/* Right pane — note editor */}
+          <View style={{ flex: 1, backgroundColor: colors.bgSecondary }}>
+            {openNote ? (
+              <NoteEditor
+                key={openNote.id}
+                note={openNote}
+                onClose={() => setOpenId(null)}
+                showBackButton={false}
+              />
+            ) : (
+              <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing[2] }}>
+                <Text size="2xl">📝</Text>
+                <Text size="sm" secondary>Select a note to start editing</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <StickyNoteModal note={editingSticky} visible={!!editingSticky} onClose={() => setEditingSticky(null)} />
+      </SafeAreaView>
     </GradientBackground>
   );
 }

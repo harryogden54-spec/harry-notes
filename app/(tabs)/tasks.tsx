@@ -8,6 +8,7 @@ import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanim
 import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
@@ -16,15 +17,16 @@ import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
-import { getTodayStr, getTomorrowStr, getNextWeekStr } from "@/lib/utils";
+import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate } from "@/lib/utils";
+import { storage } from "@/lib/storage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
-  urgent: { label: "Urgent", color: "#F26464" },
-  high:   { label: "High",   color: "#F5A623" },
-  medium: { label: "Medium", color: "#E8C84A" },
-  low:    { label: "Low",    color: "#5B6AD0" },
+  urgent: { label: "Urgent", color: "#EF4444" },
+  high:   { label: "High",   color: "#F97316" },
+  medium: { label: "Medium", color: "#EAB308" },
+  low:    { label: "Low",    color: "#6B7280" },
 };
 const PRIORITY_ORDER: Priority[] = ["urgent", "high", "medium", "low"];
 
@@ -63,13 +65,8 @@ function matchesSearch(task: Task, q: string) {
   const lower = q.toLowerCase();
   return (
     task.title.toLowerCase().includes(lower) ||
-    task.description?.toLowerCase().includes(lower) ||
-    task.tags?.some(t => t.includes(lower))
+    (task.description?.toLowerCase().includes(lower) ?? false)
   );
-}
-
-function animate() {
-  // Intentionally empty — LayoutAnimation removed for Reanimated compat
 }
 
 // ─── Chip ─────────────────────────────────────────────────────────────────────
@@ -248,42 +245,6 @@ function CategorySelector({ category, uniCourse, onChange }: {
   );
 }
 
-// ─── Tags Editor ──────────────────────────────────────────────────────────────
-
-function TagsEditor({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
-  const { colors } = useTheme();
-  const [input, setInput] = useState("");
-
-  function addTag() {
-    const tag = input.trim().toLowerCase().replace(/^#/, "");
-    if (tag && !tags.includes(tag)) onChange([...tags, tag]);
-    setInput("");
-  }
-
-  return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1], alignItems: "center" }}>
-      {tags.map(tag => (
-        <Chip key={tag} label={`#${tag}`} onRemove={() => onChange(tags.filter(t => t !== tag))} />
-      ))}
-      <TextInput
-        value={input}
-        onChangeText={setInput}
-        placeholder={tags.length === 0 ? "Add tag…" : "+"}
-        placeholderTextColor={colors.textTertiary}
-        onSubmitEditing={addTag}
-        onKeyPress={(e) => {
-          if ((e.nativeEvent as any).key === "," || (e.nativeEvent as any).key === " ") addTag();
-        }}
-        style={[
-          { color: colors.textPrimary, fontSize: 13, minWidth: 60, maxWidth: 120, paddingVertical: 2 },
-          // @ts-ignore
-          { outlineStyle: "none" },
-        ]}
-      />
-    </View>
-  );
-}
-
 // ─── Subtasks ─────────────────────────────────────────────────────────────────
 
 function SubtasksList({ subtasks, onChange }: { subtasks: Task["subtasks"]; onChange: (s: NonNullable<Task["subtasks"]>) => void }) {
@@ -299,7 +260,7 @@ function SubtasksList({ subtasks, onChange }: { subtasks: Task["subtasks"]; onCh
   }
 
   return (
-    <View style={{ gap: spacing[1] }}>
+    <View style={{ gap: spacing[1.5] }}>
       {list.map(sub => (
         <View key={sub.id} style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
           <Checkbox checked={sub.done} onToggle={() => onChange(list.map(s => s.id === sub.id ? { ...s, done: !s.done } : s))} size={15} />
@@ -311,7 +272,14 @@ function SubtasksList({ subtasks, onChange }: { subtasks: Task["subtasks"]; onCh
           </Pressable>
         </View>
       ))}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
+      <View style={{
+        flexDirection: "row", alignItems: "center", gap: spacing[2],
+        marginTop: spacing[1],
+        backgroundColor: colors.bgTertiary,
+        borderRadius: radius.md,
+        borderWidth: 1, borderColor: colors.bgBorder,
+        paddingHorizontal: spacing[2.5], paddingVertical: spacing[1.5],
+      }}>
         <View style={{ width: 15, height: 15, borderRadius: 4, borderWidth: 1.5, borderColor: colors.bgBorder }} />
         <TextInput
           value={input}
@@ -320,11 +288,16 @@ function SubtasksList({ subtasks, onChange }: { subtasks: Task["subtasks"]; onCh
           placeholderTextColor={colors.textTertiary}
           onSubmitEditing={addSubtask}
           style={[
-            { flex: 1, color: colors.textPrimary, fontSize: 13, paddingVertical: 2 },
+            { flex: 1, color: colors.textPrimary, fontSize: 13, paddingVertical: 0 },
             // @ts-ignore
             { outlineStyle: "none" },
           ]}
         />
+        {input.length > 0 && (
+          <Pressable onPress={addSubtask} hitSlop={8}>
+            <Text size="xs" style={{ color: colors.accent }} weight="medium">Add</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -378,13 +351,12 @@ function TaskItem({
   const overdue       = !task.done && !!task.due_date && task.due_date < today;
   const dueDateColor  = overdue ? colors.danger : task.due_date === today ? colors.warning : colors.textTertiary;
   const subtasks      = task.subtasks ?? [];
-  const tags          = task.tags ?? [];
   const doneSubtasks  = subtasks.filter(s => s.done).length;
 
   function renderLeftActions() {
     if (Platform.OS === "web" || task.done) return null;
     return (
-      <View style={{ justifyContent: "center", alignItems: "flex-end", paddingHorizontal: spacing[4], backgroundColor: `${colors.accent}22`, borderRadius: radius.lg, marginBottom: spacing[2], marginRight: spacing[1] }}>
+      <View style={{ justifyContent: "center", alignItems: "flex-end", paddingHorizontal: spacing[4], backgroundColor: `${colors.accent}22`, borderRadius: radius.lg, marginBottom: spacing[1.5], marginRight: spacing[1] }}>
         <Text size="xs" weight="semibold" style={{ color: colors.accent }}>✓ Done</Text>
       </View>
     );
@@ -393,7 +365,7 @@ function TaskItem({
   function renderRightActions() {
     if (Platform.OS === "web") return null;
     return (
-      <View style={{ justifyContent: "center", alignItems: "flex-start", paddingHorizontal: spacing[4], backgroundColor: `${colors.danger}22`, borderRadius: radius.lg, marginBottom: spacing[2], marginLeft: spacing[1] }}>
+      <View style={{ justifyContent: "center", alignItems: "flex-start", paddingHorizontal: spacing[4], backgroundColor: `${colors.danger}22`, borderRadius: radius.lg, marginBottom: spacing[1.5], marginLeft: spacing[1] }}>
         <Text size="xs" weight="semibold" style={{ color: colors.danger }}>✕ Delete</Text>
       </View>
     );
@@ -426,12 +398,12 @@ function TaskItem({
           borderWidth: highlighted ? 2 : 1,
           borderLeftWidth: priorityColor && !highlighted ? 3 : highlighted ? 2 : 1,
           borderLeftColor: highlighted ? colors.accent : priorityColor ?? undefined,
-          marginBottom: spacing[2],
+          marginBottom: spacing[1.5],
           opacity: selected ? 0.85 : 1,
         }}
       >
-        {/* Header row */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], padding: spacing[3] }}>
+        {/* Header row — tightened padding */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
           {selectMode ? (
             <Checkbox checked={selected} onToggle={onSelect} size={16} />
           ) : (
@@ -441,9 +413,9 @@ function TaskItem({
             onPress={selectMode ? onSelect : onToggleExpand}
             onLongPress={!selectMode ? onLongPress : undefined}
             delayLongPress={400}
-            style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing[3] }}
+            style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing[2.5] }}
           >
-            <View style={{ flex: 1, gap: 3 }}>
+            <View style={{ flex: 1, gap: 2 }}>
               <Text size="sm" weight="medium" style={{
                 color: task.done ? colors.textTertiary : colors.textPrimary,
                 textDecorationLine: task.done ? "line-through" : "none",
@@ -451,11 +423,10 @@ function TaskItem({
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
                 {task.due_date && <Text size="xs" style={{ color: dueDateColor }}>{formatDate(task.due_date)}</Text>}
                 {subtasks.length > 0 && <Text size="xs" style={{ color: colors.textTertiary }}>{doneSubtasks}/{subtasks.length}</Text>}
-                {tags.map(tag => <Text key={tag} size="xs" style={{ color: colors.textTertiary }}>#{tag}</Text>)}
                 {task.category && <CategoryBadge category={task.category} uniCourse={task.uniCourse} />}
               </View>
             </View>
-            {task.priority && <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: priorityColor }} />}
+            {task.priority && <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: priorityColor }} />}
             {hovered && !selectMode && !isExpanded && (
               <View style={{ flexDirection: "row", gap: 2 }}>
                 <Pressable onPress={(e) => { e.stopPropagation?.(); onReorderUp(); }} hitSlop={6}
@@ -518,12 +489,9 @@ function TaskItem({
                   onChange={(category, uniCourse) => updateTask(task.id, { category, uniCourse })}
                 />
               </MetaRow>
-              <MetaRow icon="#">
-                <TagsEditor tags={tags} onChange={tags => updateTask(task.id, { tags })} />
-              </MetaRow>
               <Divider />
-              <View style={{ gap: spacing[1.5] }}>
-                <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+              <View style={{ gap: spacing[2] }}>
+                <Text size="sm" weight="semibold" style={{ color: colors.textSecondary }}>
                   Subtasks{subtasks.length > 0 ? ` · ${doneSubtasks}/${subtasks.length}` : ""}
                 </Text>
                 <SubtasksList subtasks={subtasks} onChange={s => updateTask(task.id, { subtasks: s })} />
@@ -553,7 +521,6 @@ function TaskDetailPanel({ task, onClose }: { task: Task; onClose?: () => void }
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const subtasks = task.subtasks ?? [];
-  const tags     = task.tags ?? [];
   const doneSubtasks = subtasks.filter(s => s.done).length;
 
   function handleDelete() {
@@ -565,7 +532,7 @@ function TaskDetailPanel({ task, onClose }: { task: Task; onClose?: () => void }
 
   return (
     <ScrollView
-      style={{ flex: 1 }}
+      style={[{ flex: 1 }, Platform.OS === "web" && { scrollbarWidth: "none" } as any]}
       contentContainerStyle={{ padding: spacing[5], gap: spacing[4], paddingBottom: spacing[16] }}
       keyboardShouldPersistTaps="handled"
     >
@@ -581,9 +548,11 @@ function TaskDetailPanel({ task, onClose }: { task: Task; onClose?: () => void }
             backgroundColor: task.done ? `${colors.success}18` : `${colors.accent}18`,
           }}
         >
-          <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: task.done ? colors.success : colors.accent, alignItems: "center", justifyContent: "center" }}>
-            {task.done && <Text size="xs" style={{ color: "#fff", lineHeight: 14 }}>✓</Text>}
-          </View>
+          <Ionicons
+            name={task.done ? "checkmark-circle" : "checkmark-circle-outline"}
+            size={18}
+            color={task.done ? colors.success : colors.accent}
+          />
           <Text size="xs" weight="semibold" style={{ color: task.done ? colors.success : colors.accent }}>
             {task.done ? "Completed" : "Mark done"}
           </Text>
@@ -643,15 +612,12 @@ function TaskDetailPanel({ task, onClose }: { task: Task; onClose?: () => void }
           onChange={(category, uniCourse) => updateTask(task.id, { category, uniCourse })}
         />
       </MetaRow>
-      <MetaRow icon="#">
-        <TagsEditor tags={tags} onChange={tags => updateTask(task.id, { tags })} />
-      </MetaRow>
 
       <Divider />
 
-      {/* Subtasks */}
-      <View style={{ gap: spacing[1.5] }}>
-        <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+      {/* Subtasks — more visual weight */}
+      <View style={{ gap: spacing[2] }}>
+        <Text size="sm" weight="semibold" style={{ color: colors.textSecondary, letterSpacing: 0.3 }}>
           Subtasks{subtasks.length > 0 ? ` · ${doneSubtasks}/${subtasks.length}` : ""}
         </Text>
         <SubtasksList subtasks={subtasks} onChange={s => updateTask(task.id, { subtasks: s })} />
@@ -703,10 +669,15 @@ function AddTaskRow({ onAdd, inputRef }: {
 
   const dueDateColor = quickDate && quickDate < today ? colors.danger : quickDate === today ? colors.warning : colors.accent;
 
+  // NLP date detection from title (only when no date manually chosen)
+  const { date: nlpDate, cleanText: nlpClean } = !quickDate ? parseNaturalDate(value) : { date: null, cleanText: value };
+
   function submit() {
     const t = value.trim();
     if (!t) return;
-    onAdd(t, quickDate, quickCat, quickCat === "uni" ? quickCourse : undefined);
+    const finalTitle = !quickDate && nlpDate ? (nlpClean.trim() || t) : t;
+    const finalDate  = quickDate ?? (nlpDate ?? undefined);
+    onAdd(finalTitle, finalDate, quickCat, quickCat === "uni" ? quickCourse : undefined);
     setValue("");
     setQuickDate(undefined);
     setQuickCat(undefined);
@@ -752,6 +723,17 @@ function AddTaskRow({ onAdd, inputRef }: {
           )}
         </View>
 
+        {/* NLP date hint */}
+        {nlpDate && !quickDate && value.trim().length > 0 && (
+          <Pressable
+            onPress={() => { setQuickDate(nlpDate); setValue(nlpClean.trim() || value); }}
+            style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingHorizontal: spacing[1], paddingTop: spacing[1] }}
+          >
+            <Text size="xs" style={{ color: colors.accent }}>📅 {formatDate(nlpDate)}</Text>
+            <Text size="xs" style={{ color: colors.textTertiary }}>detected — tap to set as due date</Text>
+          </Pressable>
+        )}
+
         {/* Quick-options panel */}
         {showOptions && (
           <Animated.View entering={FadeIn.duration(150)}>
@@ -762,7 +744,6 @@ function AddTaskRow({ onAdd, inputRef }: {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
                   <Text size="xs" style={{ color: colors.textTertiary, width: 32 }}>Date</Text>
                   {quickDate && !DATE_PRESETS.find(p => p.date === quickDate) ? (
-                    // Custom date chosen from picker — show as chip
                     <>
                       <Chip
                         label={formatDate(quickDate)}
@@ -857,7 +838,7 @@ function AddTaskRow({ onAdd, inputRef }: {
 
 // ─── Section ──────────────────────────────────────────────────────────────────
 
-function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selectMode, selectedIds, onSelect, onDelete, onReorderUp, onReorderDown, onReorder, highlightId, onTaskMeasureY, sortBy = "priority", onLongPress }: {
+function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selectMode, selectedIds, onSelect, onDelete, onReorderUp, onReorderDown, onReorder, highlightId, onTaskMeasureY, sortBy = "priority", onLongPress, persistCollapse }: {
   label: string; tasks: Task[]; expandedId: string | null;
   onToggleExpand: (id: string) => void; emptyMessage?: string;
   selectMode: boolean; selectedIds: Set<string>;
@@ -868,13 +849,40 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
   onTaskMeasureY?: (id: string, y: number) => void;
   sortBy?: SortBy;
   onLongPress?: (id: string) => void;
+  persistCollapse?: string;
 }) {
   const { colors } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
 
+  // Load persisted collapse state
+  useEffect(() => {
+    if (!persistCollapse) return;
+    storage.get<boolean>(persistCollapse).then(val => {
+      if (val !== null && val !== undefined) setCollapsed(val);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    if (persistCollapse) storage.set(persistCollapse, next);
+  }
+
   if (tasks.length === 0 && !emptyMessage) return null;
 
   const sorted = applySort(tasks, sortBy);
+
+  const isOverdueSection    = label.toLowerCase().startsWith("overdue");
+  const isCompletedSection  = label.toLowerCase().startsWith("completed");
+
+  const labelColor = isOverdueSection
+    ? colors.danger
+    : isCompletedSection
+    ? colors.textTertiary
+    : colors.textSecondary;
+
+  const labelSize = isOverdueSection ? 12 : 11;
 
   const renderItem = ({ item: t, drag, isActive }: RenderItemParams<Task>) => (
     <ScaleDecorator>
@@ -900,13 +908,23 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
   return (
     <View style={{ marginBottom: spacing[6] }}>
       <Pressable
-        onPress={() => setCollapsed(v => !v)}
+        onPress={toggleCollapsed}
         style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: collapsed ? 0 : spacing[3] }}
       >
-        <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1 }}>{label}</Text>
+        <Text style={{
+          fontSize: labelSize, letterSpacing: 1,
+          color: labelColor,
+          fontFamily: fontFamily.semibold,
+          textTransform: "uppercase",
+        }}>
+          {label}
+        </Text>
         {tasks.length > 0 && (
-          <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
-            <Text size="xs" style={{ color: colors.textTertiary }}>{tasks.length}</Text>
+          <View style={{
+            backgroundColor: isOverdueSection ? `${colors.danger}20` : colors.bgTertiary,
+            borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1,
+          }}>
+            <Text size="xs" style={{ color: isOverdueSection ? colors.danger : colors.textTertiary }}>{tasks.length}</Text>
           </View>
         )}
         <Text size="xs" style={{ color: colors.textTertiary, marginLeft: "auto" }}>{collapsed ? "▾" : "▴"}</Text>
@@ -926,8 +944,47 @@ function Section({ label, tasks, expandedId, onToggleExpand, emptyMessage, selec
             onDragEnd={({ data }) => onReorder(data)}
             scrollEnabled={false}
             activationDistance={Platform.OS === "web" ? 999 : 20}
+            removeClippedSubviews={Platform.OS !== "web"}
+            maxToRenderPerBatch={10}
+            windowSize={5}
           />
         )
+      )}
+    </View>
+  );
+}
+
+// ─── Empty detail state ───────────────────────────────────────────────────────
+
+function EmptyDetailPane({ open }: { open: Task[] }) {
+  const { colors } = useTheme();
+  const counts = PRIORITY_ORDER.map(p => ({ p, count: open.filter(t => t.priority === p).length })).filter(x => x.count > 0);
+  const noPriority = open.filter(t => !t.priority).length;
+
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing[4], padding: spacing[6] }}>
+      <Ionicons name="checkbox-outline" size={40} color={colors.textTertiary} />
+      <View style={{ alignItems: "center", gap: spacing[1] }}>
+        <Text size="sm" secondary>Select a task to view details</Text>
+        {open.length > 0 && (
+          <Text size="xs" style={{ color: colors.textTertiary }}>{open.length} open task{open.length !== 1 ? "s" : ""}</Text>
+        )}
+      </View>
+      {(counts.length > 0 || noPriority > 0) && (
+        <View style={{ gap: spacing[1.5], alignItems: "flex-start" }}>
+          {counts.map(({ p, count }) => (
+            <View key={p} style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+              <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: PRIORITY_CONFIG[p].color }} />
+              <Text size="xs" secondary>{count} {PRIORITY_CONFIG[p].label}</Text>
+            </View>
+          ))}
+          {noPriority > 0 && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+              <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: colors.bgBorder }} />
+              <Text size="xs" secondary>{noPriority} No priority</Text>
+            </View>
+          )}
+        </View>
       )}
     </View>
   );
@@ -963,7 +1020,6 @@ export default function TasksScreen() {
     taskYPositions.current[id] = y;
   }, []);
 
-  // Auto-focus add input or expand + scroll to a specific task when navigated here
   useEffect(() => {
     if (params.filter === "overdue" || params.filter === "today") {
       setFocusMode(true);
@@ -974,6 +1030,7 @@ export default function TasksScreen() {
     if (params.taskId) {
       setExpandedId(params.taskId);
       setHighlightId(params.taskId);
+      if (isDesktop) setSelectedTaskId(params.taskId);
       setTimeout(() => {
         const y = taskYPositions.current[params.taskId!];
         if (y !== undefined) {
@@ -982,7 +1039,7 @@ export default function TasksScreen() {
         setTimeout(() => setHighlightId(null), 2000);
       }, 350);
     }
-  }, [params.create, params.taskId]);
+  }, [params.create, params.taskId, isDesktop]);
 
   // Keyboard shortcuts (web)
   useEffect(() => {
@@ -1002,8 +1059,9 @@ export default function TasksScreen() {
     const id = addTask(title, due_date);
     if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
     setExpandedId(id);
+    if (isDesktop) setSelectedTaskId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [addTask, updateTask]);
+  }, [addTask, updateTask, isDesktop]);
 
   const handleToggleExpand = useCallback((id: string) => {
     if (isDesktop) {
@@ -1071,9 +1129,20 @@ export default function TasksScreen() {
   const focusTasks = [...overdue, ...today];
 
   const effectiveExpandedId = isDesktop ? selectedTaskId : expandedId;
-  const sectionProps = { expandedId: effectiveExpandedId, onToggleExpand: handleToggleExpand, selectMode, selectedIds, onSelect: handleSelect, onDelete: handleDelete, onReorderUp: (id: string) => reorderTask(id, "up"), onReorderDown: (id: string) => reorderTask(id, "down"), onReorder: setSectionOrder, highlightId, onTaskMeasureY: handleTaskMeasureY, sortBy, onLongPress: handleLongPress };
+  const sectionProps = {
+    expandedId: effectiveExpandedId,
+    onToggleExpand: handleToggleExpand,
+    selectMode, selectedIds,
+    onSelect: handleSelect,
+    onDelete: handleDelete,
+    onReorderUp: (id: string) => reorderTask(id, "up"),
+    onReorderDown: (id: string) => reorderTask(id, "down"),
+    onReorder: setSectionOrder,
+    highlightId, onTaskMeasureY: handleTaskMeasureY,
+    sortBy, onLongPress: handleLongPress,
+  };
 
-  // Sync pill: show while syncing, then show "Synced ✓" for 2s
+  // Sync pill
   const [pillText, setPillText] = useState<string | null>(null);
   useEffect(() => {
     if (syncStatus === "syncing") {
@@ -1118,7 +1187,13 @@ export default function TasksScreen() {
 
       <View style={{ flex: 1, flexDirection: isDesktop ? "row" : "column" }}>
       <KeyboardAvoidingView
-        style={{ flex: isDesktop ? undefined : 1, width: isDesktop ? 380 : undefined, borderRightWidth: isDesktop ? 1 : 0, borderRightColor: colors.bgBorder, overflow: "hidden" }}
+        style={{
+          flex: isDesktop ? undefined : 1,
+          width: isDesktop ? "40%" : undefined,
+          borderRightWidth: isDesktop ? 1 : 0,
+          borderRightColor: colors.bgBorder,
+          overflow: "hidden",
+        }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -1244,7 +1319,7 @@ export default function TasksScreen() {
                 sortBy="created"
               />
               {done.length > 0 && (
-                <Section label="Completed" tasks={done} {...sectionProps} sortBy="created" />
+                <Section label="Completed" tasks={done} {...sectionProps} sortBy="created" persistCollapse="tasks_section_collapsed_completed" />
               )}
             </>
           ) : (
@@ -1253,7 +1328,7 @@ export default function TasksScreen() {
               {today.length > 0   && <Section label="Today"   tasks={today}   {...sectionProps} />}
               <Section label="Scheduled" tasks={scheduled} {...sectionProps} />
               <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
-              {done.length > 0    && <Section label="Completed" tasks={done}  {...sectionProps} />}
+              {done.length > 0    && <Section label="Completed" tasks={done}  {...sectionProps} persistCollapse="tasks_section_collapsed_completed" />}
             </>
           )}
 
@@ -1353,14 +1428,11 @@ export default function TasksScreen() {
               onClose={() => setSelectedTaskId(null)}
             />
           ) : (
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing[2] }}>
-              <Text size="xl" style={{ color: colors.textTertiary }}>☑</Text>
-              <Text size="sm" secondary>Select a task to view details</Text>
-            </View>
+            <EmptyDetailPane open={open} />
           )}
         </View>
       )}
-      </View>{/* end flex-row */}
+      </View>
 
       {/* Mobile task detail modal */}
       {!isDesktop && showMobileDetail && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (

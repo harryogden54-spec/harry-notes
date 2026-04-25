@@ -16,7 +16,6 @@ import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { useStickyNotes, type StickyNote } from "@/lib/StickyNotesContext";
-import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
 import { getTodayStr, getTomorrowStr, stripMarkdown } from "@/lib/utils";
 import { MiniCalendar }       from "@/components/dashboard/MiniCalendar";
@@ -26,7 +25,7 @@ import { StickyNoteModal }    from "@/components/dashboard/StickyNoteModal";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
 import { StickyCard }         from "@/components/dashboard/StickyCard";
 
-// ─── Pastel palette (mirrors notes.tsx) ──────────────────────────────────────
+// ─── Pastel palette ───────────────────────────────────────────────────────────
 
 const NOTE_PASTELS      = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
 const NOTE_PASTEL_BORDERS = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
@@ -38,47 +37,20 @@ function getPastelIndex(noteId: string): number {
   return h % NOTE_PASTELS.length;
 }
 
-// ─── Circular progress ring ───────────────────────────────────────────────────
-
-function ProgressRing({ done, total, size = 32, color = "#5B6AD0" }: { done: number; total: number; size?: number; color?: string }) {
-  const pct = total === 0 ? 0 : Math.max(0, Math.min(1, done / total));
-  const deg = Math.round(pct * 360);
-  if (Platform.OS === "web") {
-    return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden" }}>
-        <View style={{
-          width: size, height: size, borderRadius: size / 2,
-          // @ts-ignore
-          background: `conic-gradient(${color} ${deg}deg, rgba(120,120,120,0.15) ${deg}deg)`,
-        }}>
-          {/* Donut hole */}
-          <View style={{
-            position: "absolute", top: 5, left: 5,
-            width: size - 10, height: size - 10,
-            borderRadius: (size - 10) / 2,
-            backgroundColor: "transparent",
-          }} />
-        </View>
-      </View>
-    );
-  }
-  // Native fallback: plain ring
-  return (
-    <View style={{
-      width: size, height: size, borderRadius: size / 2,
-      borderWidth: 3, borderColor: `${color}30`,
-      borderTopColor: pct > 0 ? color : `${color}30`,
-    }} />
-  );
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const DAY_NAMES   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+function formatHeaderDate(d: Date): string {
+  return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
 }
 
 function syncedAgo(iso: string | null): string | null {
@@ -98,13 +70,54 @@ function getTodayKey() {
 
 type TodayItem = { id: string; text: string; done: boolean };
 
-// ─── Today Checklist Widget (desktop right column) ────────────────────────────
+const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 
-function TodayWidget() {
+// ─── Priority dot colours ─────────────────────────────────────────────────────
+
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: "#EF4444",
+  high:   "#F97316",
+  medium: "#EAB308",
+  low:    "#6B7280",
+};
+
+// ─── Lists Grid Card (compact, 2-per-row) ────────────────────────────────────
+
+function ListGridCard({ list, onPress }: { list: any; onPress: () => void }) {
   const { colors } = useTheme();
-  const { addTask } = useTasks();
+  const items = list.items ?? [];
+  const doneCount  = items.filter((i: any) => i.done).length;
+  const totalCheck = items.filter((i: any) => i.type === "checkbox").length;
+  const pct        = totalCheck === 0 ? 0 : Math.round((doneCount / totalCheck) * 100);
+  const listColor  = list.color ?? colors.accent;
+
+  return (
+    <Pressable onPress={onPress} style={{ flex: 1 }}>
+      <Surface style={{ padding: spacing[2.5], gap: spacing[1.5], flex: 1 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
+          <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: listColor }} />
+          <Text size="xs" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
+          <Text size="xs" style={{ color: colors.textTertiary }}>{items.length}</Text>
+        </View>
+        {/* Linear progress bar */}
+        {totalCheck > 0 && (
+          <View style={{ height: 3, borderRadius: 99, backgroundColor: `${listColor}25`, overflow: "hidden" }}>
+            <View style={{ height: 3, width: `${pct}%` as any, borderRadius: 99, backgroundColor: listColor }} />
+          </View>
+        )}
+        {items.length === 0 && (
+          <Text size="xs" secondary>Empty</Text>
+        )}
+      </Surface>
+    </Pressable>
+  );
+}
+
+// ─── Today Card ───────────────────────────────────────────────────────────────
+
+function TodayCard() {
+  const { colors } = useTheme();
   const [items, setItems] = useState<TodayItem[]>([]);
-  const [input, setInput] = useState("");
   const todayKey = getTodayKey();
 
   useEffect(() => {
@@ -112,156 +125,36 @@ function TodayWidget() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    storage.set(todayKey, items);
-  }, [items, todayKey]);
-
-  function addItem() {
-    const text = input.trim();
-    if (!text) return;
-    setItems(prev => [{ id: `t_${Date.now()}`, text, done: false }, ...prev]);
-    setInput("");
-  }
-
-  function toggleItem(id: string) {
-    setItems(prev => {
-      const item = prev.find(i => i.id === id);
-      if (!item) return prev;
-      const rest = prev.filter(i => i.id !== id);
-      return item.done ? [{ ...item, done: false }, ...rest] : [...rest, { ...item, done: true }];
-    });
-  }
-
   const active    = items.filter(i => !i.done);
   const completed = items.filter(i => i.done);
-  const today     = getTodayStr();
 
-  return (
-    <View style={{ flex: 1, padding: spacing[5], gap: spacing[3] }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Text size="base" weight="semibold">Today's checklist</Text>
-        <Text size="xs" style={{ color: colors.textTertiary }}>
-          {active.length > 0 ? `${active.length} remaining` : completed.length > 0 ? "All done ✓" : ""}
-        </Text>
-      </View>
-
-      {/* Add input */}
-      <View style={{
-        flexDirection: "row", alignItems: "center", gap: spacing[2],
-        backgroundColor: colors.bgTertiary, borderRadius: radius.lg,
-        borderWidth: 1, borderColor: colors.bgBorder,
-        paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-      }}>
-        <Text style={{ color: colors.accent, fontSize: 16 }}>+</Text>
-        <TextInput
-          value={input}
-          onChangeText={setInput}
-          onSubmitEditing={addItem}
-          placeholder="Add to today…"
-          placeholderTextColor={colors.textTertiary}
-          returnKeyType="done"
-          style={[
-            { flex: 1, color: colors.textPrimary, fontSize: 14 },
-            // @ts-ignore
-            { outlineStyle: "none" },
-          ]}
-        />
-      </View>
-
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {active.map((item) => (
-          <Pressable
-            key={item.id}
-            onPress={() => toggleItem(item.id)}
-            style={{
-              flexDirection: "row", alignItems: "center", gap: spacing[3],
-              paddingVertical: spacing[2.5], borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
-            }}
-          >
-            <View style={{
-              width: 18, height: 18, borderRadius: 9, borderWidth: 1.5,
-              borderColor: colors.bgBorder, backgroundColor: "transparent",
-            }} />
-            <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.text}</Text>
-            <Pressable
-              onPress={() => {
-                addTask(item.text, today);
-                setItems(prev => prev.filter(i => i.id !== item.id));
-              }}
-              hitSlop={8}
-              style={{ paddingHorizontal: spacing[1.5], paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}
-            >
-              <Text size="xs" style={{ color: colors.textTertiary }}>→ Tasks</Text>
-            </Pressable>
-          </Pressable>
-        ))}
-        {completed.length > 0 && (
-          <View style={{ marginTop: spacing[3], gap: spacing[1] }}>
-            <Text size="xs" style={{ color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: spacing[1] }}>Done</Text>
-            {completed.map(item => (
-              <Pressable key={item.id} onPress={() => toggleItem(item.id)}
-                style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], paddingVertical: spacing[1.5] }}>
-                <View style={{
-                  width: 18, height: 18, borderRadius: 9,
-                  backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
-                }}>
-                  <Text style={{ color: "#fff", fontSize: 11, lineHeight: 18 }}>✓</Text>
-                </View>
-                <Text size="sm" style={{ flex: 1, color: colors.textTertiary, textDecorationLine: "line-through" }}>{item.text}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-        {items.length === 0 && (
-          <View style={{ paddingTop: spacing[6], alignItems: "center" }}>
-            <Text size="sm" secondary>Your today list is empty</Text>
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
-// ─── Lists Grid Card ──────────────────────────────────────────────────────────
-
-function ListGridCard({ list, onPress }: { list: any; onPress: () => void }) {
-  const { colors } = useTheme();
-  const items = list.items ?? [];
-  const doneCount = items.filter((i: any) => i.done).length;
-  const preview = items.filter((i: any) => !i.done).slice(0, 3);
-
-  return (
-    <Pressable onPress={onPress} style={{ flex: 1 }}>
-      <Surface style={{ padding: spacing[3], gap: spacing[2], flex: 1 }}>
-        {/* Header: color dot + name + progress ring */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-          <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: list.color }} />
-          <Text size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
-          {items.length > 0 && (
-            <ProgressRing done={doneCount} total={items.length} size={28} color={list.color ?? colors.accent} />
-          )}
-        </View>
-        {/* Preview items */}
-        {preview.length > 0 ? (
-          <View style={{ gap: spacing[0.5] }}>
-            {preview.map((item: any) => (
-              <Text key={item.id} size="xs" secondary numberOfLines={1}>
-                {item.content}
-              </Text>
-            ))}
-          </View>
-        ) : items.length > 0 ? (
-          <Text size="xs" style={{ color: colors.accent }}>All done ✓</Text>
-        ) : (
-          <Text size="xs" secondary>Empty</Text>
-        )}
-        {items.length > 0 && (
-          <Text size="xs" style={{ color: colors.textTertiary }}>
-            {doneCount}/{items.length} done
-          </Text>
-        )}
+  if (items.length === 0) {
+    return (
+      <Surface style={{ padding: spacing[4], alignItems: "center" }}>
+        <Text size="sm" secondary>Nothing added to today yet.</Text>
       </Surface>
-    </Pressable>
+    );
+  }
+
+  return (
+    <Surface style={{ overflow: "hidden" }}>
+      {active.map((item, i) => (
+        <View key={item.id} style={{
+          flexDirection: "row", alignItems: "center", gap: spacing[2.5],
+          paddingHorizontal: spacing[3], paddingVertical: spacing[2.5],
+          borderBottomWidth: i === active.length - 1 && completed.length === 0 ? 0 : 1,
+          borderBottomColor: colors.bgBorder,
+        }}>
+          <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: colors.bgBorder }} />
+          <Text size="sm" style={{ flex: 1 }} numberOfLines={1}>{item.text}</Text>
+        </View>
+      ))}
+      {completed.length > 0 && (
+        <View style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+          <Text size="xs" style={{ color: colors.textTertiary }}>{completed.length} completed</Text>
+        </View>
+      )}
+    </Surface>
   );
 }
 
@@ -285,8 +178,6 @@ export default function DashboardScreen() {
   const today                  = getTodayStr();
   const tomorrow               = getTomorrowStr();
   const [calSelected, setCalSelected] = useState(today);
-  const { width }              = useWindowDimensions();
-  const isDesktop              = Platform.OS === "web" && width > 1024;
 
   // Hydration guard
   const [mounted, setMounted] = useState(false);
@@ -298,22 +189,20 @@ export default function DashboardScreen() {
   const noteFabStyle = useAnimatedStyle(() => ({ transform: [{ scale: noteFabScale.value }] }));
   const taskFabStyle = useAnimatedStyle(() => ({ transform: [{ scale: taskFabScale.value }] }));
 
+  // All open tasks sorted by priority then due date (for dashboard card)
   const openTasks = tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
-      const aOverdue = !!a.due_date && a.due_date < today;
-      const bOverdue = !!b.due_date && b.due_date < today;
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
+      const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
+      const bi = b.priority ? PRIORITY_ORDER.indexOf(b.priority as any) : 99;
+      if (ai !== bi) return ai - bi;
       const aDate = a.due_date ?? "9999-99-99";
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
     });
 
   const overdueTasks = openTasks.filter(t => !!t.due_date && t.due_date < today);
-  const todayTasks   = tasks.filter(t => !t.done && !t.archived && t.due_date === today);
   const overdueCount = overdueTasks.length;
-  const todayCount   = todayTasks.length;
 
   const tasksByDate: Record<string, typeof tasks[number][]> = {};
   for (const task of tasks) {
@@ -323,9 +212,6 @@ export default function DashboardScreen() {
     }
   }
 
-  const recentNote = notes.length > 0
-    ? [...notes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0]
-    : null;
   const sortedNotes = [...notes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at));
 
   const handleGoToLists = useCallback(() => router.push("/(tabs)/lists"), [router]);
@@ -341,7 +227,6 @@ export default function DashboardScreen() {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const id = addTask(title, dueDate);
     if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
-    // Silent add — do not open detail panel
   }, [addTask, updateTask]);
 
   const handleQuickAddNote = useCallback((content: string, colour: string) => {
@@ -372,7 +257,7 @@ export default function DashboardScreen() {
       <View style={{ flex: 1 }}>
         <Text size="2xl" weight="bold">{mounted ? greeting() : "Good morning"}</Text>
         <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-          {now ? now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) : ""}
+          {now ? formatHeaderDate(now) : ""}
         </Text>
         {mounted && syncedAgo(lastSynced) && (
           <Text size="xs" style={{ color: colors.textTertiary, marginTop: 2 }}>
@@ -406,12 +291,15 @@ export default function DashboardScreen() {
     </Pressable>
   ) : null;
 
-  // Today's tasks section
-  const todayTasksSection = (
+  // Tasks card — all open tasks, sorted by priority then due date, max 5
+  const tasksCardItems = openTasks.slice(0, 5);
+  const tasksOverflow  = openTasks.length - 5;
+
+  const tasksCard = (
     <View style={{ marginBottom: spacing[5] }}>
       <SectionHeader
-        label="Today"
-        count={tasksLoaded ? todayCount + overdueCount : undefined}
+        label="Tasks"
+        count={tasksLoaded ? openTasks.length : undefined}
         action={{ label: "All tasks", onPress: handleGoToTasks }}
       />
       {!tasksLoaded ? (
@@ -419,31 +307,39 @@ export default function DashboardScreen() {
           <Skeleton height={16} borderRadius={6} />
           <Skeleton height={16} borderRadius={6} width="80%" />
         </Surface>
-      ) : todayTasks.length === 0 && overdueCount === 0 ? (
+      ) : openTasks.length === 0 ? (
         <Surface style={{ padding: spacing[4], alignItems: "center" }}>
-          <Text size="sm" secondary>No tasks due today</Text>
+          <Text size="sm" secondary>No open tasks</Text>
         </Surface>
       ) : (
         <Surface style={{ overflow: "hidden" }}>
-          {overdueTasks.length > 0 && (
-            <View style={{ paddingHorizontal: spacing[3], paddingTop: spacing[3], paddingBottom: spacing[1] }}>
-              <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.danger, fontFamily: fontFamily.semibold, textTransform: "uppercase" }}>
-                Overdue
-              </Text>
-            </View>
-          )}
-          {[...overdueTasks, ...todayTasks].slice(0, 8).map((task, i, arr) => (
-            <View key={task.id} style={i === Math.min(arr.length, 8) - 1 ? { borderBottomWidth: 0 } : undefined}>
-              <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
+          {tasksCardItems.map((task, i) => (
+            <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {task.priority && (
+                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLORS[task.priority] }} />
+                )}
+                <View style={{ flex: 1 }}>
+                  <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
+                </View>
+              </View>
             </View>
           ))}
-          {overdueTasks.length + todayTasks.length > 8 && (
+          {tasksOverflow > 0 && (
             <Pressable onPress={handleGoToTasks} style={{ padding: spacing[3], alignItems: "center", borderTopWidth: 1, borderTopColor: colors.bgBorder }}>
-              <Text size="xs" style={{ color: colors.accent }}>{overdueTasks.length + todayTasks.length - 8} more tasks</Text>
+              <Text size="xs" style={{ color: colors.accent }}>View all {openTasks.length} tasks →</Text>
             </Pressable>
           )}
         </Surface>
       )}
+    </View>
+  );
+
+  // Today card
+  const todayCard = (
+    <View style={{ marginBottom: spacing[5] }}>
+      <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
+      <TodayCard />
     </View>
   );
 
@@ -488,13 +384,13 @@ export default function DashboardScreen() {
     </View>
   );
 
-  // Lists grid
+  // Lists grid — compact 2-per-row
   const listsGrid = listsLoaded && lists.length > 0 ? (
     <View style={{ marginBottom: spacing[5] }}>
       <SectionHeader label="Lists" count={lists.length} action={{ label: "See all", onPress: handleGoToLists }} />
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3] }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {lists.map(l => (
-          <View key={l.id} style={{ width: "47%" as any }}>
+          <View key={l.id} style={{ width: "48%" as any }}>
             <ListGridCard list={l} onPress={handleGoToLists} />
           </View>
         ))}
@@ -503,9 +399,9 @@ export default function DashboardScreen() {
   ) : !listsLoaded ? (
     <View style={{ marginBottom: spacing[5] }}>
       <SectionHeader label="Lists" />
-      <View style={{ flexDirection: "row", gap: spacing[3] }}>
-        <Skeleton width={130} height={80} borderRadius={12} />
-        <Skeleton width={130} height={80} borderRadius={12} />
+      <View style={{ flexDirection: "row", gap: spacing[2] }}>
+        <Skeleton width={130} height={60} borderRadius={12} />
+        <Skeleton width={130} height={60} borderRadius={12} />
       </View>
     </View>
   ) : null;
@@ -523,7 +419,7 @@ export default function DashboardScreen() {
             <Pressable
               key={note.id}
               onPress={() => router.push(`/(tabs)/notes?openId=${note.id}` as any)}
-              style={{ width: isDesktop ? "23.5%" as any : "48%" as any }}
+              style={{ width: "48%" as any }}
             >
               <View style={{
                 backgroundColor: bg,
@@ -531,13 +427,13 @@ export default function DashboardScreen() {
                 borderRadius: 12,
                 padding: spacing[3],
                 gap: spacing[1],
-                minHeight: 90,
+                minHeight: 80,
               }}>
                 <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: NOTE_PASTEL_TEXT }}>
                   {note.title || "Untitled"}
                 </Text>
                 {note.body.trim() && (
-                  <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, opacity: 0.75, lineHeight: 16 }}>
+                  <Text size="xs" numberOfLines={2} style={{ color: NOTE_PASTEL_TEXT, opacity: 0.75, lineHeight: 16 }}>
                     {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
                   </Text>
                 )}
@@ -563,10 +459,21 @@ export default function DashboardScreen() {
     </View>
   ) : null;
 
+  const mainContent = (
+    <>
+      {overdueBanner}
+      {tasksCard}
+      {todayCard}
+      {calendarSection}
+      {stickyRow}
+      {listsGrid}
+      {notesGrid}
+    </>
+  );
+
   return (
     <GradientBackground>
     <SafeAreaView style={{ flex: 1 }}>
-      {/* Note sheet backdrop */}
       {showNoteSheet && (
         <Pressable
           onPress={() => setShowNoteSheet(false)}
@@ -575,72 +482,22 @@ export default function DashboardScreen() {
       )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        {isDesktop ? (
-          // ─── Desktop: two-column above fold ───────────────────────────────
-          <View style={{ flex: 1, flexDirection: "row" }}>
-            {/* Left column: tasks + below-fold content */}
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{ padding: spacing[5], paddingBottom: spacing[16] }}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-            >
-              {headerSection}
-              <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing[6], paddingVertical: spacing[4], paddingBottom: spacing[24] }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+        >
+          {headerSection}
+          <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
 
-              {search.trim() ? (
-                <View style={{ marginTop: spacing[3] }}>
-                  <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
-                    onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
-                </View>
-              ) : (
-                <>
-                  {overdueBanner}
-                  {todayTasksSection}
-                  {calendarSection}
-                  {stickyRow}
-                  {listsGrid}
-                  {notesGrid}
-                </>
-              )}
-            </ScrollView>
-
-            {/* Right column: Today checklist widget */}
-            <View style={{
-              width: 340,
-              borderLeftWidth: 1, borderLeftColor: colors.bgBorder,
-              backgroundColor: colors.bgSecondary,
-            }}>
-              <TodayWidget />
+          {search.trim() ? (
+            <View style={{ marginTop: spacing[3] }}>
+              <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
             </View>
-          </View>
-        ) : (
-          // ─── Mobile: stacked ───────────────────────────────────────────────
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={[{ padding: spacing[4], paddingBottom: spacing[24] }, webContentStyle]}
-            keyboardShouldPersistTaps="handled"
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-          >
-            {headerSection}
-            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
-
-            {search.trim() ? (
-              <View style={{ marginTop: spacing[3] }}>
-                <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
-                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
-              </View>
-            ) : (
-              <>
-                {overdueBanner}
-                {todayTasksSection}
-                {calendarSection}
-                {stickyRow}
-                {listsGrid}
-                {notesGrid}
-              </>
-            )}
-          </ScrollView>
-        )}
+          ) : mainContent}
+        </ScrollView>
       </KeyboardAvoidingView>
 
       {/* ── Dual FABs ─────────────────────────────────────────────────────────── */}
@@ -680,8 +537,6 @@ export default function DashboardScreen() {
       {/* ── Quick-add modals ──────────────────────────────────────────────────── */}
       <QuickAddModal visible={showTaskSheet} onClose={() => setShowTaskSheet(false)} onAdd={handleQuickAddTask} />
       <QuickAddNoteSheet visible={showNoteSheet} onClose={() => setShowNoteSheet(false)} onAdd={handleQuickAddNote} />
-
-      {/* ── Sticky note edit modal ────────────────────────────────────────────── */}
       <StickyNoteModal note={editingNote} visible={!!editingNote} onClose={() => setEditingNote(null)} />
 
       {/* ── Keyboard shortcuts modal ──────────────────────────────────────────── */}

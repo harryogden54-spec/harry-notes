@@ -1,6 +1,7 @@
 import React from "react";
-import { View, type ViewProps, type StyleProp, type ViewStyle } from "react-native";
+import { View, Platform, type ViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "@/lib/useTheme";
+import { useThemeContext } from "@/lib/ThemeContext";
 import { radius } from "@/lib/theme";
 
 type Variant = "default" | "elevated" | "inset";
@@ -11,13 +12,25 @@ interface Props extends ViewProps {
   children?: React.ReactNode;
 }
 
-/**
- * Solid background card for standard containers (no blur).
- * Reserve GlassCard (with blur) for dashboard calendar, pinned list,
- * and featured/promoted content. Use Surface for everything else.
- */
 export function Surface({ variant = "default", style, children, ...props }: Props) {
   const { colors } = useTheme();
+  const { bgStyle } = useThemeContext();
+  const isBlur = bgStyle === "blur";
+
+  const baseColor =
+    variant === "inset"   ? colors.bgTertiary  :
+    variant === "elevated"? colors.bgSecondary  :
+                            colors.bgSecondary;
+
+  // Blur panels: semi-transparent bg + backdrop-filter on web
+  const blurOverride: ViewStyle = isBlur ? {
+    backgroundColor: `${baseColor}CC`,
+    ...(Platform.OS === "web" ? {
+      // @ts-ignore web-only
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+    } : {}),
+  } : {};
 
   const variantStyle: ViewStyle = variant === "elevated"
     ? {
@@ -50,6 +63,7 @@ export function Surface({ variant = "default", style, children, ...props }: Prop
           borderWidth: 1,
           borderColor: colors.bgBorder,
           ...variantStyle,
+          ...blurOverride,
         },
         style,
       ]}

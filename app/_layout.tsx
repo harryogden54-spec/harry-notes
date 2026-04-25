@@ -34,14 +34,14 @@ function AppShell() {
   const { scheme, themeReady } = useThemeContext();
   const { colors } = useTheme();
   const { tasks, loaded: tasksLoaded } = useTasks();
-  // On web we handle Inter via CSS @font-face in global.css. We do NOT load
-  // Inter via useFonts on web because expo-font would inject @font-face rules
-  // pointing at Metro-hashed URLs that Cloudflare Pages serves as index.html,
-  // overriding the working CSS rule and causing serif fallback.
-  // We DO load Ionicons via useFonts on web — different family name, safe.
+  // On web, both Inter and Ionicons are declared via CSS @font-face in
+  // global.css pointing at /assets/fonts/. We must NOT load them via useFonts
+  // on web: expo-font injects @font-face rules with Metro-hashed URLs that
+  // Cloudflare Pages serves as index.html, overriding the working CSS rules
+  // and causing blank squares (Ionicons) or serif fallback (Inter).
   const [nativeFontsLoaded] = useFonts(
     Platform.OS === "web"
-      ? { ...Ionicons.font }
+      ? {} // CSS handles all fonts on web — resolve immediately
       : {
           Inter_400Regular,
           Inter_500Medium,
@@ -50,7 +50,8 @@ function AppShell() {
           ...Ionicons.font,
         }
   );
-  const fontsLoaded = nativeFontsLoaded ?? false;
+  // On web the CSS font-face loads synchronously; on native wait for useFonts.
+  const fontsLoaded = Platform.OS === "web" ? true : (nativeFontsLoaded ?? false);
 
   // All hooks must be declared before any conditional return.
   const isFirst = useRef(true);

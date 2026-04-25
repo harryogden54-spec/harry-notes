@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, ScrollView, SafeAreaView, Pressable, Switch, Platform, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
-import { useThemeContext } from "@/lib/ThemeContext";
+import { useThemeContext, type BgStyle, type BgGraphic } from "@/lib/ThemeContext";
 import { ACCENT_OPTIONS, THEMES, type ThemeId } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
@@ -10,7 +10,7 @@ import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider } from "@/components/ui";
 import { Ionicons } from "@expo/vector-icons";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -65,9 +65,148 @@ function formatRelativeTime(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+// ─── Layer picker (reusable row of options) ────────────────────────────────────
+
+function LayerPicker<T extends string>({
+  options, value, onChange,
+}: {
+  options: { id: T; label: string; icon: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flexDirection: "row", gap: spacing[2], flexWrap: "wrap" }}>
+      {options.map(opt => {
+        const active = value === opt.id;
+        return (
+          <Pressable
+            key={opt.id}
+            onPress={() => onChange(opt.id)}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: spacing[1.5],
+              paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+              borderRadius: radius.lg, borderWidth: active ? 2 : 1,
+              borderColor: active ? colors.accent : colors.bgBorder,
+              backgroundColor: active ? `${colors.accent}14` : colors.bgTertiary,
+            }}
+          >
+            <Text style={{ fontSize: 14 }}>{opt.icon}</Text>
+            <Text size="xs" weight={active ? "semibold" : "regular"}
+              style={{ color: active ? colors.accent : colors.textSecondary }}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Live mini-preview ─────────────────────────────────────────────────────────
+
+function ThemePreview({
+  themeId, scheme, bgStyle, bgGraphic,
+}: {
+  themeId: ThemeId;
+  scheme: "dark" | "light";
+  bgStyle: BgStyle;
+  bgGraphic: BgGraphic;
+}) {
+  const def    = THEMES[themeId];
+  const tokens = scheme === "dark" ? def.dark : def.light;
+  const accent = tokens.accent;
+
+  // Simulated card background
+  const cardBg = bgStyle === "blur"
+    ? `${tokens.bgSecondary}CC`
+    : tokens.bgSecondary;
+
+  // Geometric SVG tile (web-only inline; native skipped)
+  const geometricOverlay = bgGraphic === "geometric" && Platform.OS === "web" ? (
+    <View
+      pointerEvents="none"
+      style={[
+        { position: "absolute", inset: 0, opacity: 0.045, borderRadius: 10 } as any,
+        {
+          // @ts-ignore
+          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">` +
+            `<path d="M10,1 L19,10 L10,19 L1,10 Z" fill="none" stroke="${accent}" stroke-width="0.9"/>` +
+            `<circle cx="10" cy="10" r="1.5" fill="${accent}"/>` +
+            `</svg>`
+          )}")`,
+          backgroundSize: "20px 20px",
+        },
+      ]}
+    />
+  ) : null;
+
+  // Codex glyph (miniature concentric circles)
+  const codexOverlay = bgGraphic === "codex" ? (
+    <View pointerEvents="none"
+      style={{ position: "absolute", bottom: -8, right: -8, width: 60, height: 60, opacity: 0.1 }}>
+      {[0, 10, 20, 30].map((inset, i) => (
+        <View key={i} style={{
+          position: "absolute", top: inset, left: inset,
+          width: 60 - inset * 2, height: 60 - inset * 2,
+          borderRadius: (60 - inset * 2) / 2,
+          borderWidth: i === 3 ? 0 : 1.5,
+          borderColor: accent,
+          backgroundColor: i === 3 ? accent : "transparent",
+        }} />
+      ))}
+    </View>
+  ) : null;
+
+  return (
+    <View style={{
+      width: 120, height: 80,
+      borderRadius: 10, overflow: "hidden",
+      borderWidth: 1, borderColor: tokens.bgBorder,
+      backgroundColor: tokens.bgPrimary,
+    }}>
+      {/* Gradient tint */}
+      {bgStyle === "gradient" && (
+        <View style={{
+          position: "absolute", inset: 0,
+          // @ts-ignore web-only
+          ...(Platform.OS === "web" ? { background: `linear-gradient(135deg, ${accent}18 0%, ${tokens.bgPrimary} 60%)` } : { backgroundColor: `${accent}12` }),
+        } as any} />
+      )}
+
+      {geometricOverlay}
+      {codexOverlay}
+
+      {/* Simulated card */}
+      <View style={{
+        position: "absolute", top: 10, left: 10, right: 10, bottom: 10,
+        borderRadius: 6, backgroundColor: cardBg,
+        borderWidth: 1, borderColor: tokens.bgBorder,
+        padding: 6, gap: 4,
+        // @ts-ignore
+        ...(bgStyle === "blur" && Platform.OS === "web" ? { backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" } : {}),
+      }}>
+        {/* Simulated text lines */}
+        <View style={{ height: 4, width: "70%", borderRadius: 99, backgroundColor: tokens.textPrimary, opacity: 0.5 }} />
+        <View style={{ height: 3, width: "50%", borderRadius: 99, backgroundColor: tokens.textSecondary, opacity: 0.35 }} />
+        {/* Accent dot */}
+        <View style={{ height: 4, width: 4, borderRadius: 99, backgroundColor: accent, marginTop: 2 }} />
+      </View>
+
+      {/* Colour palette strip at bottom */}
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, flexDirection: "row" }}>
+        <View style={{ flex: 1, backgroundColor: tokens.bgPrimary }} />
+        <View style={{ flex: 1, backgroundColor: tokens.bgSecondary }} />
+        <View style={{ flex: 1, backgroundColor: accent }} />
+      </View>
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const { colors }                   = useTheme();
-  const { scheme, toggle, accentId, setAccentId, themeId, setThemeId } = useThemeContext();
+  const { scheme, toggle, accentId, setAccentId, themeId, setThemeId, bgStyle, setBgStyle, bgGraphic, setBgGraphic } = useThemeContext();
   const { syncStatus: taskSync, syncNow: syncTasks, tasks, clearCompleted, lastSynced: taskLastSynced } = useTasks();
   const { syncStatus: listSync, syncNow: syncLists, lists, lastSynced: listLastSynced } = useLists();
   const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
@@ -200,6 +339,52 @@ export default function SettingsScreen() {
                 </Pressable>
               );
             })}
+          </View>
+        </View>
+
+        {/* ── Live preview ─────────────────────────────────────────────────── */}
+        <View style={{ marginBottom: spacing[6] }}>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
+            Preview
+          </Text>
+          <View style={{ paddingHorizontal: spacing[4] }}>
+            <ThemePreview themeId={themeId} scheme={scheme} bgStyle={bgStyle} bgGraphic={bgGraphic} />
+          </View>
+        </View>
+
+        {/* ── Background style ──────────────────────────────────────────────── */}
+        <View style={{ marginBottom: spacing[6] }}>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
+            Background
+          </Text>
+          <View style={{ paddingHorizontal: spacing[4] }}>
+            <LayerPicker<BgStyle>
+              value={bgStyle}
+              onChange={setBgStyle}
+              options={[
+                { id: "solid",    label: "Solid",    icon: "⬛" },
+                { id: "gradient", label: "Gradient", icon: "🌅" },
+                { id: "blur",     label: "Blur",     icon: "🫧" },
+              ]}
+            />
+          </View>
+        </View>
+
+        {/* ── Background graphic ────────────────────────────────────────────── */}
+        <View style={{ marginBottom: spacing[6] }}>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
+            Graphic
+          </Text>
+          <View style={{ paddingHorizontal: spacing[4] }}>
+            <LayerPicker<BgGraphic>
+              value={bgGraphic}
+              onChange={setBgGraphic}
+              options={[
+                { id: "none",       label: "None",      icon: "✕" },
+                { id: "geometric",  label: "Geometric", icon: "◇" },
+                { id: "codex",      label: "Codex",     icon: "◎" },
+              ]}
+            />
           </View>
         </View>
 

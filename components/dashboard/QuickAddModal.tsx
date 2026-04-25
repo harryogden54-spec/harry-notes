@@ -7,7 +7,7 @@ import { Text } from "@/components/ui/Text";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { getTodayStr, getTomorrowStr } from "@/lib/utils";
+import { getTodayStr, getTomorrowStr, parseNaturalDate } from "@/lib/utils";
 import { type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
 
 interface Props {
@@ -52,17 +52,24 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [visible, onClose]);
 
+  // NLP date detection from title
+  const nlp = title.trim() ? parseNaturalDate(title) : { date: null, cleanText: title };
+  const nlpDate = quickDate === "none" ? nlp.date : null; // only use NLP if user hasn't chosen a date
+
   function getEffectiveDate(): string | undefined {
     if (quickDate === "today")    return today;
     if (quickDate === "tomorrow") return tomorrow;
     if (quickDate === "custom")   return customDate;
+    if (nlpDate)                  return nlpDate;
     return undefined;
   }
 
   function submit() {
-    const t = title.trim();
-    if (!t) return;
-    onAdd(t, getEffectiveDate(), category, category === "uni" ? uniCourse : undefined);
+    const rawTitle = title.trim();
+    if (!rawTitle) return;
+    // Strip the date phrase from title if NLP detected it and no explicit date chosen
+    const finalTitle = (quickDate === "none" && nlpDate) ? nlp.cleanText || rawTitle : rawTitle;
+    onAdd(finalTitle, getEffectiveDate(), category, category === "uni" ? uniCourse : undefined);
     onClose();
   }
 
@@ -129,6 +136,25 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
             { outlineStyle: "none" },
           ]}
         />
+
+        {/* NLP date detection chip */}
+        {nlpDate && quickDate === "none" && (
+          <Animated.View entering={FadeIn.duration(150)} style={{
+            flexDirection: "row", alignItems: "center", gap: spacing[2],
+            paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
+            backgroundColor: `${colors.accent}14`,
+            borderRadius: radius.lg,
+            borderWidth: 1,
+            borderColor: `${colors.accent}30`,
+            alignSelf: "flex-start",
+          }}>
+            <Text size="xs" style={{ color: colors.accent }}>📅</Text>
+            <Text size="xs" weight="medium" style={{ color: colors.accent }}>
+              {new Date(nlpDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+            </Text>
+            <Text size="xs" style={{ color: `${colors.accent}80` }}>detected</Text>
+          </Animated.View>
+        )}
 
         {/* Date row */}
         <View style={{ gap: spacing[1.5] }}>

@@ -4,6 +4,13 @@ import { storage } from "./storage";
 import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
 
 type Scheme = "dark" | "light";
+export type BgStyle   = "solid" | "gradient" | "blur";
+export type BgGraphic = "none" | "geometric" | "codex";
+
+type ThemeConfig = {
+  bgStyle:   BgStyle;
+  bgGraphic: BgGraphic;
+};
 
 type ThemeContextValue = {
   scheme: Scheme;
@@ -13,6 +20,10 @@ type ThemeContextValue = {
   setAccentId: (id: AccentId) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
+  bgStyle: BgStyle;
+  setBgStyle: (s: BgStyle) => void;
+  bgGraphic: BgGraphic;
+  setBgGraphic: (g: BgGraphic) => void;
   themeReady: boolean;
 };
 
@@ -20,13 +31,14 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const device = (useColorScheme() ?? "dark") as Scheme;
-  const [override, setOverride]       = useState<Scheme | null>(null);
-  const [accentId, setAccentIdState]  = useState<AccentId>("frost");
-  const [themeId, setThemeIdState]    = useState<ThemeId>("nord");
-  const [themeReady, setThemeReady]   = useState(false);
+  const [override, setOverride]        = useState<Scheme | null>(null);
+  const [accentId, setAccentIdState]   = useState<AccentId>("frost");
+  const [themeId, setThemeIdState]     = useState<ThemeId>("nord");
+  const [bgStyle, setBgStyleState]     = useState<BgStyle>("gradient");
+  const [bgGraphic, setBgGraphicState] = useState<BgGraphic>("none");
+  const [themeReady, setThemeReady]    = useState(false);
 
   useEffect(() => {
-    // Timeout fallback — mark ready even if storage hangs
     const timeout = setTimeout(() => setThemeReady(true), 2000);
 
     Promise.all([
@@ -36,6 +48,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }),
       storage.get<ThemeId>("theme-v2").then(v => {
         if (v && (v in THEMES)) setThemeIdState(v);
+      }),
+      storage.get<ThemeConfig>("theme_config").then(v => {
+        if (v?.bgStyle)   setBgStyleState(v.bgStyle);
+        if (v?.bgGraphic) setBgGraphicState(v.bgGraphic);
       }),
     ]).finally(() => {
       clearTimeout(timeout);
@@ -63,8 +79,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     storage.set("theme-v2", id);
   }
 
+  function setBgStyle(s: BgStyle) {
+    setBgStyleState(s);
+    storage.get<ThemeConfig>("theme_config").then(cur =>
+      storage.set("theme_config", { bgStyle: s, bgGraphic: cur?.bgGraphic ?? bgGraphic })
+    );
+  }
+
+  function setBgGraphic(g: BgGraphic) {
+    setBgGraphicState(g);
+    storage.get<ThemeConfig>("theme_config").then(cur =>
+      storage.set("theme_config", { bgStyle: cur?.bgStyle ?? bgStyle, bgGraphic: g })
+    );
+  }
+
   return (
-    <ThemeContext.Provider value={{ scheme, toggle, isManual: !!override, accentId, setAccentId, themeId, setThemeId, themeReady }}>
+    <ThemeContext.Provider value={{
+      scheme, toggle, isManual: !!override,
+      accentId, setAccentId,
+      themeId, setThemeId,
+      bgStyle, setBgStyle,
+      bgGraphic, setBgGraphic,
+      themeReady,
+    }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -45,6 +45,58 @@ export function stripMarkdown(text: string): string {
     .trim();
 }
 
+/**
+ * Parse a natural-language date fragment from a task title.
+ * Returns the ISO date string and the title with the date phrase stripped.
+ */
+export function parseNaturalDate(input: string): { date: string | null; cleanText: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  function toStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function shiftDays(n: number): string {
+    const d = new Date(today);
+    d.setDate(d.getDate() + n);
+    return toStr(d);
+  }
+
+  function nextWeekday(idx: number, forceNext = false): string {
+    const d = new Date(today);
+    let diff = (idx - d.getDay() + 7) % 7;
+    if (diff === 0 || forceNext) diff += 7;
+    d.setDate(d.getDate() + diff);
+    return toStr(d);
+  }
+
+  const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  let m: RegExpMatchArray | null;
+
+  if ((m = input.match(/\btoday\b/i)))
+    return { date: shiftDays(0), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+  if ((m = input.match(/\b(tomorrow|tmrw|tmr)\b/i)))
+    return { date: shiftDays(1), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+  if ((m = input.match(/\bin (\d+) weeks?\b/i)))
+    return { date: shiftDays(parseInt(m[1]) * 7), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+  if ((m = input.match(/\bin (\d+) days?\b/i)))
+    return { date: shiftDays(parseInt(m[1])), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+  if ((m = input.match(/\bnext week\b/i)))
+    return { date: shiftDays(7), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+
+  for (let i = 0; i < DAYS.length; i++) {
+    if ((m = input.match(new RegExp(`\\bnext ${DAYS[i]}\\b`, "i"))))
+      return { date: nextWeekday(i, true), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+  }
+  for (let i = 0; i < DAYS.length; i++) {
+    if ((m = input.match(new RegExp(`\\b${DAYS[i]}\\b`, "i"))))
+      return { date: nextWeekday(i), cleanText: input.replace(m[0], "").replace(/\s{2,}/g, " ").trim() };
+  }
+
+  return { date: null, cleanText: input };
+}
+
 export const PRIORITY_COLOR: Record<Priority, string> = {
   urgent: "#F26464",
   high:   "#F5A623",

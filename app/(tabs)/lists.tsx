@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal, RefreshControl,
+  useWindowDimensions,
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -19,7 +20,6 @@ const ScaleDecorator = Platform.OS !== "web"
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { webContentStyle } from "@/lib/webLayout";
 import { useLists, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
 import { SearchBar } from "@/components/ui/SearchBar";
@@ -63,7 +63,6 @@ function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => 
 
   function applyTemplate(t: typeof TEMPLATES[number]) {
     if (selectedTemplate === t.name) {
-      // deselect
       setSelectedTemplate(null);
       setTemplateItems([]);
       if (name === t.name) { setName(""); setColor(LIST_COLORS[0]); }
@@ -276,7 +275,6 @@ function ListItemRow({
                 color: item.done ? colors.textTertiary : colors.textPrimary,
                 textDecorationLine: item.done ? "line-through" : "none",
               }}>
-                {/* fallback for items stored with legacy `text` field name */}
                 {item.content || (item as any).text || ""}
               </Text>
             </Pressable>
@@ -349,7 +347,166 @@ function AddItemRow({ listId, defaultType }: { listId: string; defaultType: List
   );
 }
 
-// ─── List Card ────────────────────────────────────────────────────────────────
+// ─── List Index Row (desktop left pane) ──────────────────────────────────────
+
+function ListIndexRow({ list, isSelected, onSelect }: {
+  list: NoteList;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const { colors } = useTheme();
+  const color = list.color ?? LIST_COLORS[0];
+  const items = list.items ?? [];
+  const checkboxItems = items.filter(i => i.type === "checkbox");
+  const done  = checkboxItems.filter(i => i.done).length;
+  const total = checkboxItems.length;
+  const progress = total > 0 ? done / total : 0;
+
+  return (
+    <Pressable
+      onPress={onSelect}
+      style={{
+        flexDirection: "row", alignItems: "center", gap: spacing[3],
+        paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+        backgroundColor: isSelected ? colors.bgTertiary : "transparent",
+        borderLeftWidth: 2,
+        borderLeftColor: isSelected ? color : "transparent",
+      }}
+    >
+      <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: color, flexShrink: 0 }} />
+      <View style={{ flex: 1, gap: spacing[0.5] }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text size="sm" weight={isSelected ? "semibold" : "regular"} numberOfLines={1} style={{ flex: 1 }}>
+            {list.name}
+          </Text>
+          {list.pinned && <Text size="xs" style={{ color: colors.accent }}>★</Text>}
+        </View>
+        <Text size="xs" secondary numberOfLines={1}>
+          {items.length} item{items.length !== 1 ? "s" : ""}
+          {total > 0 ? ` · ${done}/${total} done` : ""}
+        </Text>
+        {total > 0 && (
+          <View style={{ height: 3, borderRadius: 99, backgroundColor: colors.bgBorder, marginTop: spacing[1] }}>
+            <View style={{ height: 3, borderRadius: 99, backgroundColor: color, width: `${Math.round(progress * 100)}%` as any }} />
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
+// ─── List Detail Pane (desktop right pane) ────────────────────────────────────
+
+function ListDetailPane({ list, otherLists }: { list: NoteList; otherLists: NoteList[] }) {
+  const { colors } = useTheme();
+  const { updateList, deleteList, duplicateList, pinList, reorderItems } = useLists();
+  const { showToast } = useToast();
+  const [editingName, setEditingName]   = useState(false);
+  const [nameVal, setNameVal]           = useState(list.name);
+  const [editingColor, setEditingColor] = useState(false);
+
+  useEffect(() => { setNameVal(list.name); }, [list.id, list.name]);
+  useEffect(() => { setEditingName(false); setEditingColor(false); }, [list.id]);
+
+  const color = list.color ?? LIST_COLORS[0];
+  const items = list.items ?? [];
+  const activeItems = items.filter(i => !i.done);
+  const doneItems   = items.filter(i => i.done);
+
+  function saveName() {
+    const v = nameVal.trim();
+    if (v) updateList(list.id, { name: v });
+    else setNameVal(list.name);
+    setEditingName(false);
+  }
+
+  function handleDelete() {
+    const undo = deleteList(list.id);
+    showToast(`"${list.name}" deleted`, { label: "Undo", onPress: undo });
+  }
+
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: spacing[6], paddingBottom: spacing[16] }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], marginBottom: spacing[2] }}>
+        <Pressable onPress={() => setEditingColor(v => !v)} hitSlop={8}>
+          <View style={{ width: 16, height: 16, borderRadius: 99, backgroundColor: color }} />
+        </Pressable>
+        {editingName ? (
+          <TextInput
+            value={nameVal}
+            onChangeText={setNameVal}
+            autoFocus
+            onBlur={saveName}
+            onSubmitEditing={saveName}
+            style={[
+              { flex: 1, color: colors.textPrimary, fontSize: 22, fontFamily: fontFamily.bold },
+              // @ts-ignore
+              { outlineStyle: "none" },
+            ]}
+          />
+        ) : (
+          <Pressable onPress={() => setEditingName(true)} style={{ flex: 1 }}>
+            <Text size="2xl" weight="bold">{list.name}</Text>
+          </Pressable>
+        )}
+        <Pressable
+          onPress={() => { pinList(list.id); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          hitSlop={10}
+          style={{ padding: spacing[1] }}
+        >
+          <Text size="base" style={{ color: list.pinned ? colors.accent : colors.textTertiary }}>
+            {list.pinned ? "★" : "☆"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {editingColor && (
+        <View style={{ marginBottom: spacing[3] }}>
+          <ColorPicker value={color} onChange={c => { updateList(list.id, { color: c }); setEditingColor(false); }} />
+        </View>
+      )}
+
+      <Divider style={{ marginBottom: spacing[4] }} />
+
+      {/* Active items */}
+      {activeItems.map(item => (
+        <ListItemRow key={item.id} item={item} listId={list.id} otherLists={otherLists} />
+      ))}
+
+      {/* Done items */}
+      {doneItems.map(item => (
+        <ListItemRow key={item.id} item={item} listId={list.id} otherLists={otherLists} />
+      ))}
+
+      <AddItemRow listId={list.id} defaultType="checkbox" />
+
+      <Divider style={{ marginTop: spacing[4], marginBottom: spacing[3] }} />
+
+      {/* Footer actions */}
+      <View style={{ flexDirection: "row", gap: spacing[2], justifyContent: "flex-end" }}>
+        <Pressable
+          onPress={() => { duplicateList(list.id); showToast(`"${list.name}" duplicated`); }}
+          style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}
+        >
+          <Text size="xs" secondary>Duplicate</Text>
+        </Pressable>
+        <Pressable
+          onPress={handleDelete}
+          style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: "#F2646444", backgroundColor: "#F2646410" }}
+        >
+          <Text size="xs" style={{ color: "#F26464" }}>Delete list</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── List Card (mobile — expand-in-place) ─────────────────────────────────────
 
 function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   list: NoteList; isExpanded: boolean; onToggleExpand: () => void; otherLists: NoteList[];
@@ -364,7 +521,6 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   const color = list.color ?? LIST_COLORS[0];
   const items = list.items ?? [];
 
-  // Done items sink to bottom; undone items first
   const activeItems = items.filter(i => !i.done);
   const doneItems   = items.filter(i => i.done);
 
@@ -438,16 +594,10 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
             <Divider />
 
-            {/* Active items — draggable on native, plain list on web */}
             {activeItems.length > 0 && (
               Platform.OS === "web" ? (
                 activeItems.map(item => (
-                  <ListItemRow
-                    key={item.id}
-                    item={item}
-                    listId={list.id}
-                    otherLists={otherLists}
-                  />
+                  <ListItemRow key={item.id} item={item} listId={list.id} otherLists={otherLists} />
                 ))
               ) : (
                 <DraggableFlatList
@@ -455,22 +605,18 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
                   keyExtractor={(i: ListItem) => i.id}
                   renderItem={({ item, drag, isActive }: any) => (
                     <ScaleDecorator>
-                      <ListItemRow
-                        item={item}
-                        listId={list.id}
-                        otherLists={otherLists}
-                        drag={drag}
-                        isDragActive={isActive}
-                      />
+                      <ListItemRow item={item} listId={list.id} otherLists={otherLists} drag={drag} isDragActive={isActive} />
                     </ScaleDecorator>
                   )}
                   onDragEnd={({ data }: any) => reorderItems(list.id, [...data, ...doneItems])}
                   scrollEnabled={false}
                   activationDistance={12}
+                  removeClippedSubviews={false}
+                  maxToRenderPerBatch={10}
+                  windowSize={5}
                 />
               )
             )}
-            {/* Done items — non-draggable, sink to bottom */}
             {doneItems.map(item => (
               <ListItemRow key={item.id} item={item} listId={list.id} otherLists={otherLists} />
             ))}
@@ -479,7 +625,6 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
             <Divider />
 
-            {/* Footer actions */}
             <View style={{ flexDirection: "row", gap: spacing[2], justifyContent: "flex-end" }}>
               <Pressable
                 onPress={() => { duplicateList(list.id); showToast(`"${list.name}" duplicated`); }}
@@ -503,9 +648,12 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
 export default function ListsScreen() {
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width > 768;
   const { lists, loaded } = useLists();
   const [creating, setCreating]     = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch]         = useState("");
   const params = useLocalSearchParams<{ create?: string }>();
   const handledParam = useRef(false);
@@ -517,6 +665,23 @@ export default function ListsScreen() {
       setCreating(true);
     }
   }, [loaded, params.create]);
+
+  // Auto-select first list on desktop when loaded
+  useEffect(() => {
+    if (isDesktop && loaded && !selectedId && lists.length > 0) {
+      setSelectedId(lists[0].id);
+    }
+  }, [isDesktop, loaded, lists.length]);
+
+  // Auto-select newly created list on desktop
+  const prevListsLength = useRef(0);
+  useEffect(() => {
+    if (isDesktop && lists.length > prevListsLength.current && prevListsLength.current > 0) {
+      const sorted = [...lists].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      if (sorted[0]) setSelectedId(sorted[0].id);
+    }
+    prevListsLength.current = lists.length;
+  }, [lists.length, isDesktop]);
 
   const filtered = lists.filter(l =>
     l.name.toLowerCase().includes(search.toLowerCase())
@@ -545,6 +710,80 @@ export default function ListsScreen() {
     setExpandedId(prev => prev === id ? null : id);
   };
 
+  // ── Desktop two-pane layout ──────────────────────────────────────────────────
+  if (isDesktop) {
+    const selectedList = lists.find(l => l.id === selectedId) ?? null;
+
+    return (
+      <GradientBackground>
+        <SafeAreaView style={{ flex: 1 }}>
+          <CreateListModal visible={creating} onDone={() => setCreating(false)} />
+          <View style={{ flex: 1, flexDirection: "row" }}>
+            {/* Left pane — list index */}
+            <View style={{ width: 280, borderRightWidth: 1, borderRightColor: colors.bgBorder, flexShrink: 0 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingBottom: spacing[16] }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+              >
+                {/* Pane header */}
+                <View style={{
+                  flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                  paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: spacing[3],
+                }}>
+                  <Text size="xl" weight="bold">Lists</Text>
+                  <Pressable
+                    onPress={() => setCreating(true)}
+                    style={{ width: 28, height: 28, borderRadius: radius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 18, lineHeight: 22 }}>+</Text>
+                  </Pressable>
+                </View>
+
+                {lists.length > 1 && (
+                  <View style={{ paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
+                    <SearchBar value={search} onChange={setSearch} placeholder="Search lists…" />
+                  </View>
+                )}
+
+                {filtered.length === 0 ? (
+                  <View style={{ padding: spacing[4] }}>
+                    <Text size="sm" secondary>{search ? "No lists match." : 'Tap + to create a list.'}</Text>
+                  </View>
+                ) : (
+                  filtered.map(list => (
+                    <ListIndexRow
+                      key={list.id}
+                      list={list}
+                      isSelected={selectedId === list.id}
+                      onSelect={() => setSelectedId(list.id)}
+                    />
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
+            {/* Right pane — list detail */}
+            <View style={{ flex: 1, backgroundColor: colors.bgSecondary }}>
+              {selectedList ? (
+                <ListDetailPane
+                  list={selectedList}
+                  otherLists={lists.filter(l => l.id !== selectedList.id)}
+                />
+              ) : (
+                <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing[2] }}>
+                  <Text size="2xl">✓</Text>
+                  <Text size="sm" secondary>Select a list to view its items</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </SafeAreaView>
+      </GradientBackground>
+    );
+  }
+
+  // ── Mobile layout — expand-in-place ──────────────────────────────────────────
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }}>
@@ -553,7 +792,7 @@ export default function ListsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16] }}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
@@ -580,7 +819,7 @@ export default function ListsScreen() {
             <EmptyState
               type="lists"
               title={search ? "No lists match" : "No lists yet"}
-              subtitle={search ? "Try a different search term." : 'Tap "New list" to get started.'}
+              subtitle={search ? "Try a different search term." : "Create your first list."}
             />
           )}
 
