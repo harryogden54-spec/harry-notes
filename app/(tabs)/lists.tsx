@@ -547,7 +547,14 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
       <Pressable onPress={onToggleExpand} style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], padding: spacing[3] }}>
         <View style={{ width: 10, height: 10, borderRadius: 99, backgroundColor: color }} />
         <View style={{ flex: 1 }}>
-          <Text size="sm" weight="semibold">{list.name}</Text>
+          <Pressable
+            onLongPress={() => { if (!isExpanded) onToggleExpand(); setEditingName(true); }}
+            // @ts-ignore web double-click
+            onDoubleClick={Platform.OS === "web" ? () => { if (!isExpanded) onToggleExpand(); setEditingName(true); } : undefined}
+            onPress={onToggleExpand}
+          >
+            <Text size="sm" weight="semibold">{list.name}</Text>
+          </Pressable>
           {items.length > 0 && (
             <Text size="xs" secondary>
               {items.length} item{items.length !== 1 ? "s" : ""}
