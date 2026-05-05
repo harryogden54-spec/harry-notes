@@ -2,6 +2,10 @@ import * as SQLite from "expo-sqlite";
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
+function tryParse(json: string): any {
+  try { return JSON.parse(json); } catch { return undefined; }
+}
+
 export function getDb(): SQLite.SQLiteDatabase {
   if (!_db) {
     _db = SQLite.openDatabaseSync("harry-notes.db");
@@ -154,8 +158,8 @@ export async function dbLoadTasks(): Promise<any[]> {
     due_date: r.due_date ?? undefined,
     priority: r.priority ?? undefined,
     description: r.description ?? undefined,
-    tags: r.tags ? JSON.parse(r.tags) : undefined,
-    subtasks: r.subtasks ? JSON.parse(r.subtasks) : undefined,
+    tags: r.tags ? tryParse(r.tags) : undefined,
+    subtasks: r.subtasks ? tryParse(r.subtasks) : undefined,
     category: r.category ?? undefined,
     uniCourse: r.uni_course ?? undefined,
     completed_at: r.completed_at ?? undefined,
@@ -197,7 +201,7 @@ export async function dbLoadLists(): Promise<any[]> {
     name: r.name,
     color: r.color,
     pinned: !!r.pinned,
-    items: r.items ? JSON.parse(r.items) : [],
+    items: r.items ? tryParse(r.items) ?? [] : [],
     created_at: r.created_at,
     updated_at: r.updated_at,
   }));

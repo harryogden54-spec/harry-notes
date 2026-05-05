@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, ScrollView, SafeAreaView, Pressable, Switch, Platform, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
-import { useThemeContext, type BgStyle, type BgGraphic } from "@/lib/ThemeContext";
+import { useThemeContext, type BgStyle } from "@/lib/ThemeContext";
 import { ACCENT_OPTIONS, THEMES, type ThemeId } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
@@ -106,58 +106,19 @@ function LayerPicker<T extends string>({
 // ─── Live mini-preview ─────────────────────────────────────────────────────────
 
 function ThemePreview({
-  themeId, scheme, bgStyle, bgGraphic,
+  themeId, scheme, bgStyle,
 }: {
   themeId: ThemeId;
   scheme: "dark" | "light";
   bgStyle: BgStyle;
-  bgGraphic: BgGraphic;
 }) {
   const def    = THEMES[themeId];
   const tokens = scheme === "dark" ? def.dark : def.light;
   const accent = tokens.accent;
 
-  // Simulated card background
   const cardBg = bgStyle === "blur"
     ? `${tokens.bgSecondary}CC`
     : tokens.bgSecondary;
-
-  // Geometric SVG tile (web-only inline; native skipped)
-  const geometricOverlay = bgGraphic === "geometric" && Platform.OS === "web" ? (
-    <View
-      pointerEvents="none"
-      style={[
-        { position: "absolute", inset: 0, opacity: 0.045, borderRadius: 10 } as any,
-        {
-          // @ts-ignore
-          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">` +
-            `<path d="M10,1 L19,10 L10,19 L1,10 Z" fill="none" stroke="${accent}" stroke-width="0.9"/>` +
-            `<circle cx="10" cy="10" r="1.5" fill="${accent}"/>` +
-            `</svg>`
-          )}")`,
-          backgroundSize: "20px 20px",
-        },
-      ]}
-    />
-  ) : null;
-
-  // Codex glyph (miniature concentric circles)
-  const codexOverlay = bgGraphic === "codex" ? (
-    <View pointerEvents="none"
-      style={{ position: "absolute", bottom: -8, right: -8, width: 60, height: 60, opacity: 0.1 }}>
-      {[0, 10, 20, 30].map((inset, i) => (
-        <View key={i} style={{
-          position: "absolute", top: inset, left: inset,
-          width: 60 - inset * 2, height: 60 - inset * 2,
-          borderRadius: (60 - inset * 2) / 2,
-          borderWidth: i === 3 ? 0 : 1.5,
-          borderColor: accent,
-          backgroundColor: i === 3 ? accent : "transparent",
-        }} />
-      ))}
-    </View>
-  ) : null;
 
   return (
     <View style={{
@@ -174,9 +135,6 @@ function ThemePreview({
           ...(Platform.OS === "web" ? { background: `linear-gradient(135deg, ${accent}18 0%, ${tokens.bgPrimary} 60%)` } : { backgroundColor: `${accent}12` }),
         } as any} />
       )}
-
-      {geometricOverlay}
-      {codexOverlay}
 
       {/* Simulated card */}
       <View style={{
@@ -206,7 +164,7 @@ function ThemePreview({
 
 export default function SettingsScreen() {
   const { colors }                   = useTheme();
-  const { scheme, toggle, accentId, setAccentId, themeId, setThemeId, bgStyle, setBgStyle, bgGraphic, setBgGraphic } = useThemeContext();
+  const { scheme, toggle, accentId, setAccentId, themeId, setThemeId, bgStyle, setBgStyle } = useThemeContext();
   const { syncStatus: taskSync, syncNow: syncTasks, tasks, clearCompleted, lastSynced: taskLastSynced } = useTasks();
   const { syncStatus: listSync, syncNow: syncLists, lists, lastSynced: listLastSynced } = useLists();
   const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
@@ -348,7 +306,7 @@ export default function SettingsScreen() {
             Preview
           </Text>
           <View style={{ paddingHorizontal: spacing[4] }}>
-            <ThemePreview themeId={themeId} scheme={scheme} bgStyle={bgStyle} bgGraphic={bgGraphic} />
+            <ThemePreview themeId={themeId} scheme={scheme} bgStyle={bgStyle} />
           </View>
         </View>
 
@@ -365,24 +323,6 @@ export default function SettingsScreen() {
                 { id: "solid",    label: "Solid",    icon: "⬛" },
                 { id: "gradient", label: "Gradient", icon: "🌅" },
                 { id: "blur",     label: "Blur",     icon: "🫧" },
-              ]}
-            />
-          </View>
-        </View>
-
-        {/* ── Background graphic ────────────────────────────────────────────── */}
-        <View style={{ marginBottom: spacing[6] }}>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
-            Graphic
-          </Text>
-          <View style={{ paddingHorizontal: spacing[4] }}>
-            <LayerPicker<BgGraphic>
-              value={bgGraphic}
-              onChange={setBgGraphic}
-              options={[
-                { id: "none",       label: "None",      icon: "✕" },
-                { id: "geometric",  label: "Geometric", icon: "◇" },
-                { id: "codex",      label: "Codex",     icon: "◎" },
               ]}
             />
           </View>
