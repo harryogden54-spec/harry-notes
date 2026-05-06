@@ -4,12 +4,10 @@ import { storage } from "./storage";
 import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
 
 type Scheme = "dark" | "light";
-export type BgStyle   = "solid" | "gradient" | "blur";
-export type BgGraphic = "none" | "geometric" | "codex";
+export type BgStyle = "solid" | "gradient" | "blur";
 
 type ThemeConfig = {
-  bgStyle:   BgStyle;
-  bgGraphic: BgGraphic;
+  bgStyle: BgStyle;
 };
 
 type ThemeContextValue = {
@@ -22,8 +20,6 @@ type ThemeContextValue = {
   setThemeId: (id: ThemeId) => void;
   bgStyle: BgStyle;
   setBgStyle: (s: BgStyle) => void;
-  bgGraphic: BgGraphic;
-  setBgGraphic: (g: BgGraphic) => void;
   themeReady: boolean;
 };
 
@@ -34,9 +30,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [override, setOverride]        = useState<Scheme | null>(null);
   const [accentId, setAccentIdState]   = useState<AccentId>("frost");
   const [themeId, setThemeIdState]     = useState<ThemeId>("nord");
-  const [bgStyle, setBgStyleState]     = useState<BgStyle>("gradient");
-  const [bgGraphic, setBgGraphicState] = useState<BgGraphic>("geometric");
-  const [themeReady, setThemeReady]    = useState(false);
+  const [bgStyle, setBgStyleState]  = useState<BgStyle>("gradient");
+  const [themeReady, setThemeReady] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => setThemeReady(true), 2000);
@@ -50,8 +45,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         if (v && (v in THEMES)) setThemeIdState(v);
       }),
       storage.get<ThemeConfig>("theme_config").then(v => {
-        if (v?.bgStyle)   setBgStyleState(v.bgStyle);
-        if (v?.bgGraphic) setBgGraphicState(v.bgGraphic);
+        if (v?.bgStyle) setBgStyleState(v.bgStyle);
       }),
     ]).finally(() => {
       clearTimeout(timeout);
@@ -81,16 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   function setBgStyle(s: BgStyle) {
     setBgStyleState(s);
-    storage.get<ThemeConfig>("theme_config").then(cur =>
-      storage.set("theme_config", { bgStyle: s, bgGraphic: cur?.bgGraphic ?? bgGraphic })
-    );
-  }
-
-  function setBgGraphic(g: BgGraphic) {
-    setBgGraphicState(g);
-    storage.get<ThemeConfig>("theme_config").then(cur =>
-      storage.set("theme_config", { bgStyle: cur?.bgStyle ?? bgStyle, bgGraphic: g })
-    );
+    storage.set("theme_config", { bgStyle: s });
   }
 
   return (
@@ -99,7 +84,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       accentId, setAccentId,
       themeId, setThemeId,
       bgStyle, setBgStyle,
-      bgGraphic, setBgGraphic,
       themeReady,
     }}>
       {children}

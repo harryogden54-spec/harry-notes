@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
-  View, ScrollView, SafeAreaView, TextInput, Modal,
+  View, ScrollView, SafeAreaView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, RefreshControl,
   useWindowDimensions,
 } from "react-native";
@@ -11,7 +11,6 @@ import { Text, Divider, SearchBar, EmptyState, GradientBackground } from "@/comp
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useNotes, type Note } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
-import { useNoteColors } from "@/lib/useNoteColors";
 import { stripMarkdown } from "@/lib/utils";
 
 // ─── Markdown renderer ────────────────────────────────────────────────────────
@@ -436,187 +435,102 @@ function NoteIndexRow({ note, isSelected, onSelect }: {
   onSelect: () => void;
 }) {
   const { colors } = useTheme();
-  const { updateNote } = useNotes();
-  const { showToast } = useToast();
   const idx = getPastelIndex(note.id);
   const accentColor = NOTE_PASTELS[idx];
   const preview = stripMarkdown(note.body.trim()).slice(0, 120);
 
-  const [renaming, setRenaming]     = useState(false);
-  const [renameText, setRenameText] = useState(note.title);
-  const renameRef = useRef<TextInput | null>(null);
-
-  useEffect(() => { setRenameText(note.title); }, [note.title]);
-
-  function startRename() {
-    setRenameText(note.title);
-    setRenaming(true);
-    setTimeout(() => renameRef.current?.focus(), 50);
-  }
-
-  function commitRename() {
-    setRenaming(false);
-    const trimmed = renameText.trim();
-    if (trimmed !== note.title) {
-      try { updateNote(note.id, { title: trimmed }); }
-      catch { showToast("Failed to rename note"); setRenameText(note.title); }
-    }
-  }
-
   return (
     <Pressable
       onPress={onSelect}
-      style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: isSelected ? colors.bgTertiary : "transparent", borderLeftWidth: 2, borderLeftColor: isSelected ? accentColor : "transparent", gap: spacing[0.5] }}
+      style={{
+        paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+        backgroundColor: isSelected ? colors.bgTertiary : "transparent",
+        borderLeftWidth: 2,
+        borderLeftColor: isSelected ? accentColor : "transparent",
+        gap: spacing[0.5],
+      }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
         {note.pinned && <Text size="xs" style={{ color: colors.accent }}>📌</Text>}
-        {renaming ? (
-          <TextInput
-            ref={renameRef}
-            value={renameText}
-            onChangeText={setRenameText}
-            onBlur={commitRename}
-            onSubmitEditing={commitRename}
-            // @ts-ignore
-            onKeyPress={(e: any) => { if (e.nativeEvent.key === "Escape") { setRenaming(false); setRenameText(note.title); } }}
-            style={[{ flex: 1, fontSize: 13, fontFamily: fontFamily.semibold, color: colors.textPrimary, padding: 0 }, { outlineStyle: "none" } as any]}
-          />
-        ) : (
-          <Pressable
-            onLongPress={Platform.OS !== "web" ? startRename : undefined}
-            // @ts-ignore web double-click
-            onDoubleClick={Platform.OS === "web" ? startRename : undefined}
-            style={{ flex: 1 }}
-          >
-            <Text size="sm" weight={isSelected ? "semibold" : "regular"} numberOfLines={1}
-              style={{ color: note.title ? colors.textPrimary : colors.textTertiary }}>
-              {note.title || "Untitled"}
-            </Text>
-          </Pressable>
-        )}
-        <Text size="xs" tertiary style={{ flexShrink: 0 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+        <Text
+          size="sm"
+          weight={isSelected ? "semibold" : "regular"}
+          numberOfLines={1}
+          style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}
+        >
+          {note.title || "Untitled"}
+        </Text>
+        <Text size="xs" tertiary style={{ flexShrink: 0 }}>
+          {timeAgo(note.updated_at ?? note.created_at)}
+        </Text>
       </View>
-      {preview ? <Text size="xs" secondary numberOfLines={1}>{preview}</Text> : <Text size="xs" tertiary numberOfLines={1}>No content</Text>}
+      {preview ? (
+        <Text size="xs" secondary numberOfLines={1}>{preview}</Text>
+      ) : (
+        <Text size="xs" tertiary numberOfLines={1}>No content</Text>
+      )}
     </Pressable>
-  );
-}
-
-// ─── Note colour picker ───────────────────────────────────────────────────────
-
-type ColorHelpers = { getNoteColorIdx: (id: string) => number | null; setNoteColorIdx: (id: string, idx: number | null) => void };
-
-function NoteColorPicker({ note, helpers, onClose }: { note: Note; helpers: ColorHelpers; onClose: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }} onPress={onClose}>
-        <Pressable onPress={e => e.stopPropagation?.()}>
-          <View style={{ backgroundColor: colors.bgSecondary, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: spacing[5], gap: spacing[4], borderTopWidth: 1, borderColor: colors.bgBorder }}>
-            <Text size="sm" weight="semibold">Note colour</Text>
-            <View style={{ flexDirection: "row", gap: spacing[2.5], justifyContent: "center" }}>
-              {NOTE_PASTELS.map((bg, i) => {
-                const active = (helpers.getNoteColorIdx(note.id) ?? getPastelIndex(note.id)) === i;
-                return (
-                  <Pressable key={i} onPress={() => { helpers.setNoteColorIdx(note.id, i); onClose(); }}
-                    style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: bg, borderWidth: active ? 2.5 : 1, borderColor: active ? colors.accent : NOTE_PASTEL_BORDERS[i] }} />
-                );
-              })}
-            </View>
-            <Pressable onPress={() => { helpers.setNoteColorIdx(note.id, null); onClose(); }}
-              style={{ alignItems: "center", paddingVertical: spacing[2], borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder }}>
-              <Text size="sm" secondary>Reset to default</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
 // ─── Note Card (pastel grid card — mobile) ────────────────────────────────────
 
-function NoteCard({ note, onOpen, helpers }: { note: Note; onOpen: () => void; helpers: ColorHelpers }) {
-  const { updateNote } = useNotes();
-  const { showToast } = useToast();
-  const overrideIdx = helpers.getNoteColorIdx(note.id);
-  const idx         = overrideIdx !== null ? overrideIdx : getPastelIndex(note.id);
+function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
+  const { pinNote } = useNotes();
+  const idx    = getPastelIndex(note.id);
   const bgColor     = NOTE_PASTELS[idx];
   const borderColor = NOTE_PASTEL_BORDERS[idx];
-  const preview     = stripMarkdown(note.body.trim());
-
-  const [showPicker, setShowPicker]   = useState(false);
-  const [renaming, setRenaming]       = useState(false);
-  const [renameText, setRenameText]   = useState(note.title);
-  const renameRef = useRef<TextInput | null>(null);
-
-  useEffect(() => { setRenameText(note.title); }, [note.title]);
-
-  function startRename() {
-    setRenameText(note.title);
-    setRenaming(true);
-    setTimeout(() => renameRef.current?.focus(), 50);
-  }
-
-  function commitRename() {
-    setRenaming(false);
-    const trimmed = renameText.trim();
-    if (trimmed !== note.title) {
-      try { updateNote(note.id, { title: trimmed }); }
-      catch { showToast("Failed to rename note"); setRenameText(note.title); }
-    }
-  }
-
-  function cancelRename() {
-    setRenaming(false);
-    setRenameText(note.title);
-  }
+  const preview = stripMarkdown(note.body.trim());
 
   return (
-    <>
-      <Pressable
-        onPress={onOpen}
-        onLongPress={() => {
-          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          setShowPicker(true);
-        }}
-        // @ts-ignore web right-click
-        onContextMenu={(e: any) => { if (Platform.OS === "web") { e.preventDefault(); setShowPicker(true); } }}
-        style={{ flex: 1 }}
-      >
-        <View style={{ backgroundColor: bgColor, borderRadius: 12, borderWidth: 1, borderColor, padding: spacing[3], gap: spacing[1], minHeight: 90 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-            {note.pinned && <Text size="xs" style={{ color: NOTE_PASTEL_TEXT }}>📌</Text>}
-            {renaming ? (
-              <TextInput
-                ref={renameRef}
-                value={renameText}
-                onChangeText={setRenameText}
-                onBlur={commitRename}
-                onSubmitEditing={commitRename}
-                // @ts-ignore
-                onKeyPress={(e: any) => { if (e.nativeEvent.key === "Escape") cancelRename(); }}
-                style={[{ flex: 1, fontSize: 12, fontFamily: fontFamily.semibold, color: NOTE_PASTEL_TEXT, padding: 0 }, { outlineStyle: "none" } as any]}
-              />
-            ) : (
-              <Pressable
-                onPress={onOpen}
-                onLongPress={startRename}
-                // @ts-ignore web double-click
-                onDoubleClick={Platform.OS === "web" ? startRename : undefined}
-                style={{ flex: 1 }}
-              >
-                <Text size="xs" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? NOTE_PASTEL_TEXT : `${NOTE_PASTEL_TEXT}80` }}>
-                  {note.title || "Untitled"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-          {preview ? <Text size="xs" numberOfLines={3} style={{ color: `${NOTE_PASTEL_TEXT}CC`, lineHeight: 17 }}>{preview}</Text> : null}
-          <Text size="xs" style={{ color: `${NOTE_PASTEL_TEXT}60`, marginTop: "auto" as any, fontSize: 10 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+    <Pressable
+      onPress={onOpen}
+      onLongPress={() => {
+        pinNote(note.id);
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }}
+      style={{ flex: 1 }}
+    >
+      <View style={{
+        backgroundColor: bgColor,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor,
+        padding: spacing[3],
+        gap: spacing[1],
+        minHeight: 90,
+      }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
+          {note.pinned && <Text size="xs" style={{ color: NOTE_PASTEL_TEXT }}>📌</Text>}
+          <Text
+            size="xs"
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              fontFamily: fontFamily.semibold,
+              color: note.title ? NOTE_PASTEL_TEXT : `${NOTE_PASTEL_TEXT}80`,
+            }}
+          >
+            {note.title || "Untitled"}
+          </Text>
         </View>
-      </Pressable>
-      {showPicker && <NoteColorPicker note={note} helpers={helpers} onClose={() => setShowPicker(false)} />}
-    </>
+        {preview ? (
+          <Text
+            size="xs"
+            numberOfLines={3}
+            style={{ color: `${NOTE_PASTEL_TEXT}CC`, lineHeight: 17 }}
+          >
+            {preview}
+          </Text>
+        ) : null}
+        <Text
+          size="xs"
+          style={{ color: `${NOTE_PASTEL_TEXT}60`, marginTop: "auto" as any, fontSize: 10 }}
+        >
+          {timeAgo(note.updated_at ?? note.created_at)}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -627,7 +541,6 @@ export default function NotesScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
   const { notes, addNote, loaded, syncNow } = useNotes();
-  const helpers = useNoteColors();
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -734,7 +647,7 @@ export default function NotesScreen() {
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2], marginBottom: spacing[3] }}>
                       {pinned.map(n => (
                         <View key={n.id} style={{ width: "48%" as any }}>
-                          <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} helpers={helpers} />
+                          <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
                         </View>
                       ))}
                     </View>
@@ -744,7 +657,7 @@ export default function NotesScreen() {
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
                   {unpinned.map(n => (
                     <View key={n.id} style={{ width: "48%" as any }}>
-                      <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} helpers={helpers} />
+                      <NoteCard note={n} onOpen={() => { animate(); setOpenId(n.id); }} />
                     </View>
                   ))}
                 </View>

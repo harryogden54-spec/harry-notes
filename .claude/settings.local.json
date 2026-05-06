@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Desktop_Commander__read_file",
+      "mcp__Desktop_Commander__start_search",
+      "mcp__Desktop_Commander__list_directory",
+      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
+      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
+      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
+      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
+      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(git add *)"
+    ]
+  }
+}

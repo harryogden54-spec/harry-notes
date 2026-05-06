@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
-  Platform, RefreshControl,
+  Platform, KeyboardAvoidingView, TextInput, RefreshControl,
   useWindowDimensions,
 } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
@@ -9,8 +9,8 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { Text, Surface, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing } from "@/lib/theme";
+import { Text, SearchBar, Surface, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
@@ -18,13 +18,13 @@ import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
 import { getTodayStr, stripMarkdown } from "@/lib/utils";
 import { QuickAddModal }      from "@/components/dashboard/QuickAddModal";
-import { useNoteColors } from "@/lib/useNoteColors";
+import { SearchResults }      from "@/components/dashboard/SearchResults";
 
 // ─── Pastel palette ───────────────────────────────────────────────────────────
 
-const NOTE_PASTELS      = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
-const NOTE_PASTEL_BORDERS = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
-const NOTE_PASTEL_TEXT  = "#1A1A2E";
+const NOTE_PASTELS         = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
+const NOTE_PASTEL_BORDERS  = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
+const NOTE_PASTEL_TEXT     = "#1A1A2E";
 
 function getPastelIndex(noteId: string): number {
   let h = 0;
@@ -48,7 +48,6 @@ function formatHeaderDate(d: Date): string {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
 }
 
-
 function getTodayKey() {
   return `today_items_${new Date().toISOString().slice(0, 10)}`;
 }
@@ -57,8 +56,6 @@ type TodayItem = { id: string; text: string; done: boolean };
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 
-// ─── Priority dot colours ─────────────────────────────────────────────────────
-
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: "#EF4444",
   high:   "#F97316",
@@ -66,41 +63,9 @@ const PRIORITY_COLORS: Record<string, string> = {
   low:    "#6B7280",
 };
 
-// ─── Lists Grid Card (compact, 2-per-row) ────────────────────────────────────
+// ─── Today panel ──────────────────────────────────────────────────────────────
 
-function ListGridCard({ list, onPress }: { list: any; onPress: () => void }) {
-  const { colors } = useTheme();
-  const items = list.items ?? [];
-  const doneCount  = items.filter((i: any) => i.done).length;
-  const totalCheck = items.filter((i: any) => i.type === "checkbox").length;
-  const pct        = totalCheck === 0 ? 0 : Math.round((doneCount / totalCheck) * 100);
-  const listColor  = list.color ?? colors.accent;
-
-  return (
-    <Pressable onPress={onPress} style={{ flex: 1 }}>
-      <Surface style={{ padding: spacing[2.5], gap: spacing[1.5], flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-          <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: listColor }} />
-          <Text size="xs" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
-          <Text size="xs" style={{ color: colors.textTertiary }}>{items.length}</Text>
-        </View>
-        {/* Linear progress bar */}
-        {totalCheck > 0 && (
-          <View style={{ height: 3, borderRadius: 99, backgroundColor: `${listColor}25`, overflow: "hidden" }}>
-            <View style={{ height: 3, width: `${pct}%` as any, borderRadius: 99, backgroundColor: listColor }} />
-          </View>
-        )}
-        {items.length === 0 && (
-          <Text size="xs" secondary>Empty</Text>
-        )}
-      </Surface>
-    </Pressable>
-  );
-}
-
-// ─── Today Card ───────────────────────────────────────────────────────────────
-
-function TodayCard() {
+function TodayPanel() {
   const { colors } = useTheme();
   const [items, setItems] = useState<TodayItem[]>([]);
   const todayKey = getTodayKey();
@@ -115,18 +80,18 @@ function TodayCard() {
 
   if (items.length === 0) {
     return (
-      <Surface style={{ padding: spacing[4], alignItems: "center" }}>
+      <View style={{ paddingVertical: spacing[3] }}>
         <Text size="sm" secondary>Nothing added to today yet.</Text>
-      </Surface>
+      </View>
     );
   }
 
   return (
-    <Surface style={{ overflow: "hidden" }}>
+    <View style={{ overflow: "hidden" }}>
       {active.map((item, i) => (
         <View key={item.id} style={{
           flexDirection: "row", alignItems: "center", gap: spacing[2.5],
-          paddingHorizontal: spacing[3], paddingVertical: spacing[2.5],
+          paddingVertical: spacing[2],
           borderBottomWidth: i === active.length - 1 && completed.length === 0 ? 0 : 1,
           borderBottomColor: colors.bgBorder,
         }}>
@@ -135,26 +100,58 @@ function TodayCard() {
         </View>
       ))}
       {completed.length > 0 && (
-        <View style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+        <View style={{ paddingTop: spacing[2] }}>
           <Text size="xs" style={{ color: colors.textTertiary }}>{completed.length} completed</Text>
         </View>
       )}
-    </Surface>
+    </View>
   );
 }
 
-// ─── Dashboard screen ─────────────────────────────────────────────────────────
+// ─── Lists shelf row item ─────────────────────────────────────────────────────
+
+function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
+  const { colors } = useTheme();
+  const items = list.items ?? [];
+  const doneCount  = items.filter((i: any) => i.done).length;
+  const totalCheck = items.filter((i: any) => i.type === "checkbox").length;
+  const pct        = totalCheck === 0 ? 0 : Math.round((doneCount / totalCheck) * 100);
+  const listColor  = list.color ?? colors.accent;
+
+  return (
+    <Pressable onPress={onPress} style={{ width: 220, marginRight: spacing[3] }}>
+      <Surface style={{ padding: spacing[3], gap: spacing[2] }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+          <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: listColor }} />
+          <Text size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
+          <Text size="xs" style={{ color: colors.textTertiary }}>
+            {totalCheck > 0 ? `${doneCount}/${totalCheck}` : items.length}
+          </Text>
+        </View>
+        {totalCheck > 0 && (
+          <View style={{ height: 3, borderRadius: 99, backgroundColor: `${listColor}25`, overflow: "hidden" }}>
+            <View style={{ height: 3, width: `${pct}%` as any, borderRadius: 99, backgroundColor: listColor }} />
+          </View>
+        )}
+      </Surface>
+    </Pressable>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
   const { colors }             = useTheme();
   const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
-  const { showToast } = useToast();
+  const { showToast }          = useToast();
   const { lists, loaded: listsLoaded } = useLists();
   const { notes }              = useNotes();
-  const noteColors             = useNoteColors();
   const router                 = useRouter();
-  const [showTaskSheet, setShowTaskSheet]   = useState(false);
-  const [refreshing, setRefreshing]         = useState(false);
+  const searchRef              = useRef<TextInput | null>(null);
+  const [search, setSearch]    = useState("");
+  const [showTaskSheet, setShowTaskSheet] = useState(false);
+  const [refreshing, setRefreshing]       = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const today                  = getTodayStr();
 
   // Hydration guard
@@ -165,7 +162,6 @@ export default function DashboardScreen() {
   const taskFabScale = useSharedValue(1);
   const taskFabStyle = useAnimatedStyle(() => ({ transform: [{ scale: taskFabScale.value }] }));
 
-  // All open tasks sorted by priority then due date (for dashboard card)
   const openTasks = tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
@@ -177,10 +173,16 @@ export default function DashboardScreen() {
       return aDate.localeCompare(bDate);
     });
 
-  const sortedNotes = [...notes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at));
+  const overdueTasks = openTasks.filter(t => !!t.due_date && t.due_date < today);
+  const overdueCount = overdueTasks.length;
+
+  const sortedNotes = [...notes].sort((a, b) =>
+    (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
+  );
 
   const handleGoToLists = useCallback(() => router.push("/(tabs)/lists"), [router]);
   const handleGoToTasks = useCallback(() => router.push("/(tabs)/tasks"), [router]);
+  const handleGoToNotes = useCallback(() => router.push("/(tabs)/notes"), [router]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -194,30 +196,30 @@ export default function DashboardScreen() {
     if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
   }, [addTask, updateTask]);
 
-  // Web keyboard shortcuts (dashboard-local: N = new task, T = go to today)
+  // Web keyboard shortcuts
   useEffect(() => {
     if (Platform.OS !== "web") return;
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (e.key === "Escape") { setShowTaskSheet(false); return; }
+      if (e.key === "Escape") { setShowTaskSheet(false); setShowShortcuts(false); return; }
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "n" || e.key === "N") { e.preventDefault(); setShowTaskSheet(true); }
+      if (e.key === "/") { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === "t" || e.key === "T") { e.preventDefault(); router.push("/(tabs)/today"); }
+      if (e.key === "?") { e.preventDefault(); setShowShortcuts(v => !v); }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
   const { width } = useWindowDimensions();
-  const isWide = Platform.OS === "web" && width >= 768;
-  const isNarrowMobile = Platform.OS !== "web" && width < 768;
-  // Cards own their own horizontal margin on narrow mobile (outer container has no padding)
-  const cm = isNarrowMobile ? { marginHorizontal: spacing[3] } : {};
+  const isWide   = width >= 768;
+  const isMobile = Platform.OS !== "web" && width < 768;
 
-  // ─── Shared section blocks ──────────────────────────────────────────────────
+  // ─── Header ───────────────────────────────────────────────────────────────────
 
-  const headerSection = (
-    <View style={[{ paddingTop: spacing[4], paddingBottom: spacing[3], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }, cm]}>
+  const header = (
+    <View style={{ paddingTop: spacing[4], paddingBottom: spacing[4], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
       <View style={{ flex: 1 }}>
         <Text size="2xl" weight="bold">{mounted ? greeting() : "Good morning"}</Text>
         <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
@@ -230,12 +232,39 @@ export default function DashboardScreen() {
     </View>
   );
 
-  // Tasks card — all open tasks, sorted by priority then due date, max 5
+  // ─── Overdue banner ───────────────────────────────────────────────────────────
+
+  const overdueBanner = overdueCount > 0 ? (
+    <Pressable
+      onPress={() => router.push("/(tabs)/tasks?filter=overdue" as any)}
+      style={{
+        flexDirection: "row", alignItems: "center", gap: spacing[2],
+        backgroundColor: `${colors.danger}14`, borderRadius: radius.lg,
+        borderWidth: 1, borderColor: `${colors.danger}35`,
+        paddingHorizontal: spacing[3], paddingVertical: spacing[2.5],
+        marginBottom: spacing[4],
+      }}
+    >
+      <Ionicons name="warning-outline" size={15} color={colors.danger} />
+      <Text size="sm" weight="medium" style={{ color: colors.danger, flex: 1 }}>
+        {overdueCount} overdue task{overdueCount !== 1 ? "s" : ""}
+      </Text>
+      <Text size="xs" style={{ color: colors.danger }}>View →</Text>
+    </Pressable>
+  ) : null;
+
+  // ─── Tasks card ───────────────────────────────────────────────────────────────
+
   const tasksCardItems = openTasks.slice(0, 5);
   const tasksOverflow  = openTasks.length - 5;
 
-  const tasksCardContent = (
-    <>
+  const tasksCard = (
+    <View style={{ flex: 1 }}>
+      <SectionHeader
+        label="Tasks"
+        count={tasksLoaded ? openTasks.length : undefined}
+        action={{ label: "All tasks", onPress: handleGoToTasks }}
+      />
       {!tasksLoaded ? (
         <Surface style={{ padding: spacing[4], gap: spacing[3] }}>
           <Skeleton height={16} borderRadius={6} />
@@ -266,26 +295,47 @@ export default function DashboardScreen() {
           )}
         </Surface>
       )}
-    </>
+    </View>
   );
 
-  // Notes horizontal row (4 cards)
+  // ─── Today card ───────────────────────────────────────────────────────────────
+
+  const todayCard = (
+    <View style={{ flex: 1 }}>
+      <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
+      <Surface style={{ padding: spacing[3] }}>
+        <TodayPanel />
+      </Surface>
+    </View>
+  );
+
+  // ─── Notes row ────────────────────────────────────────────────────────────────
+
   const notesRow = sortedNotes.length > 0 ? (
     <View style={{ marginBottom: spacing[5] }}>
-      <View style={cm}><SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: () => router.push("/(tabs)/notes") }} /></View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing[2], paddingHorizontal: isNarrowMobile ? spacing[3] : 0, paddingBottom: spacing[1] }}>
+      <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: handleGoToNotes }} />
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
-          const override = noteColors.getNoteColorIdx(note.id);
-          const pi = override !== null ? override : getPastelIndex(note.id);
+          const pi = getPastelIndex(note.id);
           const bg = NOTE_PASTELS[pi];
           const border = NOTE_PASTEL_BORDERS[pi];
           return (
             <Pressable
               key={note.id}
               onPress={() => router.push(`/(tabs)/notes?openId=${note.id}` as any)}
-              style={{ width: 160 }}
+              style={{
+                width: isWide ? `${(100 - 4.5 * 3) / 4}%` as any : "48%" as any,
+                minWidth: 140,
+              }}
             >
-              <View style={{ backgroundColor: bg, borderWidth: 1, borderColor: border, borderRadius: 12, padding: spacing[3], gap: spacing[1], minHeight: 90 }}>
+              <View style={{
+                backgroundColor: bg,
+                borderWidth: 1, borderColor: border,
+                borderRadius: 12,
+                padding: spacing[3],
+                gap: spacing[1],
+                minHeight: 100,
+              }}>
                 <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: NOTE_PASTEL_TEXT }}>
                   {note.title || "Untitled"}
                 </Text>
@@ -312,54 +362,49 @@ export default function DashboardScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   ) : null;
 
-  // Lists horizontal shelf
-  const listsShelf = lists.length > 0 ? (
+  // ─── Lists shelf ──────────────────────────────────────────────────────────────
+
+  const listsShelf = listsLoaded && lists.length > 0 ? (
     <View style={{ marginBottom: spacing[5] }}>
-      <View style={cm}><SectionHeader label="Lists" count={lists.length} action={{ label: "See all", onPress: handleGoToLists }} /></View>
-      {!listsLoaded ? (
-        <View style={{ flexDirection: "row", gap: spacing[2], paddingHorizontal: isNarrowMobile ? spacing[3] : 0 }}>
-          <Skeleton width={140} height={60} borderRadius={12} />
-          <Skeleton width={140} height={60} borderRadius={12} />
-        </View>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing[2], paddingHorizontal: isNarrowMobile ? spacing[3] : 0, paddingBottom: spacing[1] }}>
-          {lists.map(l => (
-            <View key={l.id} style={{ width: 160 }}>
-              <ListGridCard list={l} onPress={handleGoToLists} />
-            </View>
-          ))}
-        </ScrollView>
-      )}
+      <SectionHeader label="Lists" count={lists.length} action={{ label: "See all", onPress: handleGoToLists }} />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingRight: spacing[3] }}
+      >
+        {lists.map(l => (
+          <ListShelfCard key={l.id} list={l} onPress={handleGoToLists} />
+        ))}
+      </ScrollView>
+    </View>
+  ) : !listsLoaded ? (
+    <View style={{ marginBottom: spacing[5] }}>
+      <SectionHeader label="Lists" />
+      <View style={{ flexDirection: "row", gap: spacing[2] }}>
+        <Skeleton width={220} height={62} borderRadius={12} />
+        <Skeleton width={220} height={62} borderRadius={12} />
+      </View>
     </View>
   ) : null;
+
+  // ─── Main content ─────────────────────────────────────────────────────────────
 
   const mainContent = (
     <>
+      {overdueBanner}
       {isWide ? (
         <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[5], alignItems: "flex-start" }}>
-          <View style={{ flex: 3 }}>
-            <SectionHeader label="Tasks" count={tasksLoaded ? openTasks.length : undefined} action={{ label: "All tasks", onPress: handleGoToTasks }} />
-            {tasksCardContent}
-          </View>
-          <View style={{ flex: 2 }}>
-            <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
-            <TodayCard />
-          </View>
+          {tasksCard}
+          {todayCard}
         </View>
       ) : (
         <>
-          <View style={[{ marginBottom: spacing[5] }, cm]}>
-            <SectionHeader label="Tasks" count={tasksLoaded ? openTasks.length : undefined} action={{ label: "All tasks", onPress: handleGoToTasks }} />
-            {tasksCardContent}
-          </View>
-          <View style={[{ marginBottom: spacing[5] }, cm]}>
-            <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
-            <TodayCard />
-          </View>
+          <View style={{ marginBottom: spacing[4] }}>{tasksCard}</View>
+          <View style={{ marginBottom: spacing[5] }}>{todayCard}</View>
         </>
       )}
       {notesRow}
@@ -367,28 +412,43 @@ export default function DashboardScreen() {
     </>
   );
 
+  // ─── Layout (web: centred max-width; mobile: edge-to-edge cards) ─────────────
+
+  const outerPadding = Platform.OS === "web"
+    ? { alignSelf: "center" as const, width: "100%", maxWidth: 1100, paddingHorizontal: 32 }
+    : isMobile
+      ? { paddingHorizontal: spacing[3] }
+      : { paddingHorizontal: spacing[4] };
+
   return (
     <GradientBackground>
     <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingVertical: spacing[4], paddingBottom: spacing[24] }}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-      >
-        <View style={
-          Platform.OS === "web"
-            ? { alignSelf: "center", width: "100%", maxWidth: 860, paddingHorizontal: 80 }
-            : isNarrowMobile ? {} : { paddingHorizontal: spacing[4] }
-        }>
-          {headerSection}
-          {mainContent}
-        </View>
-      </ScrollView>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingVertical: spacing[2], paddingBottom: spacing[24] }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+        >
+          <View style={outerPadding as any}>
+            {header}
+            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
 
-      {/* ── FAB ──────────────────────────────────────────────────────────────── */}
+            {search.trim() ? (
+              <View style={{ marginTop: spacing[3] }}>
+                <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
+              </View>
+            ) : (
+              <View style={{ marginTop: spacing[2] }}>{mainContent}</View>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ── Single FAB (task quick-add) ───────────────────────────────────────── */}
       <View
-        style={{ position: "absolute", bottom: spacing[8], right: spacing[5] }}
+        style={{ position: "absolute", bottom: spacing[8], right: spacing[5], alignItems: "flex-end" }}
         pointerEvents="box-none"
       >
         <Pressable
@@ -406,7 +466,46 @@ export default function DashboardScreen() {
         </Pressable>
       </View>
 
+      {/* ── Quick-add modal (task) ────────────────────────────────────────────── */}
       <QuickAddModal visible={showTaskSheet} onClose={() => setShowTaskSheet(false)} onAdd={handleQuickAddTask} />
+
+      {/* ── Keyboard shortcuts modal ──────────────────────────────────────────── */}
+      {showShortcuts && Platform.OS === "web" && (
+        <Pressable
+          onPress={() => setShowShortcuts(false)}
+          style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 50, alignItems: "center", justifyContent: "center" } as any}
+        >
+          <Pressable onPress={e => e.stopPropagation()} style={{
+            backgroundColor: colors.bgSecondary,
+            borderWidth: 1, borderColor: colors.bgBorder,
+            borderRadius: radius.xl, padding: spacing[6], width: 360, gap: spacing[4],
+          }}>
+            <Text size="base" weight="semibold">Keyboard shortcuts</Text>
+            <View style={{ flexDirection: "row", gap: spacing[8] }}>
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                {([["N", "New task"], ["/", "Focus search"], ["T", "Go to Today"]] as [string, string][]).map(([key, desc]) => (
+                  <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text size="sm" secondary>{desc}</Text>
+                    <View style={{ backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
+                      <Text size="xs" weight="medium" style={{ color: colors.textPrimary, fontFamily: "monospace" as any }}>{key}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <View style={{ flex: 1, gap: spacing[2] }}>
+                {([["?", "Show shortcuts"], ["Esc", "Close"]] as [string, string][]).map(([key, desc]) => (
+                  <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text size="sm" secondary>{desc}</Text>
+                    <View style={{ backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
+                      <Text size="xs" weight="medium" style={{ color: colors.textPrimary, fontFamily: "monospace" as any }}>{key}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      )}
     </SafeAreaView>
     </GradientBackground>
   );
