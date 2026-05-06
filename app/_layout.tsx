@@ -19,7 +19,6 @@ import { NotesProvider } from "@/lib/NotesContext";
 import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
 import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
-import { StickyNotesProvider } from "@/lib/StickyNotesContext";
 import { ToastContainer } from "@/components/ui";
 
 export { ErrorBoundary } from "expo-router";
@@ -107,12 +106,10 @@ export default function RootLayout() {
         <TasksProvider>
           <ListsProvider>
             <NotesProvider>
-              <StickyNotesProvider>
-                <ToastProvider>
-                  <AppShell />
-                  <ToastContainer />
-                </ToastProvider>
-              </StickyNotesProvider>
+              <ToastProvider>
+                <AppShell />
+                <ToastContainer />
+              </ToastProvider>
             </NotesProvider>
           </ListsProvider>
         </TasksProvider>
