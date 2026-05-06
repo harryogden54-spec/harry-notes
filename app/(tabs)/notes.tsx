@@ -482,14 +482,17 @@ function NoteIndexRow({ note, isSelected, onSelect }: {
             style={[{ flex: 1, fontSize: 13, fontFamily: fontFamily.semibold, color: colors.textPrimary, padding: 0 }, { outlineStyle: "none" } as any]}
           />
         ) : (
-          // @ts-ignore web onDoubleClick
-          <Text size="sm" weight={isSelected ? "semibold" : "regular"} numberOfLines={1}
-            style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}
-            onDoubleClick={Platform.OS === "web" ? startRename : undefined}
+          <Pressable
             onLongPress={Platform.OS !== "web" ? startRename : undefined}
+            // @ts-ignore web double-click
+            onDoubleClick={Platform.OS === "web" ? startRename : undefined}
+            style={{ flex: 1 }}
           >
-            {note.title || "Untitled"}
-          </Text>
+            <Text size="sm" weight={isSelected ? "semibold" : "regular"} numberOfLines={1}
+              style={{ color: note.title ? colors.textPrimary : colors.textTertiary }}>
+              {note.title || "Untitled"}
+            </Text>
+          </Pressable>
         )}
         <Text size="xs" tertiary style={{ flexShrink: 0 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
       </View>
