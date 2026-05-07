@@ -67,3 +67,20 @@ Shared primitives live in `components/ui/` and are re-exported from `components/
 `Text`, `Card`, `CardPressable`, `Divider`, `Badge`, `Button`, `Checkbox`, `TextInput`, `DatePicker`, `EmptyState`, `SearchBar`, `Toast`, `ToastContainer`
 
 Always prefer these over raw RN primitives to keep styling consistent.
+
+## Hard rules
+- Never hardcode hex values; always use theme tokens from `lib/theme.ts`
+- Never use raw RN primitives (View/Text/TextInput) in screens; always use components from `components/ui/`
+- Never modify Supabase schema directly; schema changes go via migrations only
+- `npm run typecheck` must pass before any feature is considered done
+- Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
+
+## Current state
+Built: tasks, notes, lists, calendar tabs, settings screen, theme system, Supabase sync
+In progress: —
+Not started: —
+
+> Update "In progress" and "Not started" at the start of each session.
+
+## Deploy
+`npm run deploy` — exports web build and deploys to Cloudflare Pages via Wrangler. Uses `--commit-dirty=true` so does not require a clean working tree. Web only; native builds are not in scope.

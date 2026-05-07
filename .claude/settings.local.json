@@ -1,17 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "mcp__Desktop_Commander__read_file",
-      "mcp__Desktop_Commander__start_search",
-      "mcp__Desktop_Commander__list_directory",
-      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
-      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
-      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
-      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
-      "Bash(cp 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf' 'C:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\.claude\\\\worktrees\\\\goofy-kapitsa-a8abe3\\\\assets\\\\fonts/')",
-      "Bash(npm run *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
       "Bash(npx tsc *)",
-      "Bash(git add *)"
+      "Bash(git checkout *)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\GitHub CLI\\\\\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\GitHub CLI\\\\\" -ErrorAction SilentlyContinue)",
+      "Bash(awk '/Pressable.*onPress.*deleteItem|Pressable.*onDelete|deleteItem\\\\\\(item\\\\.id\\\\\\)/{p=NR} p && NR<=p+3 && NR>=p-3{print NR\": \"$0; if\\(NR==p+3\\)p=0}' app/\\\\\\(tabs\\\\\\)/lists.tsx)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\" && for f in taskUtils.ts TaskDetailModal.tsx TaskItem.tsx AddTaskRow.tsx TaskSection.tsx EmptyDetailPane.tsx TaskFilters.tsx TaskSortMenu.tsx; do echo \"\" > \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\\\\$f\"; done)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\" | Out-Null; \"taskUtils.ts\",\"TaskDetailModal.tsx\",\"TaskItem.tsx\",\"AddTaskRow.tsx\",\"TaskSection.tsx\",\"EmptyDetailPane.tsx\",\"TaskFilters.tsx\",\"TaskSortMenu.tsx\" | ForEach-Object { Set-Content \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\\\\$_\" \"\" -Encoding utf8 }; Get-ChildItem \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\harry\\Documents\\Harry\\harry-notes\\components"
     ]
   }
 }
