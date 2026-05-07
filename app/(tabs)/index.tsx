@@ -275,7 +275,7 @@ export default function DashboardScreen() {
           <Text size="sm" secondary>No open tasks</Text>
         </Surface>
       ) : (
-        <Surface style={{ overflow: "hidden" }}>
+        <Surface style={{ overflow: "hidden", flex: 1 }}>
           {tasksCardItems.map((task, i) => (
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -303,7 +303,7 @@ export default function DashboardScreen() {
   const todayCard = (
     <View style={{ flex: 1 }}>
       <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
-      <Surface style={{ padding: spacing[3] }}>
+      <Surface style={{ padding: spacing[3], flex: 1 }}>
         <TodayPanel />
       </Surface>
     </View>
@@ -397,7 +397,7 @@ export default function DashboardScreen() {
     <>
       {overdueBanner}
       {isWide ? (
-        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[5], alignItems: "flex-start" }}>
+        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[5], alignItems: "stretch" }}>
           {tasksCard}
           {todayCard}
         </View>
@@ -407,15 +407,15 @@ export default function DashboardScreen() {
           <View style={{ marginBottom: spacing[5] }}>{todayCard}</View>
         </>
       )}
-      {notesRow}
       {listsShelf}
+      {notesRow}
     </>
   );
 
   // ─── Layout (web: centred max-width; mobile: edge-to-edge cards) ─────────────
 
   const outerPadding = Platform.OS === "web"
-    ? { alignSelf: "center" as const, width: "100%", maxWidth: 1100, paddingHorizontal: 32 }
+    ? { alignSelf: "center" as const, width: "100%", maxWidth: 1200, paddingHorizontal: 20 }
     : isMobile
       ? { paddingHorizontal: spacing[3] }
       : { paddingHorizontal: spacing[4] };

@@ -80,9 +80,7 @@ function Chip({ label, color, onRemove, active, onPress }: {
       onPress={onPress}
       style={{
         flexDirection: "row", alignItems: "center", gap: 4,
-        backgroundColor: active
-          ? (color ? `${color}25` : `${colors.accent}25`)
-          : (color ? `${color}12` : colors.bgTertiary),
+        backgroundColor: active ? colors.bgTertiary : "transparent",
         borderWidth: 1,
         borderColor: active
           ? (color ?? colors.accent)
@@ -132,7 +130,7 @@ function PrioritySelector({ value, onChange }: { value?: Priority; onChange: (p?
               paddingHorizontal: spacing[2], paddingVertical: spacing[1],
               borderRadius: radius.sm, borderWidth: 1,
               borderColor: active ? cfg.color : colors.bgBorder,
-              backgroundColor: active ? `${cfg.color}18` : "transparent",
+              backgroundColor: active ? colors.bgTertiary : "transparent",
             }}
           >
             <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: cfg.color }} />
@@ -204,7 +202,7 @@ function CategorySelector({ category, uniCourse, onChange }: {
             paddingHorizontal: spacing[2], paddingVertical: spacing[1],
             borderRadius: radius.sm, borderWidth: 1,
             borderColor: category === "personal" ? colors.accent : colors.bgBorder,
-            backgroundColor: category === "personal" ? `${colors.accent}18` : "transparent",
+            backgroundColor: category === "personal" ? colors.bgTertiary : "transparent",
           }}
         >
           <Text size="xs" style={{ color: category === "personal" ? colors.accent : colors.textSecondary }}>Personal</Text>
@@ -214,11 +212,11 @@ function CategorySelector({ category, uniCourse, onChange }: {
           style={{
             paddingHorizontal: spacing[2], paddingVertical: spacing[1],
             borderRadius: radius.sm, borderWidth: 1,
-            borderColor: category === "uni" ? "#B48EAD" : colors.bgBorder,
-            backgroundColor: category === "uni" ? "#B48EAD18" : "transparent",
+            borderColor: category === "uni" ? colors.accent : colors.bgBorder,
+            backgroundColor: category === "uni" ? colors.bgTertiary : "transparent",
           }}
         >
-          <Text size="xs" style={{ color: category === "uni" ? "#B48EAD" : colors.textSecondary }}>Uni</Text>
+          <Text size="xs" style={{ color: category === "uni" ? colors.accent : colors.textSecondary }}>Uni</Text>
         </Pressable>
       </View>
       {category === "uni" && (
@@ -230,11 +228,11 @@ function CategorySelector({ category, uniCourse, onChange }: {
               style={{
                 paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
                 borderRadius: 99, borderWidth: 1,
-                borderColor: uniCourse === course ? "#B48EAD" : colors.bgBorder,
-                backgroundColor: uniCourse === course ? "#B48EAD18" : "transparent",
+                borderColor: uniCourse === course ? colors.accent : colors.bgBorder,
+                backgroundColor: uniCourse === course ? colors.bgTertiary : "transparent",
               }}
             >
-              <Text size="xs" style={{ color: uniCourse === course ? "#B48EAD" : colors.textSecondary }}>
+              <Text size="xs" style={{ color: uniCourse === course ? colors.accent : colors.textSecondary }}>
                 {course}
               </Text>
             </Pressable>
