@@ -17,16 +17,16 @@ import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
-import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate } from "@/lib/utils";
+import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate, PRIORITY_COLOR } from "@/lib/utils";
 import { storage } from "@/lib/storage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
-  urgent: { label: "Urgent", color: "#EF4444" },
-  high:   { label: "High",   color: "#F97316" },
-  medium: { label: "Medium", color: "#EAB308" },
-  low:    { label: "Low",    color: "#6B7280" },
+  urgent: { label: "Urgent", color: PRIORITY_COLOR.urgent },
+  high:   { label: "High",   color: PRIORITY_COLOR.high },
+  medium: { label: "Medium", color: PRIORITY_COLOR.medium },
+  low:    { label: "Low",    color: PRIORITY_COLOR.low },
 };
 const PRIORITY_ORDER: Priority[] = ["urgent", "high", "medium", "low"];
 
@@ -629,7 +629,7 @@ function TaskDetailPanel({ task, onClose }: { task: Task; onClose?: () => void }
           <Text size="xs" style={{ color: colors.danger, flex: 1 }}>Are you sure?</Text>
           <Pressable onPress={handleDelete}
             style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, backgroundColor: colors.danger }}>
-            <Text size="xs" weight="semibold" style={{ color: "#fff" }}>Delete</Text>
+            <Text size="xs" weight="semibold" style={{ color: colors.textInverse }}>Delete</Text>
           </Pressable>
           <Pressable onPress={() => setConfirmDelete(false)}
             style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}>
@@ -716,7 +716,7 @@ function AddTaskRow({ onAdd, inputRef }: {
           {value.length > 0 && (
             <Pressable onPress={submit}
               style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: colors.accent }}>
-              <Text size="xs" weight="medium" style={{ color: "#fff" }}>Add</Text>
+              <Text size="xs" weight="medium" style={{ color: colors.textInverse }}>Add</Text>
             </Pressable>
           )}
         </View>
@@ -1385,7 +1385,7 @@ export default function TasksScreen() {
               <>
                 <Pressable onPress={handleBulkComplete}
                   style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.sm, backgroundColor: colors.accent }}>
-                  <Text size="sm" weight="medium" style={{ color: "#fff" }}>Complete</Text>
+                  <Text size="sm" weight="medium" style={{ color: colors.textInverse }}>Complete</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
