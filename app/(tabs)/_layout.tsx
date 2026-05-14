@@ -26,11 +26,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { name: "index", label: "Home",  iconOutline: "home-outline",          iconFilled: "home",          path: "/(tabs)/" },
-  { name: "today", label: "Today", iconOutline: "today-outline",         iconFilled: "today",         path: "/(tabs)/today" },
-  { name: "tasks", label: "Tasks", iconOutline: "checkbox-outline",      iconFilled: "checkbox",      path: "/(tabs)/tasks" },
-  { name: "lists", label: "Lists", iconOutline: "list-outline",          iconFilled: "list",          path: "/(tabs)/lists" },
-  { name: "notes", label: "Notes", iconOutline: "document-text-outline", iconFilled: "document-text", path: "/(tabs)/notes" },
+  { name: "index",   label: "Home",     iconOutline: "home-outline",     iconFilled: "home",     path: "/(tabs)/" },
+  { name: "today",   label: "Today",    iconOutline: "today-outline",    iconFilled: "today",    path: "/(tabs)/today" },
+  { name: "tasks",   label: "Tasks",    iconOutline: "checkbox-outline", iconFilled: "checkbox", path: "/(tabs)/tasks" },
+  { name: "notes",   label: "Notes",    iconOutline: "albums-outline",   iconFilled: "albums",   path: "/(tabs)/notes" },
+  { name: "postits", label: "Post Its", iconOutline: "layers-outline",   iconFilled: "layers",   path: "/(tabs)/postits" },
 ];
 
 function TabIcon({ focused, color, iconOutline, iconFilled }: {
@@ -383,7 +383,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                 return (
                   <Pressable
                     key={list.id}
-                    onPress={() => router.push(`/(tabs)/lists?listId=${list.id}` as any)}
+                    onPress={() => router.push(`/(tabs)/notes?listId=${list.id}` as any)}
                     // @ts-ignore
                     onHoverIn={() => setHoveredItem(`list_${list.id}`)}
                     onHoverOut={() => setHoveredItem(null)}
@@ -518,8 +518,8 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
     ["F",     "Toggle Focus mode"],
     ["G then H", "Go to Home"],
     ["G then T", "Go to Tasks"],
-    ["G then L", "Go to Lists"],
     ["G then N", "Go to Notes"],
+    ["G then P", "Go to Post Its"],
     ["?",     "Show this panel"],
     ["Esc",   "Close / cancel"],
   ];
@@ -672,6 +672,7 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const { addTask, updateTask } = useTasks();
+  const { addNote } = useNotes();
 
   const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;
@@ -726,8 +727,8 @@ export default function TabLayout() {
         const key = e.key.toLowerCase();
         if (key === "h") { e.preventDefault(); router.push("/(tabs)/" as any); }
         else if (key === "t") { e.preventDefault(); router.push("/(tabs)/tasks" as any); }
-        else if (key === "l") { e.preventDefault(); router.push("/(tabs)/lists" as any); }
         else if (key === "n") { e.preventDefault(); router.push("/(tabs)/notes" as any); }
+        else if (key === "p") { e.preventDefault(); router.push("/(tabs)/postits" as any); }
         return;
       }
     }
@@ -760,8 +761,9 @@ export default function TabLayout() {
             {NAV_ITEMS.map(item => (
               <Tabs.Screen key={item.name} name={item.name} />
             ))}
-            {/* Hidden: keep calendar routable but not in nav */}
+            {/* Hidden: routable but not in nav */}
             <Tabs.Screen name="calendar" options={{ href: null }} />
+            <Tabs.Screen name="lists" options={{ href: null }} />
           </Tabs>
         </View>
 
@@ -788,12 +790,13 @@ export default function TabLayout() {
         }}
         pointerEvents="box-none"
       >
-        {/* Secondary: new note or new list depending on active tab */}
+        {/* Secondary: context-aware — new list on notes tab, new post-it on postits tab, new note elsewhere */}
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (pathname.includes("/lists")) router.push("/(tabs)/lists?create=1" as any);
-            else router.push("/(tabs)/notes?create=1" as any);
+            if (pathname.includes("/postits")) addNote("postit");
+            else if (pathname.includes("/notes")) router.push("/(tabs)/notes?create=list" as any);
+            else router.push("/(tabs)/notes?create=note" as any);
           }}
           style={{
             width: 44, height: 44,
@@ -810,7 +813,7 @@ export default function TabLayout() {
           }}
         >
           <Ionicons
-            name={pathname.includes("/lists") ? "list-outline" : "document-text-outline"}
+            name={pathname.includes("/postits") ? "layers-outline" : pathname.includes("/notes") ? "list-outline" : "document-text-outline"}
             size={19}
             color={colors.textSecondary}
           />
@@ -870,17 +873,18 @@ export default function TabLayout() {
           listeners={{ tabPress: onTabPress }}
         />
         <Tabs.Screen
-          name="lists"
-          options={{ title: "Lists", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="list-outline" iconFilled="list" /> }}
+          name="notes"
+          options={{ title: "Notes", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="albums-outline" iconFilled="albums" /> }}
           listeners={{ tabPress: onTabPress }}
         />
         <Tabs.Screen
-          name="notes"
-          options={{ title: "Notes", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="document-text-outline" iconFilled="document-text" /> }}
+          name="postits"
+          options={{ title: "Post Its", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="layers-outline" iconFilled="layers" /> }}
           listeners={{ tabPress: onTabPress }}
         />
         {/* Hidden from tab bar */}
         <Tabs.Screen name="calendar" options={{ href: null }} />
+        <Tabs.Screen name="lists" options={{ href: null }} />
       </Tabs>
     </>
   );

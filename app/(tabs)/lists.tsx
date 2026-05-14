@@ -53,7 +53,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 
 // ─── Create List Modal ────────────────────────────────────────────────────────
 
-function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => void }) {
+export function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => void }) {
   const { colors } = useTheme();
   const { addList } = useLists();
   const [name, setName]             = useState("");
@@ -349,7 +349,7 @@ function AddItemRow({ listId, defaultType }: { listId: string; defaultType: List
 
 // ─── List Index Row (desktop left pane) ──────────────────────────────────────
 
-function ListIndexRow({ list, isSelected, onSelect }: {
+export function ListIndexRow({ list, isSelected, onSelect }: {
   list: NoteList;
   isSelected: boolean;
   onSelect: () => void;
@@ -391,7 +391,7 @@ function ListIndexRow({ list, isSelected, onSelect }: {
 
 // ─── List Detail Pane (desktop right pane) ────────────────────────────────────
 
-function ListDetailPane({ list, otherLists }: { list: NoteList; otherLists: NoteList[] }) {
+export function ListDetailPane({ list, otherLists }: { list: NoteList; otherLists: NoteList[] }) {
   const { colors } = useTheme();
   const { updateList, deleteList, duplicateList, pinList, reorderItems } = useLists();
   const { showToast } = useToast();
@@ -502,7 +502,7 @@ function ListDetailPane({ list, otherLists }: { list: NoteList; otherLists: Note
 
 // ─── List Card (mobile — expand-in-place) ─────────────────────────────────────
 
-function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
+export function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   list: NoteList; isExpanded: boolean; onToggleExpand: () => void; otherLists: NoteList[];
 }) {
   const { colors } = useTheme();

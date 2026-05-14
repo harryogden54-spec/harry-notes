@@ -9,6 +9,7 @@ export type Note = {
   title: string;
   body: string;
   pinned: boolean;
+  type: "note" | "postit";
   created_at: string;
   updated_at?: string;
 };
@@ -20,7 +21,7 @@ type NotesContextValue = {
   loaded: boolean;
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  addNote: () => string;
+  addNote: (type?: "note" | "postit") => string;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => void;
   deleteNote: (id: string) => () => void;
   pinNote: (id: string) => void;
@@ -89,7 +90,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
 
     loadLocal().then(async (local) => {
       clearTimeout(loadTimeout);
-      const localNotes = local;
+      const localNotes = local.map(n => ({ ...n, type: (n.type ?? "note") as "note" | "postit" }));
       setNotes(localNotes);
       loadedRef.current = true;
       setLoaded(true);
@@ -105,7 +106,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         }
         setNotes(prev => {
           const merged = [...prev];
-          for (const rem of remote) {
+          for (const remRaw of remote) {
+            const rem = { ...remRaw, type: (remRaw.type ?? "note") as "note" | "postit" };
             if (pendingDeletesRef.current.has(rem.id)) continue;
             const idx = merged.findIndex(n => n.id === rem.id);
             if (idx === -1) merged.push(rem);
@@ -149,7 +151,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       const local = notesRef.current;
 
       const merged = [...local];
-      for (const rem of remote) {
+      for (const remRaw of remote) {
+        const rem = { ...remRaw, type: (remRaw.type ?? "note") as "note" | "postit" };
         if (pendingDeletesRef.current.has(rem.id)) continue;
         const idx = merged.findIndex(n => n.id === rem.id);
         if (idx === -1) merged.push(rem);
@@ -177,10 +180,10 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const addNote = useCallback((): string => {
+  const addNote = useCallback((type: "note" | "postit" = "note"): string => {
     const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
-    const note: Note = { id, title: "", body: "", pinned: false, created_at: now, updated_at: now };
+    const note: Note = { id, title: "", body: "", pinned: false, type, created_at: now, updated_at: now };
     setNotes(prev => [note, ...prev]);
     return id;
   }, []);
