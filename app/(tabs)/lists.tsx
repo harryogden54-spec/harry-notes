@@ -227,8 +227,8 @@ function ListItemRow({
   function renderRightActions() {
     if (Platform.OS === "web") return null;
     return (
-      <View style={{ justifyContent: "center", paddingHorizontal: spacing[4], backgroundColor: "#F2646422", marginLeft: spacing[1] }}>
-        <Text size="xs" weight="semibold" style={{ color: "#F26464" }}>✕</Text>
+      <View style={{ justifyContent: "center", paddingHorizontal: spacing[4], backgroundColor: `${colors.danger}22`, marginLeft: spacing[1] }}>
+        <Text size="xs" weight="semibold" style={{ color: colors.danger }}>✕</Text>
       </View>
     );
   }
@@ -491,9 +491,9 @@ function ListDetailPane({ list, otherLists }: { list: NoteList; otherLists: Note
         </Pressable>
         <Pressable
           onPress={handleDelete}
-          style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: "#F2646444", backgroundColor: "#F2646410" }}
+          style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: `${colors.danger}44`, backgroundColor: `${colors.danger}10` }}
         >
-          <Text size="xs" style={{ color: "#F26464" }}>Delete list</Text>
+          <Text size="xs" style={{ color: colors.danger }}>Delete list</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -634,8 +634,8 @@ function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
                 <Text size="xs" secondary>Duplicate</Text>
               </Pressable>
               <Pressable onPress={handleDelete}
-                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: "#F2646444", backgroundColor: "#F2646410" }}>
-                <Text size="xs" style={{ color: "#F26464" }}>Delete list</Text>
+                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: `${colors.danger}44`, backgroundColor: `${colors.danger}10` }}>
+                <Text size="xs" style={{ color: colors.danger }}>Delete list</Text>
               </Pressable>
             </View>
           </View>

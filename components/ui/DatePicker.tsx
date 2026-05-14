@@ -105,7 +105,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
                   size="xs"
                   style={{
                     color: selected
-                      ? "#fff"
+                      ? colors.textInverse
                       : isToday
                       ? colors.accent
                       : isPast

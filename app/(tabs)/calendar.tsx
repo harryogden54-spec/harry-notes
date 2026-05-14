@@ -204,12 +204,12 @@ function WeekView({
               }}>
                 <Text size="xs" style={{
                   fontFamily: fontFamily.medium,
-                  color: isSelected ? "#fff" : colors.textTertiary,
+                  color: isSelected ? colors.textInverse : colors.textTertiary,
                   fontSize: 10,
                 }}>{dayLabel}</Text>
                 <Text size="sm" style={{
                   fontFamily: isToday ? fontFamily.bold : fontFamily.regular,
-                  color: isSelected ? "#fff" : isToday ? colors.accent : colors.textPrimary,
+                  color: isSelected ? colors.textInverse : isToday ? colors.accent : colors.textPrimary,
                 }}>{d.getDate()}</Text>
                 {dayTasks.length > 0 && (
                   <View style={{
@@ -325,7 +325,7 @@ export default function CalendarScreen() {
                       backgroundColor: viewMode === m ? colors.accent : "transparent",
                     }}
                   >
-                    <Text size="xs" weight="medium" style={{ color: viewMode === m ? "#fff" : colors.textSecondary, textTransform: "capitalize" }}>{m}</Text>
+                    <Text size="xs" weight="medium" style={{ color: viewMode === m ? colors.textInverse : colors.textSecondary, textTransform: "capitalize" }}>{m}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -389,7 +389,7 @@ export default function CalendarScreen() {
                         >
                           <Text size="sm" style={{
                             fontFamily: isToday ? fontFamily.bold : fontFamily.regular,
-                            color: isSelected ? "#fff" : isToday ? colors.accent : colors.textPrimary,
+                            color: isSelected ? colors.textInverse : isToday ? colors.accent : colors.textPrimary,
                           }}>{day}</Text>
                           {hasTasks && (
                             <View style={{

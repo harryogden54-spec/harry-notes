@@ -53,7 +53,7 @@ export function Checkbox({ checked, onToggle, size = 18, ...props }: CheckboxPro
               height: size * 0.28,
               borderLeftWidth: 1.5,
               borderBottomWidth: 1.5,
-              borderColor: "#FFFFFF",
+              borderColor: colors.textInverse,
               transform: [{ rotate: "-45deg" }, { translateY: -size * 0.04 }],
             }}
           />
