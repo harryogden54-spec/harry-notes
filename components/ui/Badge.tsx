@@ -15,7 +15,7 @@ export function Badge({ label, color, variant = "subtle", style, ...props }: Bad
   const bg = variant === "solid"
     ? (color ?? colors.accent)
     : `${color ?? colors.accent}22`;
-  const fg = variant === "solid" ? "#FFFFFF" : (color ?? colors.accent);
+  const fg = variant === "solid" ? colors.textInverse : (color ?? colors.accent);
 
   return (
     <View

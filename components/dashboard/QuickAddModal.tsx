@@ -47,6 +47,7 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
   const [quickDate, setQuickDate]   = useState<"none" | "today" | "tomorrow" | "custom">("none");
   const [customDate, setCustomDate] = useState<string | undefined>();
   const [showPicker, setShowPicker] = useState(false);
+  const [showMore, setShowMore]     = useState(false);
   const [category, setCategory]     = useState<TaskCategory | undefined>();
   const [uniCourse, setUniCourse]   = useState<UniCourse>("Misc");
   const inputRef = useRef<TextInput | null>(null);
@@ -138,30 +139,38 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
         {showPicker && <DatePicker value={customDate} onChange={(d) => { setCustomDate(d ?? undefined); setShowPicker(false); }} />}
       </View>
 
-      <View style={{ gap: spacing[1.5] }}>
-        <Text size="xs" style={{ color: colors.textTertiary, fontFamily: fontFamily.medium }}>Category</Text>
-        <View style={{ flexDirection: "row", gap: spacing[1.5] }}>
-          {([["personal", "Personal", colors.accent], ["uni", "Uni", "#B48EAD"]] as [TaskCategory, string, string][]).map(([cat, label, color]) => (
-            <Pressable key={cat} onPress={() => setCategory(c => c === cat ? undefined : cat)}
-              style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.xl, borderWidth: 1, borderColor: category === cat ? color : colors.bgBorder, backgroundColor: category === cat ? `${color}18` : "transparent" }}>
-              <Text size="xs" weight={category === cat ? "semibold" : undefined} style={{ color: category === cat ? color : colors.textSecondary }}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {category === "uni" && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
-            {UNI_COURSES.map(course => (
-              <Pressable key={course} onPress={() => setUniCourse(course)}
-                style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: 99, borderWidth: 1, borderColor: uniCourse === course ? "#B48EAD" : colors.bgBorder, backgroundColor: uniCourse === course ? "#B48EAD18" : "transparent" }}>
-                <Text size="xs" style={{ color: uniCourse === course ? "#B48EAD" : colors.textSecondary }}>{course}</Text>
+      <Pressable onPress={() => setShowMore(v => !v)} style={{ flexDirection: "row", alignItems: "center", gap: spacing[1] }}>
+        <Text size="xs" style={{ color: colors.textTertiary }}>{showMore ? "▴" : "▾"}</Text>
+        <Text size="xs" style={{ color: colors.textTertiary }}>More options</Text>
+        {category && <Text size="xs" style={{ color: colors.accent }}> · {category}</Text>}
+      </Pressable>
+
+      {showMore && (
+        <View style={{ gap: spacing[1.5] }}>
+          <Text size="xs" style={{ color: colors.textTertiary, fontFamily: fontFamily.medium }}>Category</Text>
+          <View style={{ flexDirection: "row", gap: spacing[1.5] }}>
+            {([["personal", "Personal"], ["uni", "Uni"]] as [TaskCategory, string][]).map(([cat, label]) => (
+              <Pressable key={cat} onPress={() => setCategory(c => c === cat ? undefined : cat)}
+                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.xl, borderWidth: 1, borderColor: category === cat ? colors.accent : colors.bgBorder, backgroundColor: category === cat ? `${colors.accent}18` : "transparent" }}>
+                <Text size="xs" weight={category === cat ? "semibold" : undefined} style={{ color: category === cat ? colors.accent : colors.textSecondary }}>{label}</Text>
               </Pressable>
             ))}
           </View>
-        )}
-      </View>
+          {category === "uni" && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
+              {UNI_COURSES.map(course => (
+                <Pressable key={course} onPress={() => setUniCourse(course)}
+                  style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: 99, borderWidth: 1, borderColor: uniCourse === course ? colors.accent : colors.bgBorder, backgroundColor: uniCourse === course ? `${colors.accent}18` : "transparent" }}>
+                  <Text size="xs" style={{ color: uniCourse === course ? colors.accent : colors.textSecondary }}>{course}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       <Pressable onPress={submit} style={{ backgroundColor: title.trim() ? colors.accent : colors.bgTertiary, borderRadius: radius.lg, paddingVertical: spacing[3], alignItems: "center" }}>
-        <Text size="sm" weight="semibold" style={{ color: title.trim() ? "#fff" : colors.textTertiary }}>Add task</Text>
+        <Text size="sm" weight="semibold" style={{ color: title.trim() ? colors.textInverse : colors.textTertiary }}>Add task</Text>
       </Pressable>
     </View>
   );

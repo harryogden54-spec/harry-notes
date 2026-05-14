@@ -2,10 +2,12 @@ import React from "react";
 import { View, Pressable, Platform } from "react-native";
 import { Text } from "./Text";
 import { useToast } from "@/lib/ToastContext";
+import { useTheme } from "@/lib/useTheme";
 import { spacing, radius } from "@/lib/theme";
 
 export function ToastContainer() {
   const { toasts, dismissToast } = useToast();
+  const { colors } = useTheme();
   if (toasts.length === 0) return null;
 
   return (
@@ -27,10 +29,10 @@ export function ToastContainer() {
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: "#222",
+            backgroundColor: colors.bgSecondary,
             borderRadius: radius.lg,
             borderWidth: 1,
-            borderColor: "#333",
+            borderColor: colors.bgBorder,
             paddingVertical: spacing[3],
             paddingHorizontal: spacing[4],
             gap: spacing[3],
@@ -40,7 +42,7 @@ export function ToastContainer() {
             shadowOffset: { width: 0, height: 4 },
           }}
         >
-          <Text size="sm" style={{ flex: 1, color: "#F0F0F0" }}>{toast.message}</Text>
+          <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{toast.message}</Text>
           {toast.action && (
             <Pressable
               onPress={() => {
@@ -49,13 +51,13 @@ export function ToastContainer() {
               }}
               hitSlop={8}
             >
-              <Text size="sm" weight="semibold" style={{ color: "#5B6AD0" }}>
+              <Text size="sm" weight="semibold" style={{ color: colors.accent }}>
                 {toast.action.label}
               </Text>
             </Pressable>
           )}
           <Pressable onPress={() => dismissToast(toast.id)} hitSlop={8}>
-            <Text size="xs" style={{ color: "#666" }}>✕</Text>
+            <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
           </Pressable>
         </View>
       ))}

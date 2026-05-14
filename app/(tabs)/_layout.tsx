@@ -383,7 +383,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                 return (
                   <Pressable
                     key={list.id}
-                    onPress={() => router.push("/(tabs)/lists" as any)}
+                    onPress={() => router.push(`/(tabs)/lists?listId=${list.id}` as any)}
                     // @ts-ignore
                     onHoverIn={() => setHoveredItem(`list_${list.id}`)}
                     onHoverOut={() => setHoveredItem(null)}
@@ -776,22 +776,51 @@ export default function TabLayout() {
     <>
       <PersistentHeader />
       <OfflineBanner />
-      {/* FAB — floating quick-add button for mobile */}
+      {/* Dual FAB — task (primary) + note/list (secondary) */}
       <View
         style={{
           position: "absolute",
           bottom: Platform.OS === "ios" ? 100 : 76,
           right: spacing[5],
           zIndex: 50,
+          alignItems: "flex-end",
+          gap: spacing[2],
         }}
         pointerEvents="box-none"
       >
+        {/* Secondary: new note or new list depending on active tab */}
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (pathname.includes("/lists")) router.push("/(tabs)/lists?create=1" as any);
+            else router.push("/(tabs)/notes?create=1" as any);
+          }}
+          style={{
+            width: 44, height: 44,
+            borderRadius: 99,
+            backgroundColor: colors.bgSecondary,
+            borderWidth: 1,
+            borderColor: colors.bgBorder,
+            alignItems: "center", justifyContent: "center",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.12,
+            shadowRadius: 4,
+            elevation: 4,
+          }}
+        >
+          <Ionicons
+            name={pathname.includes("/lists") ? "list-outline" : "document-text-outline"}
+            size={19}
+            color={colors.textSecondary}
+          />
+        </Pressable>
+
+        {/* Primary: new task */}
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            if (pathname.includes("/lists")) router.push("/(tabs)/lists?create=1" as any);
-            else if (pathname.includes("/notes")) router.push("/(tabs)/notes?create=1" as any);
-            else setShowQuickAdd(true);
+            setShowQuickAdd(true);
           }}
           style={{
             width: 52, height: 52,
@@ -806,7 +835,7 @@ export default function TabLayout() {
             elevation: 8,
           }}
         >
-          <Ionicons name="add" size={26} color="#fff" />
+          <Ionicons name="add" size={26} color={colors.textInverse} />
         </Pressable>
       </View>
       <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />

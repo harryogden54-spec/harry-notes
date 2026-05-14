@@ -61,10 +61,11 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const loadedRef      = useRef(false);
-  const listsRef       = useRef<NoteList[]>([]);
-  const syncDebounce   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedRef  = useRef<string | null>(null);
+  const loadedRef        = useRef(false);
+  const listsRef         = useRef<NoteList[]>([]);
+  const syncDebounce     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef    = useRef<string | null>(null);
+  const pendingDeletesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => { listsRef.current = lists; }, [lists]);
   useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
@@ -76,7 +77,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS !== "web") dbSaveLists(lists).catch(console.error);
 
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    syncDebounce.current = setTimeout(() => {
+    syncDebounce.current = setTimeout(async () => {
       const snapshot = listsRef.current;
       if (snapshot.length === 0) return;
       const cutoff = lastSyncedRef.current;
@@ -84,7 +85,8 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         ? snapshot.filter(l => (l.updated_at ?? l.created_at) > cutoff)
         : snapshot;
       if (dirty.length === 0) return;
-      syncUpsert("lists", dirty).catch(console.warn);
+      const ok = await syncUpsert("lists", dirty);
+      if (!ok) setSyncStatus("error");
     }, 1500);
   }, [lists]);
 
@@ -100,7 +102,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
           const dbLists = await dbLoadLists() as NoteList[];
           if (dbLists.length > 0) return dbLists;
           const stored = await storage.get<NoteList[]>("lists") ?? [];
-          if (stored.length > 0) dbSaveLists(stored).catch(console.error);
+          if (stored.length > 0) await dbSaveLists(stored);
           return stored;
         } catch { /* fall through */ }
       }
@@ -126,6 +128,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         setLists(prev => {
           const merged = [...prev];
           for (const rem of remote) {
+            if (pendingDeletesRef.current.has(rem.id)) continue;
             const idx = merged.findIndex(l => l.id === rem.id);
             if (idx === -1) merged.push(rem);
             else {
@@ -155,6 +158,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const syncNow = useCallback(async () => {
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
     setSyncStatus("syncing");
     try {
       const remote = await syncFetch<NoteList & { _updated_at: string }>("lists");
@@ -163,6 +167,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
 
       const merged = [...local];
       for (const rem of remote) {
+        if (pendingDeletesRef.current.has(rem.id)) continue;
         const idx = merged.findIndex(l => l.id === rem.id);
         if (idx === -1) merged.push(rem);
         else {
@@ -190,7 +195,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addList = useCallback((name: string, color: string, initialItems?: string[]): string => {
-    const id  = `${Date.now()}`;
+    const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
     const items: ListItem[] = (initialItems ?? []).map((content, i) => ({
       id: `${Date.now()}_${i}`, content, type: "checkbox" as ListItemType, done: false,
@@ -212,9 +217,14 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   const deleteList = useCallback((id: string): (() => void) => {
     const deleted = listsRef.current.find(l => l.id === id);
     setLists(prev => prev.filter(l => l.id !== id));
-    const timer = setTimeout(() => syncDelete("lists", id), 3000);
+    pendingDeletesRef.current.add(id);
+    const timer = setTimeout(() => {
+      syncDelete("lists", id);
+      pendingDeletesRef.current.delete(id);
+    }, 3000);
     return () => {
       clearTimeout(timer);
+      pendingDeletesRef.current.delete(id);
       if (deleted) setLists(prev => [...prev, deleted]);
     };
   }, []);
@@ -239,7 +249,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addItem = useCallback((listId: string, content: string, type: ListItemType) => {
-    const item: ListItem = { id: `${Date.now()}`, content, type, done: false };
+    const item: ListItem = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, content, type, done: false };
     setLists(prev => prev.map(l =>
       l.id === listId ? stamp({ ...l, items: [...(l.items ?? []), item] }) : l
     ));

@@ -71,10 +71,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const loadedRef      = useRef(false);
-  const tasksRef       = useRef<Task[]>([]);
-  const syncDebounce   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedRef  = useRef<string | null>(null);
+  const loadedRef        = useRef(false);
+  const tasksRef         = useRef<Task[]>([]);
+  const syncDebounce     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef    = useRef<string | null>(null);
+  const pendingDeletesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
   useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
@@ -88,7 +89,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     // Debounce Supabase upsert so rapid mutations (e.g. toggling many tasks)
     // are batched into a single network call after 1.5 s of quiet.
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    syncDebounce.current = setTimeout(() => {
+    syncDebounce.current = setTimeout(async () => {
       const snapshot = tasksRef.current;
       if (snapshot.length === 0) return;
       // Only push tasks that were locally mutated after the last successful sync.
@@ -99,7 +100,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         ? snapshot.filter(t => (t.updated_at ?? t.created_at) > cutoff)
         : snapshot;
       if (dirty.length === 0) return;
-      syncUpsert("tasks", dirty).catch(console.warn);
+      const ok = await syncUpsert("tasks", dirty);
+      if (!ok) setSyncStatus("error");
     }, 1500);
   }, [tasks]);
 
@@ -116,7 +118,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           if (dbTasks.length > 0) return dbTasks;
           // SQLite empty — migrate from AsyncStorage
           const stored = await storage.get<Task[]>("tasks") ?? [];
-          if (stored.length > 0) dbSaveTasks(stored).catch(console.error);
+          if (stored.length > 0) await dbSaveTasks(stored);
           return stored;
         } catch {
           // SQLite unavailable — fall back
@@ -154,6 +156,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           setTasks(prev => {
             const result = [...prev];
             for (const rem of remote) {
+              if (pendingDeletesRef.current.has(rem.id)) continue;
               const idx = result.findIndex(t => t.id === rem.id);
               if (idx === -1) {
                 result.push(rem);
@@ -197,6 +200,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const syncNow = useCallback(async () => {
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
     setSyncStatus("syncing");
     try {
       const remote = await syncFetch<Task & { _updated_at: string }>("tasks");
@@ -205,6 +209,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
       const merged = [...local];
       for (const rem of remote) {
+        if (pendingDeletesRef.current.has(rem.id)) continue;
         const idx = merged.findIndex(t => t.id === rem.id);
         if (idx === -1) merged.push(rem);
         else {
@@ -234,7 +239,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addTask = useCallback((title: string, due_date?: string): string => {
-    const id  = `${Date.now()}`;
+    const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
     setTasks(prev => [...prev, stamp({ id, title, done: false, due_date, created_at: now, subtasks: [], tags: [] })]);
     return id;
@@ -263,9 +268,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const deleteTask = useCallback((id: string): (() => void) => {
     const deleted = tasksRef.current.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
-    const timer = setTimeout(() => syncDelete("tasks", id), 3000);
+    pendingDeletesRef.current.add(id);
+    const timer = setTimeout(() => {
+      syncDelete("tasks", id);
+      pendingDeletesRef.current.delete(id);
+    }, 3000);
     return () => {
       clearTimeout(timer);
+      pendingDeletesRef.current.delete(id);
       if (deleted) setTasks(prev => [...prev, deleted]);
     };
   }, []);

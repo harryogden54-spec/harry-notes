@@ -98,8 +98,8 @@ export function parseNaturalDate(input: string): { date: string | null; cleanTex
 }
 
 export const PRIORITY_COLOR: Record<Priority, string> = {
-  urgent: "#F26464",
-  high:   "#F5A623",
-  medium: "#E8C84A",
-  low:    "#5B6AD0",
+  urgent: "#E05252",
+  high:   "#E8874A",
+  medium: "#7AB0D9",
+  low:    "#8ABF7A",
 };

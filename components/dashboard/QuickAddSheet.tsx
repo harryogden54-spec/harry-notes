@@ -98,7 +98,7 @@ export function QuickAddSheet({ visible, onClose, onAdd }: Props) {
           alignItems: "center",
         }}
       >
-        <Text size="sm" weight="semibold" style={{ color: title.trim() ? "#fff" : colors.textTertiary }}>
+        <Text size="sm" weight="semibold" style={{ color: title.trim() ? colors.textInverse : colors.textTertiary }}>
           Add task
         </Text>
       </Pressable>

@@ -35,7 +35,7 @@ export function Button({
   };
 
   const fg: Record<Variant, string> = {
-    primary:   "#FFFFFF",
+    primary:   colors.textInverse,
     secondary: colors.textPrimary,
     ghost:     colors.textSecondary,
     danger:    colors.danger,

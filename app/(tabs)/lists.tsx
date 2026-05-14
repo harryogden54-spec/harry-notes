@@ -360,7 +360,6 @@ function ListIndexRow({ list, isSelected, onSelect }: {
   const checkboxItems = items.filter(i => i.type === "checkbox");
   const done  = checkboxItems.filter(i => i.done).length;
   const total = checkboxItems.length;
-  const progress = total > 0 ? done / total : 0;
 
   return (
     <Pressable
@@ -385,11 +384,6 @@ function ListIndexRow({ list, isSelected, onSelect }: {
           {items.length} item{items.length !== 1 ? "s" : ""}
           {total > 0 ? ` · ${done}/${total} done` : ""}
         </Text>
-        {total > 0 && (
-          <View style={{ height: 3, borderRadius: 99, backgroundColor: colors.bgBorder, marginTop: spacing[1] }}>
-            <View style={{ height: 3, borderRadius: 99, backgroundColor: color, width: `${Math.round(progress * 100)}%` as any }} />
-          </View>
-        )}
       </View>
     </Pressable>
   );
@@ -662,7 +656,7 @@ export default function ListsScreen() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch]         = useState("");
-  const params = useLocalSearchParams<{ create?: string }>();
+  const params = useLocalSearchParams<{ create?: string; listId?: string }>();
   const handledParam = useRef(false);
 
   useEffect(() => {
@@ -673,12 +667,19 @@ export default function ListsScreen() {
     }
   }, [loaded, params.create]);
 
-  // Auto-select first list on desktop when loaded
+  // Auto-select first list on desktop when loaded (skip if a specific list was requested)
   useEffect(() => {
-    if (isDesktop && loaded && !selectedId && lists.length > 0) {
+    if (isDesktop && loaded && !selectedId && lists.length > 0 && !params.listId) {
       setSelectedId(lists[0].id);
     }
   }, [isDesktop, loaded, lists.length]);
+
+  // Navigate to a specific list when listId param is provided (from sidebar)
+  useEffect(() => {
+    if (isDesktop && loaded && params.listId) {
+      setSelectedId(params.listId);
+    }
+  }, [isDesktop, loaded, params.listId]);
 
   // Auto-select newly created list on desktop
   const prevListsLength = useRef(0);

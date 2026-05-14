@@ -26,18 +26,20 @@ export async function syncFetch<T extends { id: string }>(
 export async function syncUpsert<T extends { id: string }>(
   table: string,
   items: T[]
-): Promise<void> {
-  if (items.length === 0) return;
+): Promise<boolean> {
+  if (items.length === 0) return true;
   const rows = items.map(item => ({
     id: item.id,
     data: item,
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
-  if (error) console.warn(`syncUpsert ${table}:`, error.message);
+  if (error) { console.warn(`syncUpsert ${table}:`, error.message); return false; }
+  return true;
 }
 
-export async function syncDelete(table: string, id: string): Promise<void> {
+export async function syncDelete(table: string, id: string): Promise<boolean> {
   const { error } = await supabase.from(table).delete().eq("id", id);
-  if (error) console.warn(`syncDelete ${table}:`, error.message);
+  if (error) { console.warn(`syncDelete ${table}:`, error.message); return false; }
+  return true;
 }

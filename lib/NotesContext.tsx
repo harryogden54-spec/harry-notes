@@ -38,10 +38,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded]         = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const loadedRef                   = useRef(false);
-  const notesRef                    = useRef<Note[]>([]);
-  const syncDebounce                = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedRef               = useRef<string | null>(null);
+  const loadedRef                    = useRef(false);
+  const notesRef                     = useRef<Note[]>([]);
+  const syncDebounce                 = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedRef                = useRef<string | null>(null);
+  const pendingDeletesRef            = useRef<Set<string>>(new Set());
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
   useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
@@ -53,7 +54,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS !== "web") dbSaveNotes(notes).catch(console.error);
 
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    syncDebounce.current = setTimeout(() => {
+    syncDebounce.current = setTimeout(async () => {
       const snapshot = notesRef.current;
       if (snapshot.length === 0) return;
       const cutoff = lastSyncedRef.current;
@@ -61,7 +62,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         ? snapshot.filter(n => (n.updated_at ?? n.created_at) > cutoff)
         : snapshot;
       if (dirty.length === 0) return;
-      syncUpsert("notes", dirty).catch(console.warn);
+      const ok = await syncUpsert("notes", dirty);
+      if (!ok) setSyncStatus("error");
     }, 1500);
   }, [notes]);
 
@@ -78,7 +80,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
           const dbNotes = await dbLoadNotes() as Note[];
           if (dbNotes.length > 0) return dbNotes;
           const stored = await storage.get<Note[]>("notes") ?? [];
-          if (stored.length > 0) dbSaveNotes(stored).catch(console.error);
+          if (stored.length > 0) await dbSaveNotes(stored);
           return stored;
         } catch { /* fall through */ }
       }
@@ -104,6 +106,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
         setNotes(prev => {
           const merged = [...prev];
           for (const rem of remote) {
+            if (pendingDeletesRef.current.has(rem.id)) continue;
             const idx = merged.findIndex(n => n.id === rem.id);
             if (idx === -1) merged.push(rem);
             else {
@@ -133,6 +136,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const syncNow = useCallback(async () => {
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
     setSyncStatus("syncing");
     try {
       const remote = await syncFetch<Note & { _updated_at: string }>("notes");
@@ -141,6 +145,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
 
       const merged = [...local];
       for (const rem of remote) {
+        if (pendingDeletesRef.current.has(rem.id)) continue;
         const idx = merged.findIndex(n => n.id === rem.id);
         if (idx === -1) merged.push(rem);
         else {
@@ -168,7 +173,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addNote = useCallback((): string => {
-    const id  = `${Date.now()}`;
+    const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
     const note: Note = { id, title: "", body: "", pinned: false, created_at: now, updated_at: now };
     setNotes(prev => [note, ...prev]);
@@ -182,9 +187,14 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const deleteNote = useCallback((id: string): (() => void) => {
     const deleted = notesRef.current.find(n => n.id === id);
     setNotes(prev => prev.filter(n => n.id !== id));
-    const timer = setTimeout(() => syncDelete("notes", id), 3000);
+    pendingDeletesRef.current.add(id);
+    const timer = setTimeout(() => {
+      syncDelete("notes", id);
+      pendingDeletesRef.current.delete(id);
+    }, 3000);
     return () => {
       clearTimeout(timer);
+      pendingDeletesRef.current.delete(id);
       if (deleted) setNotes(prev => [deleted, ...prev]);
     };
   }, []);
