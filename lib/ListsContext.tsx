@@ -148,12 +148,17 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(loadTimeout);
   }, []);
 
-  // Sync when app comes to foreground
+  // Sync when app comes to foreground (native) or tab becomes visible (web)
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active" && loadedRef.current) syncNow();
-    });
-    return () => sub.remove();
+    if (Platform.OS !== "web") {
+      const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+        if (state === "active" && loadedRef.current) syncNow();
+      });
+      return () => sub.remove();
+    }
+    const onVisibility = () => { if (!document.hidden && loadedRef.current) syncNow(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
