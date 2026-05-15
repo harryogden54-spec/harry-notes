@@ -74,6 +74,7 @@ export function CardPressable({ elevated, variant = "elevated", style, children,
 
   return (
     <Pressable
+      accessibilityRole="button"
       style={({ pressed }) => ({
         ...base,
         backgroundColor: pressed ? colors.bgTertiary : base.backgroundColor,

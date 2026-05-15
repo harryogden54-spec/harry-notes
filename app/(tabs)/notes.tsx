@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, RefreshControl,
@@ -340,7 +341,7 @@ function SectionHeader({ label, count, onAdd, addLabel }: { label: string; count
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export default function NotesScreen() {
+function NotesScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
@@ -630,3 +631,8 @@ export default function NotesScreen() {
     </GradientBackground>
   );
 }
+
+export default function NotesScreenBounded() {
+  return <ErrorBoundary><NotesScreen /></ErrorBoundary>;
+}
+

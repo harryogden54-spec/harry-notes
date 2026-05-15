@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, Pressable,
   Platform, KeyboardAvoidingView, TextInput, RefreshControl,
@@ -130,12 +131,12 @@ function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export default function DashboardScreen() {
+function DashboardScreen() {
   const { colors }             = useTheme();
   const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
   const { showToast }          = useToast();
   const { lists, loaded: listsLoaded } = useLists();
-  const { notes }              = useNotes();
+  const { notes, loaded: notesLoaded } = useNotes();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
   const [search, setSearch]    = useState("");
@@ -278,7 +279,16 @@ export default function DashboardScreen() {
 
   // ─── Notes row ────────────────────────────────────────────────────────────────
 
-  const notesRow = sortedNotes.length > 0 ? (
+  const notesRow = !notesLoaded ? (
+    <View style={{ marginBottom: spacing[6] }}>
+      <SectionHeader label="Notes" />
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+        {[1, 2, 3, 4].map(i => (
+          <Skeleton key={i} width={isWide ? `${(100 - 4.5 * 3) / 4}%` as any : "48%" as any} height={100} borderRadius={12} />
+        ))}
+      </View>
+    </View>
+  ) : sortedNotes.length > 0 ? (
     <View style={{ marginBottom: spacing[6] }}>
       <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: handleGoToNotes }} />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
@@ -335,7 +345,16 @@ export default function DashboardScreen() {
 
   // ─── Post Its preview ─────────────────────────────────────────────────────────
 
-  const postItsRow = sortedPostIts.length > 0 ? (
+  const postItsRow = !notesLoaded ? (
+    <View style={{ marginBottom: spacing[6] }}>
+      <SectionHeader label="Post Its" />
+      <View style={{ flexDirection: "row", gap: spacing[2] }}>
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} width={140} height={72} borderRadius={radius.lg} />
+        ))}
+      </View>
+    </View>
+  ) : sortedPostIts.length > 0 ? (
     <View style={{ marginBottom: spacing[6] }}>
       <SectionHeader label="Post Its" count={sortedPostIts.length} action={{ label: "See all", onPress: handleGoToPostIts }} />
       <ScrollView
@@ -417,8 +436,17 @@ export default function DashboardScreen() {
           <View style={{ marginBottom: spacing[6] }}>{todayCard}</View>
         </>
       )}
-      {notesRow}
-      {postItsRow}
+      {isWide ? (
+        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[6], alignItems: "flex-start" }}>
+          <View style={{ flex: 2 }}>{notesRow}</View>
+          <View style={{ flex: 1 }}>{postItsRow}</View>
+        </View>
+      ) : (
+        <>
+          {notesRow}
+          {postItsRow}
+        </>
+      )}
       {listsShelf}
     </>
   );
@@ -461,3 +489,8 @@ export default function DashboardScreen() {
     </GradientBackground>
   );
 }
+
+export default function DashboardScreenBounded() {
+  return <ErrorBoundary><DashboardScreen /></ErrorBoundary>;
+}
+

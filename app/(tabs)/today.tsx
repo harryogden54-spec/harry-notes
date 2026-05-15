@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, SafeAreaView, ScrollView, TextInput, Pressable,
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
@@ -38,7 +39,7 @@ function getYesterdayKey() {
   return `today_items_${d.toISOString().slice(0, 10)}`;
 }
 
-export default function TodayScreen() {
+function TodayScreen() {
   const { colors } = useTheme();
   const { tasks } = useTasks();
   const [items, setItems]             = useState<TodayItem[]>([]);
@@ -426,3 +427,8 @@ function CompletedRow({ item, onToggle, onDelete, isLast }: {
     </View>
   );
 }
+
+export default function TodayScreenBounded() {
+  return <ErrorBoundary><TodayScreen /></ErrorBoundary>;
+}
+

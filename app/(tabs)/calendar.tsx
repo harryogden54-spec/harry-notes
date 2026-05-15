@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { View, ScrollView, SafeAreaView, Pressable, Modal, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { Text, GradientBackground, Surface, DatePicker } from "@/components/ui";
+import { Text, GradientBackground, Surface, DatePicker, TaskRow, SectionHeader } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks } from "@/lib/TasksContext";
@@ -237,7 +238,7 @@ function WeekView({
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export default function CalendarScreen() {
+function CalendarScreen() {
   const { colors } = useTheme();
   const { tasks } = useTasks();
   const today = getTodayStr();
@@ -415,12 +416,12 @@ export default function CalendarScreen() {
             )}
           </Surface>
 
-          {/* Selected day task list */}
+          {/* Selected day task list — priority grouped */}
           {selectedDate && (
-            <View>
+            <View style={{ gap: spacing[3] }}>
               <Text size="xs" weight="semibold" style={{
                 textTransform: "uppercase", letterSpacing: 1.2,
-                color: colors.textSecondary, fontSize: 11, marginBottom: spacing[2],
+                color: colors.textSecondary, fontSize: 11,
               }}>
                 {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
               </Text>
@@ -428,27 +429,40 @@ export default function CalendarScreen() {
                 <Surface style={{ padding: spacing[4], alignItems: "center" }}>
                   <Text size="sm" secondary>No tasks on this day.</Text>
                 </Surface>
-              ) : (
-                <Surface style={{ padding: 0, overflow: "hidden" }}>
-                  {selectedTasks.map((task, i) => (
-                    <View
-                      key={task.id}
-                      style={{
-                        flexDirection: "row", alignItems: "center", gap: spacing[3],
-                        paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-                        borderBottomWidth: i < selectedTasks.length - 1 ? 1 : 0,
-                        borderBottomColor: colors.bgBorder,
-                      }}
-                    >
-                      <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: task.done ? colors.textTertiary : colors.accent }} />
-                      <Text size="sm" style={{ flex: 1, color: task.done ? colors.textTertiary : colors.textPrimary, textDecorationLine: task.done ? "line-through" : "none" }}>
-                        {task.title}
-                      </Text>
-                      {task.done && <Text size="xs" secondary>Done</Text>}
-                    </View>
-                  ))}
-                </Surface>
-              )}
+              ) : (() => {
+                const PRIORITY_ORDER = ["urgent", "high", "medium", "low", null] as const;
+                const PRIORITY_LABELS: Record<string, string> = {
+                  urgent: "Urgent", high: "High", medium: "Medium", low: "Low",
+                };
+                const grouped = PRIORITY_ORDER
+                  .map(p => ({
+                    priority: p,
+                    tasks: selectedTasks.filter(t => (t.priority ?? null) === p),
+                  }))
+                  .filter(g => g.tasks.length > 0);
+
+                return (
+                  <View style={{ gap: spacing[3] }}>
+                    {grouped.map(({ priority, tasks: groupTasks }) => (
+                      <View key={priority ?? "none"}>
+                        <SectionHeader
+                          label={priority ? PRIORITY_LABELS[priority] : "No priority"}
+                          count={groupTasks.length}
+                        />
+                        <Surface style={{ overflow: "hidden", padding: 0 }}>
+                          {groupTasks.map(task => (
+                            <TaskRow
+                              key={task.id}
+                              task={task}
+                              onPress={() => {}}
+                            />
+                          ))}
+                        </Surface>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
             </View>
           )}
         </ScrollView>
@@ -456,3 +470,8 @@ export default function CalendarScreen() {
     </GradientBackground>
   );
 }
+
+export default function CalendarScreenBounded() {
+  return <ErrorBoundary><CalendarScreen /></ErrorBoundary>;
+}
+

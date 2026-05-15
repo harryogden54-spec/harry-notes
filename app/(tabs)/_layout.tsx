@@ -770,6 +770,32 @@ export default function TabLayout() {
         <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
         {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
         <GlobalSearchModal visible={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
+
+        {/* Shortcut hint chip — bottom-left, desktop only */}
+        {!showShortcuts && (
+          <Pressable
+            onPress={() => setShowShortcuts(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Show keyboard shortcuts"
+            style={{
+              // @ts-ignore — web-only
+              position: "fixed",
+              bottom: 16,
+              left: 16,
+              backgroundColor: colors.bgTertiary,
+              borderRadius: 99,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              borderWidth: 1,
+              borderColor: colors.bgBorder,
+              zIndex: 50,
+            } as any}
+          >
+            <Text style={{ fontSize: 11, fontFamily: fontFamily.regular, color: colors.textTertiary }}>
+              ? for shortcuts
+            </Text>
+          </Pressable>
+        )}
       </View>
     );
   }
