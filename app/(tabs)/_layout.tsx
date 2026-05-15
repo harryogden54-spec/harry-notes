@@ -329,7 +329,7 @@ function Sidebar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggle
                     paddingVertical: spacing[2],
                     borderRadius: radius.md,
                     justifyContent: collapsed ? "center" : "flex-start",
-                    backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
+                    backgroundColor: active ? `${colors.accent}0A` : hovered ? `${colors.accent}10` : "transparent",
                   }}
                 >
                   <ActiveBar active={active} accent={colors.accent} />

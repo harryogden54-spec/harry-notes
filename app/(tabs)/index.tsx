@@ -10,7 +10,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
@@ -86,23 +86,34 @@ function TodayPanel() {
   }
 
   return (
-    <View style={{ overflow: "hidden" }}>
-      {active.map((item, i) => (
+    <View style={{ gap: spacing[1] }}>
+      {active.map((item) => (
         <View key={item.id} style={{
           flexDirection: "row", alignItems: "center", gap: spacing[2.5],
-          paddingVertical: spacing[2],
-          borderBottomWidth: i === active.length - 1 && completed.length === 0 ? 0 : 1,
-          borderBottomColor: colors.bgBorder,
+          paddingVertical: spacing[1.5],
         }}>
-          <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: colors.bgBorder }} />
-          <Text size="sm" style={{ flex: 1 }} numberOfLines={1}>{item.text}</Text>
+          <View style={{
+            width: 16, height: 16, borderRadius: 4,
+            borderWidth: 1.5, borderColor: colors.bgBorder,
+            backgroundColor: "transparent",
+          }} />
+          <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.text}</Text>
         </View>
       ))}
-      {completed.length > 0 && (
-        <View style={{ paddingTop: spacing[2] }}>
-          <Text size="xs" style={{ color: colors.textTertiary }}>{completed.length} completed</Text>
+      {completed.map((item) => (
+        <View key={item.id} style={{
+          flexDirection: "row", alignItems: "center", gap: spacing[2.5],
+          paddingVertical: spacing[1.5],
+          opacity: 0.45,
+        }}>
+          <View style={{
+            width: 16, height: 16, borderRadius: 4,
+            borderWidth: 1.5, borderColor: colors.accent,
+            backgroundColor: colors.accent,
+          }} />
+          <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.text}</Text>
         </View>
-      )}
+      ))}
     </View>
   );
 }
@@ -187,10 +198,12 @@ function DashboardScreen() {
   // ─── Header ───────────────────────────────────────────────────────────────────
 
   const header = (
-    <View style={{ paddingTop: spacing[8], paddingBottom: spacing[4], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+    <View style={{ paddingTop: spacing[8], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
       <View style={{ flex: 1 }}>
-        <Text size="2xl" weight="bold">{mounted ? greeting() : "Good morning"}</Text>
-        <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
+        <Text style={{ fontSize: 32, fontFamily: fontFamily.bold, letterSpacing: -1.2, color: colors.textPrimary, lineHeight: 36 }}>
+          {mounted ? greeting() : "Good morning"}
+        </Text>
+        <Text size="sm" secondary style={{ marginTop: spacing[1] }}>
           {now ? formatHeaderDate(now) : ""}
         </Text>
       </View>
@@ -206,18 +219,19 @@ function DashboardScreen() {
     <Pressable
       onPress={() => router.push("/(tabs)/tasks?filter=overdue" as any)}
       style={{
-        flexDirection: "row", alignItems: "center", gap: spacing[2],
-        backgroundColor: `${colors.danger}14`, borderRadius: radius.lg,
-        borderWidth: 1, borderColor: `${colors.danger}35`,
-        paddingHorizontal: spacing[3], paddingVertical: spacing[2.5],
+        flexDirection: "row", alignItems: "center", gap: spacing[1.5],
+        alignSelf: "flex-start",
+        backgroundColor: `${colors.danger}14`, borderRadius: 99,
+        borderWidth: 1, borderColor: `${colors.danger}30`,
+        paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
         marginBottom: spacing[4],
       }}
     >
-      <Ionicons name="warning-outline" size={15} color={colors.danger} />
-      <Text size="sm" weight="medium" style={{ color: colors.danger, flex: 1 }}>
-        {overdueCount} overdue task{overdueCount !== 1 ? "s" : ""}
+      <Ionicons name="warning-outline" size={12} color={colors.danger} />
+      <Text style={{ fontSize: 12, fontFamily: fontFamily.medium, color: colors.danger }}>
+        {overdueCount} overdue
       </Text>
-      <Text size="xs" style={{ color: colors.danger }}>View →</Text>
+      <Text style={{ fontSize: 11, color: colors.danger, opacity: 0.7 }}>→</Text>
     </Pressable>
   ) : null;
 
@@ -290,7 +304,7 @@ function DashboardScreen() {
     </View>
   ) : sortedNotes.length > 0 ? (
     <View style={{ marginBottom: spacing[6] }}>
-      <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: handleGoToNotes }} />
+      <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "See all", onPress: handleGoToNotes }} />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
           const pi = getPastelIndex(note.id);
@@ -436,17 +450,8 @@ function DashboardScreen() {
           <View style={{ marginBottom: spacing[6] }}>{todayCard}</View>
         </>
       )}
-      {isWide ? (
-        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[6], alignItems: "flex-start" }}>
-          <View style={{ flex: 2 }}>{notesRow}</View>
-          <View style={{ flex: 1 }}>{postItsRow}</View>
-        </View>
-      ) : (
-        <>
-          {notesRow}
-          {postItsRow}
-        </>
-      )}
+      {postItsRow}
+      {notesRow}
       {listsShelf}
     </>
   );
@@ -471,7 +476,7 @@ function DashboardScreen() {
         >
           <View style={outerPadding as any}>
             {header}
-            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes… (/)" inputRef={searchRef} />
+            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes…" inputRef={searchRef} shortcutKey="/" />
 
             {search.trim() ? (
               <View style={{ marginTop: spacing[3] }}>

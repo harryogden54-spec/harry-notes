@@ -2,7 +2,7 @@ import React from "react";
 import { View, Pressable } from "react-native";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, fontFamily } from "@/lib/theme";
+import { spacing, fontFamily, radius } from "@/lib/theme";
 
 interface Props {
   label: string;
@@ -14,22 +14,38 @@ interface Props {
 export function SectionHeader({ label, count, subtitle, action }: Props) {
   const { colors } = useTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: spacing[3] }}>
+    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
       <Text style={{
-        fontSize: 17, fontFamily: fontFamily.semibold,
-        color: colors.textPrimary, flex: 1, letterSpacing: -0.3,
+        fontSize: 13,
+        fontFamily: fontFamily.semibold,
+        color: colors.textSecondary,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
       }}>
         {label}
-        {count !== undefined ? (
-          <Text style={{ fontSize: 15, fontFamily: fontFamily.regular, color: colors.textTertiary }}>
-            {" "}{count}
-          </Text>
-        ) : null}
       </Text>
-      {subtitle && <Text size="xs" secondary>{subtitle}</Text>}
+      {count !== undefined && (
+        <View style={{
+          backgroundColor: colors.bgTertiary,
+          borderRadius: 99,
+          paddingHorizontal: 6,
+          paddingVertical: 1,
+          marginLeft: spacing[1.5],
+          borderWidth: 1,
+          borderColor: colors.bgBorder,
+        }}>
+          <Text style={{ fontSize: 10, fontFamily: fontFamily.medium, color: colors.textTertiary }}>{count}</Text>
+        </View>
+      )}
+      {subtitle && (
+        <Text size="xs" secondary style={{ marginLeft: spacing[2] }}>{subtitle}</Text>
+      )}
+      <View style={{ flex: 1 }} />
       {action && (
         <Pressable onPress={action.onPress} hitSlop={8}>
-          <Text size="sm" style={{ color: colors.accent, fontFamily: fontFamily.medium }}>{action.label}</Text>
+          <Text style={{ fontSize: 12, color: colors.accent, fontFamily: fontFamily.medium }}>
+            {action.label}
+          </Text>
         </Pressable>
       )}
     </View>

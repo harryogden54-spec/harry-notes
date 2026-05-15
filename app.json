@@ -30,9 +30,10 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png",
+      "favicon": "./assets/images/icon.png",
+      "icon": "./assets/images/icon.png",
       "name": "harry notes",
-      "shortName": "harry notes",
+      "shortName": "harry.",
       "description": "Personal productivity — tasks, lists, and notes",
       "backgroundColor": "#0D0D0D",
       "themeColor": "#0D0D0D"
