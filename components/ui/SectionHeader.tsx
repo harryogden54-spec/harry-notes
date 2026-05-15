@@ -14,18 +14,22 @@ interface Props {
 export function SectionHeader({ label, count, subtitle, action }: Props) {
   const { colors } = useTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
+    <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: spacing[3] }}>
       <Text style={{
-        fontSize: 10, letterSpacing: 1.5,
-        color: colors.textTertiary, fontFamily: fontFamily.semibold,
-        textTransform: "uppercase", flex: 1,
+        fontSize: 17, fontFamily: fontFamily.semibold,
+        color: colors.textPrimary, flex: 1, letterSpacing: -0.3,
       }}>
-        {label}{count !== undefined ? ` · ${count}` : ""}
+        {label}
+        {count !== undefined ? (
+          <Text style={{ fontSize: 15, fontFamily: fontFamily.regular, color: colors.textTertiary }}>
+            {" "}{count}
+          </Text>
+        ) : null}
       </Text>
       {subtitle && <Text size="xs" secondary>{subtitle}</Text>}
       {action && (
         <Pressable onPress={action.onPress} hitSlop={8}>
-          <Text size="xs" style={{ color: colors.accent }}>{action.label}</Text>
+          <Text size="sm" style={{ color: colors.accent, fontFamily: fontFamily.medium }}>{action.label}</Text>
         </Pressable>
       )}
     </View>

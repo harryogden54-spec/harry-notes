@@ -357,10 +357,6 @@ export function ListIndexRow({ list, isSelected, onSelect }: {
   const { colors } = useTheme();
   const color = list.color ?? LIST_COLORS[0];
   const items = list.items ?? [];
-  const checkboxItems = items.filter(i => i.type === "checkbox");
-  const done  = checkboxItems.filter(i => i.done).length;
-  const total = checkboxItems.length;
-
   return (
     <Pressable
       onPress={onSelect}
@@ -382,7 +378,6 @@ export function ListIndexRow({ list, isSelected, onSelect }: {
         </View>
         <Text size="xs" secondary numberOfLines={1}>
           {items.length} item{items.length !== 1 ? "s" : ""}
-          {total > 0 ? ` · ${done}/${total} done` : ""}
         </Text>
       </View>
     </Pressable>
@@ -518,10 +513,6 @@ export function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   const activeItems = items.filter(i => !i.done);
   const doneItems   = items.filter(i => i.done);
 
-  const checkboxItems = items.filter(i => i.type === "checkbox");
-  const done  = checkboxItems.filter(i => i.done).length;
-  const total = checkboxItems.length;
-
   function saveName() {
     const v = nameVal.trim();
     if (v) updateList(list.id, { name: v });
@@ -552,7 +543,6 @@ export function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
           {items.length > 0 && (
             <Text size="xs" secondary>
               {items.length} item{items.length !== 1 ? "s" : ""}
-              {total > 0 ? ` · ${done}/${total} done` : ""}
             </Text>
           )}
         </View>

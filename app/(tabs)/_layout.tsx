@@ -847,13 +847,14 @@ export default function TabLayout() {
           tabBarActiveTintColor:   colors.accent,
           tabBarInactiveTintColor: colors.textTertiary,
           tabBarStyle: {
-            backgroundColor: colors.bgPrimary,
+            backgroundColor: colors.bgSecondary,
             borderTopColor:  colors.bgBorder,
             borderTopWidth:  1,
-            height: Platform.OS === "ios" ? 84 : 64,
-            paddingBottom: Platform.OS === "ios" ? 24 : 8,
-          },
-          tabBarLabelStyle: { fontSize: 10, fontFamily: fontFamily.medium, marginTop: -2 },
+            height: Platform.OS === "ios" ? 88 : 68,
+            paddingBottom: Platform.OS === "ios" ? 28 : 10,
+            paddingTop: Platform.OS === "ios" ? 8 : 6,
+          } as any,
+          tabBarLabelStyle: { fontSize: 10, fontFamily: fontFamily.medium, marginTop: 2 },
           headerShown: false,
         }}
       >

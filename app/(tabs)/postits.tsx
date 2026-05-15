@@ -57,18 +57,18 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
       onLongPress={() => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
       style={{
         backgroundColor: PASTELS[idx],
-        borderRadius: radius.lg,
+        borderRadius: radius["2xl"],
         borderWidth: 1,
         borderColor: PASTEL_BORDERS[idx],
-        padding: spacing[3],
-        minHeight: 72,
+        borderTopColor: `rgba(255,255,255,0.55)`,
+        padding: spacing[4],
+        minHeight: 96,
         justifyContent: "center",
-        // shadow for lifted feel
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.09,
+        shadowRadius: 8,
+        elevation: 3,
       }}
     >
       {editing ? (
