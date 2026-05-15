@@ -436,8 +436,8 @@ function DashboardScreen() {
         </>
       )}
       {postItsRow}
-      {notesRow}
       {listsShelf}
+      {notesRow}
     </>
   );
 

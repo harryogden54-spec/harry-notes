@@ -57,11 +57,14 @@ function TodayScreen() {
   const todayKey     = getTodayKey();
   const yesterdayKey = getYesterdayKey();
 
-  // Load persisted items + check carryover
+  // Load persisted items + check carryover (only show once per day)
   useEffect(() => {
     (async () => {
       const saved = await storage.get<TodayItem[]>(todayKey);
       if (saved) setItems(saved);
+
+      const alreadySeen = await storage.get<boolean>(`carryover_seen_${yesterdayKey}`);
+      if (alreadySeen) return;
 
       const yesterday = await storage.get<TodayItem[]>(yesterdayKey);
       const incomplete = (yesterday ?? []).filter(i => !i.done);
@@ -125,9 +128,15 @@ function TodayScreen() {
     setItems(prev => prev.filter(i => i.id !== id));
   }, []);
 
+  function dismissCarryover() {
+    storage.set(`carryover_seen_${yesterdayKey}`, true);
+    setShowCarryover(false);
+  }
+
   function acceptCarryover() {
     const fresh = carryover.map(i => ({ ...i, id: `co_${Date.now()}_${i.id}`, done: false }));
     setItems(prev => [...fresh, ...prev]);
+    storage.set(`carryover_seen_${yesterdayKey}`, true);
     setShowCarryover(false);
     setCarryover([]);
   }
@@ -199,7 +208,7 @@ function TodayScreen() {
                 )}
                 <View style={{ flexDirection: "row", gap: spacing[2] }}>
                   <Pressable
-                    onPress={() => setShowCarryover(false)}
+                    onPress={dismissCarryover}
                     style={{ flex: 1, paddingVertical: spacing[3], borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder, alignItems: "center" }}
                   >
                     <Text size="sm" secondary weight="medium">Dismiss</Text>
