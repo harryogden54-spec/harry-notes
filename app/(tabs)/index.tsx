@@ -74,13 +74,12 @@ function TodayPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const active    = items.filter(i => !i.done);
-  const completed = items.filter(i => i.done);
+  const active = items.filter(i => !i.done);
 
-  if (items.length === 0) {
+  if (active.length === 0) {
     return (
       <View style={{ paddingVertical: spacing[3] }}>
-        <Text size="sm" secondary>Nothing added to today yet.</Text>
+        <Text size="sm" secondary>Nothing left for today.</Text>
       </View>
     );
   }
@@ -96,20 +95,6 @@ function TodayPanel() {
             width: 16, height: 16, borderRadius: 4,
             borderWidth: 1.5, borderColor: colors.bgBorder,
             backgroundColor: "transparent",
-          }} />
-          <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.text}</Text>
-        </View>
-      ))}
-      {completed.map((item) => (
-        <View key={item.id} style={{
-          flexDirection: "row", alignItems: "center", gap: spacing[2.5],
-          paddingVertical: spacing[1.5],
-          opacity: 0.45,
-        }}>
-          <View style={{
-            width: 16, height: 16, borderRadius: 4,
-            borderWidth: 1.5, borderColor: colors.accent,
-            backgroundColor: colors.accent,
           }} />
           <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.text}</Text>
         </View>
@@ -285,9 +270,9 @@ function DashboardScreen() {
   const todayCard = (
     <View style={{ flex: 1 }}>
       <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
-      <GlassCard style={{ padding: spacing[4], flex: 1 }}>
+      <View style={{ paddingVertical: spacing[1], flex: 1 }}>
         <TodayPanel />
-      </GlassCard>
+      </View>
     </View>
   );
 
