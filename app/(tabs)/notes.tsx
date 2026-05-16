@@ -8,7 +8,7 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useNotes, type Note } from "@/lib/NotesContext";
 import { useLists } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
@@ -75,17 +75,6 @@ function MarkdownView({ body, colors }: { body: string; colors: ReturnType<typeo
     else nodes.push(<Text key={key} style={{ color: colors.textSecondary, fontSize: 15, lineHeight: 24 }}>{renderInline(line, colors)}</Text>);
   }
   return <View style={{ gap: 0 }}>{nodes}</View>;
-}
-
-// Pastel palette — intentional design constants, not semantic colors
-const NOTE_PASTELS = ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"] as const;
-const NOTE_PASTEL_BORDERS = ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"] as const;
-const NOTE_PASTEL_TEXT = "#1A1A2E";
-
-function getPastelIndex(noteId: string): number {
-  let hash = 0;
-  for (let i = 0; i < noteId.length; i++) hash = (hash * 31 + noteId.charCodeAt(i)) >>> 0;
-  return hash % NOTE_PASTELS.length;
 }
 
 function animate() {
@@ -283,7 +272,7 @@ function NoteEditor({ note, onClose, showBackButton = true }: { note: Note; onCl
 
 function NoteIndexRow({ note, isSelected, onSelect }: { note: Note; isSelected: boolean; onSelect: () => void }) {
   const { colors } = useTheme();
-  const accentColor = NOTE_PASTELS[getPastelIndex(note.id)];
+  const accentColor = notePastels.bg[getNotePastelIndex(note.id)];
   const preview = stripMarkdown(note.body.trim()).slice(0, 120);
   return (
     <Pressable onPress={onSelect} style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: isSelected ? colors.bgTertiary : "transparent", borderLeftWidth: 2, borderLeftColor: isSelected ? accentColor : "transparent", gap: spacing[0.5] }}>
@@ -303,19 +292,19 @@ function NoteIndexRow({ note, isSelected, onSelect }: { note: Note; isSelected: 
 
 function NoteCard({ note, onOpen }: { note: Note; onOpen: () => void }) {
   const { pinNote } = useNotes();
-  const idx = getPastelIndex(note.id);
+  const idx = getNotePastelIndex(note.id);
   const preview = stripMarkdown(note.body.trim());
   return (
     <Pressable onPress={onOpen} onLongPress={() => { pinNote(note.id); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }} style={{ flex: 1 }}>
-      <View style={{ backgroundColor: NOTE_PASTELS[idx], borderRadius: 12, borderWidth: 1, borderColor: NOTE_PASTEL_BORDERS[idx], padding: spacing[3], gap: spacing[1], minHeight: 90 }}>
+      <View style={{ backgroundColor: notePastels.bg[idx], borderRadius: 12, borderWidth: 1, borderColor: notePastels.border[idx], padding: spacing[3], gap: spacing[1], minHeight: 90 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-          {note.pinned && <Text size="xs" style={{ color: NOTE_PASTEL_TEXT }}>📌</Text>}
-          <Text size="xs" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? NOTE_PASTEL_TEXT : `${NOTE_PASTEL_TEXT}80` }}>
+          {note.pinned && <Text size="xs" style={{ color: notePastels.text }}>📌</Text>}
+          <Text size="xs" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? notePastels.text : `${notePastels.text}80` }}>
             {note.title || "Untitled"}
           </Text>
         </View>
-        {preview ? <Text size="xs" numberOfLines={3} style={{ color: `${NOTE_PASTEL_TEXT}CC`, lineHeight: 17 }}>{preview}</Text> : null}
-        <Text size="xs" style={{ color: `${NOTE_PASTEL_TEXT}60`, marginTop: "auto" as any, fontSize: 10 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+        {preview ? <Text size="xs" numberOfLines={3} style={{ color: `${notePastels.text}CC`, lineHeight: 17 }}>{preview}</Text> : null}
+        <Text size="xs" style={{ color: `${notePastels.text}60`, marginTop: "auto" as any, fontSize: 10 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
       </View>
     </Pressable>
   );

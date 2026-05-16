@@ -1,57 +1,123 @@
 import React, { useState } from "react";
-import { View, ScrollView, SafeAreaView, Pressable, Switch, Platform, Alert } from "react-native";
+import {
+  View, ScrollView, SafeAreaView, Pressable,
+  Platform, Alert, Switch,
+} from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { useThemeContext, type BgStyle } from "@/lib/ThemeContext";
-import { ACCENT_OPTIONS, THEMES, type ThemeId } from "@/lib/theme";
+import { useThemeContext } from "@/lib/ThemeContext";
+import { THEMES } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
-import { Text, Divider } from "@/components/ui";
-import { Ionicons } from "@expo/vector-icons";
+import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 
-const STATUS_LABEL: Record<string, string> = {
-  idle: "Not synced yet", syncing: "Syncing…", synced: "Up to date", error: "Sync error",
-};
-const STATUS_COLOR: Record<string, string> = {
-  idle: "#9A9A9A", syncing: "#E8C84A", synced: "#3DD68C", error: "#F26464",
-};
+// ─── Shared row primitives ────────────────────────────────────────────────────
 
-function SettingRow({ label, subtitle, right }: { label: string; subtitle?: string; right?: React.ReactNode }) {
+function SectionLabel({ children }: { children: string }) {
+  const { colors } = useTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: spacing[3], paddingHorizontal: spacing[4], gap: spacing[4] }}>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text size="sm" weight="medium">{label}</Text>
-        {subtitle && <Text size="xs" secondary>{subtitle}</Text>}
-      </View>
-      {right}
+    <Text size="xs" weight="semibold" style={{
+      textTransform: "uppercase", letterSpacing: 1.2,
+      color: colors.textTertiary,
+      paddingHorizontal: spacing[1],
+      marginBottom: spacing[1.5], marginTop: spacing[1],
+    }}>
+      {children}
+    </Text>
+  );
+}
+
+function RowGroup({ children }: { children: React.ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{
+      backgroundColor: colors.bgSecondary,
+      borderRadius: radius.xl,
+      borderWidth: 1, borderColor: colors.bgBorder,
+      overflow: "hidden",
+      marginBottom: spacing[5],
+    }}>
+      {children}
     </View>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Row({
+  icon, label, subtitle, right, onPress, chevron = false, danger = false, isLast = false,
+}: {
+  icon?: string;
+  label: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+  onPress?: () => void;
+  chevron?: boolean;
+  danger?: boolean;
+  isLast?: boolean;
+}) {
   const { colors } = useTheme();
-  return (
-    <View style={{ marginBottom: spacing[6] }}>
-      <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[2] }}>
-        {title}
-      </Text>
-      <View style={{ backgroundColor: colors.bgSecondary, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder, overflow: "hidden" }}>
-        {children}
+  const content = (
+    <View style={{
+      flexDirection: "row", alignItems: "center",
+      paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+      gap: spacing[3],
+      borderBottomWidth: isLast ? 0 : 1,
+      borderBottomColor: colors.bgBorder,
+    }}>
+      {icon && (
+        <View style={{
+          width: 30, height: 30, borderRadius: radius.md,
+          backgroundColor: `${colors.accent}18`,
+          alignItems: "center", justifyContent: "center",
+        }}>
+          <Text style={{ fontSize: 15 }}>{icon}</Text>
+        </View>
+      )}
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text size="sm" weight="medium" style={{ color: danger ? colors.danger : colors.textPrimary }}>
+          {label}
+        </Text>
+        {subtitle && (
+          <Text size="xs" style={{ color: colors.textTertiary }}>{subtitle}</Text>
+        )}
       </View>
+      {right}
+      {chevron && (
+        <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+      )}
     </View>
   );
+
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+        {content}
+      </Pressable>
+    );
+  }
+  return content;
 }
 
 function SyncDot({ status }: { status: string }) {
-  const color = STATUS_COLOR[status] ?? STATUS_COLOR.idle;
+  const { colors } = useTheme();
+  const statusColor: Record<string, string> = {
+    idle:    colors.textSecondary,
+    syncing: colors.warning,
+    synced:  colors.success,
+    error:   colors.danger,
+  };
+  const label: Record<string, string> = {
+    idle: "Not synced yet", syncing: "Syncing…", synced: "Up to date", error: "Sync error",
+  };
+  const color = statusColor[status] ?? statusColor.idle;
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
       <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: color }} />
-      <Text size="xs" style={{ color }}>{STATUS_LABEL[status] ?? status}</Text>
+      <Text size="xs" style={{ color }}>{label[status] ?? status}</Text>
     </View>
   );
 }
@@ -59,112 +125,17 @@ function SyncDot({ status }: { status: string }) {
 function formatRelativeTime(iso: string | null): string {
   if (!iso) return "Never";
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000)  return "Just now";
+  if (diff < 60_000)    return "Just now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-// ─── Layer picker (reusable row of options) ────────────────────────────────────
-
-function LayerPicker<T extends string>({
-  options, value, onChange,
-}: {
-  options: { id: T; label: string; icon: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ flexDirection: "row", gap: spacing[2], flexWrap: "wrap" }}>
-      {options.map(opt => {
-        const active = value === opt.id;
-        return (
-          <Pressable
-            key={opt.id}
-            onPress={() => onChange(opt.id)}
-            style={{
-              flexDirection: "row", alignItems: "center", gap: spacing[1.5],
-              paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-              borderRadius: radius.lg, borderWidth: active ? 2 : 1,
-              borderColor: active ? colors.accent : colors.bgBorder,
-              backgroundColor: active ? `${colors.accent}14` : colors.bgTertiary,
-            }}
-          >
-            <Text style={{ fontSize: 14 }}>{opt.icon}</Text>
-            <Text size="xs" weight={active ? "semibold" : "regular"}
-              style={{ color: active ? colors.accent : colors.textSecondary }}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── Live mini-preview ─────────────────────────────────────────────────────────
-
-function ThemePreview({
-  themeId, scheme, bgStyle,
-}: {
-  themeId: ThemeId;
-  scheme: "dark" | "light";
-  bgStyle: BgStyle;
-}) {
-  const def    = THEMES[themeId];
-  const tokens = scheme === "dark" ? def.dark : def.light;
-  const accent = tokens.accent;
-
-  const cardBg = bgStyle === "blur"
-    ? `${tokens.bgSecondary}CC`
-    : tokens.bgSecondary;
-
-  return (
-    <View style={{
-      width: 120, height: 80,
-      borderRadius: 10, overflow: "hidden",
-      borderWidth: 1, borderColor: tokens.bgBorder,
-      backgroundColor: tokens.bgPrimary,
-    }}>
-      {/* Gradient tint */}
-      {bgStyle === "gradient" && (
-        <View style={{
-          position: "absolute", inset: 0,
-          // @ts-ignore web-only
-          ...(Platform.OS === "web" ? { background: `linear-gradient(135deg, ${accent}18 0%, ${tokens.bgPrimary} 60%)` } : { backgroundColor: `${accent}12` }),
-        } as any} />
-      )}
-
-      {/* Simulated card */}
-      <View style={{
-        position: "absolute", top: 10, left: 10, right: 10, bottom: 10,
-        borderRadius: 6, backgroundColor: cardBg,
-        borderWidth: 1, borderColor: tokens.bgBorder,
-        padding: 6, gap: 4,
-        // @ts-ignore
-        ...(bgStyle === "blur" && Platform.OS === "web" ? { backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" } : {}),
-      }}>
-        {/* Simulated text lines */}
-        <View style={{ height: 4, width: "70%", borderRadius: 99, backgroundColor: tokens.textPrimary, opacity: 0.5 }} />
-        <View style={{ height: 3, width: "50%", borderRadius: 99, backgroundColor: tokens.textSecondary, opacity: 0.35 }} />
-        {/* Accent dot */}
-        <View style={{ height: 4, width: 4, borderRadius: 99, backgroundColor: accent, marginTop: 2 }} />
-      </View>
-
-      {/* Colour palette strip at bottom */}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, flexDirection: "row" }}>
-        <View style={{ flex: 1, backgroundColor: tokens.bgPrimary }} />
-        <View style={{ flex: 1, backgroundColor: tokens.bgSecondary }} />
-        <View style={{ flex: 1, backgroundColor: accent }} />
-      </View>
-    </View>
-  );
-}
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const { colors }                   = useTheme();
-  const { scheme, toggle, accentId, setAccentId, themeId, setThemeId, bgStyle, setBgStyle } = useThemeContext();
+  const { colors }     = useTheme();
+  const { scheme, toggle, themeId } = useThemeContext();
   const { syncStatus: taskSync, syncNow: syncTasks, tasks, clearCompleted, lastSynced: taskLastSynced } = useTasks();
   const { syncStatus: listSync, syncNow: syncLists, lists, lastSynced: listLastSynced } = useLists();
   const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
@@ -172,31 +143,32 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [clearing, setClearing] = useState(false);
 
+  const overallSync = taskSync === "error" || listSync === "error" || noteSync === "error" ? "error"
+    : taskSync === "syncing" || listSync === "syncing" || noteSync === "syncing" ? "syncing"
+    : taskSync === "synced" && listSync === "synced" && noteSync === "synced" ? "synced"
+    : "idle";
+
+  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced].filter(Boolean) as string[];
+  const lastSynced   = allSyncTimes.length > 0
+    ? new Date(Math.max(...allSyncTimes.map(t => new Date(t).getTime()))).toISOString()
+    : null;
+
+  const completedCount = tasks.filter(t => t.done).length;
+  const currentTheme   = THEMES[themeId];
+
   async function handleSyncNow() {
     await Promise.all([syncTasks(), syncLists(), syncNotes()]);
     showToast("Synced successfully");
   }
 
-  const overallSync = taskSync === "error" || listSync === "error" || noteSync === "error" ? "error"
-    : taskSync === "syncing" || listSync === "syncing" || noteSync === "syncing" ? "syncing"
-    : taskSync === "synced"  && listSync === "synced"  && noteSync === "synced"  ? "synced"
-    : "idle";
-
-  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced].filter(Boolean) as string[];
-  const lastSynced = allSyncTimes.length > 0
-    ? new Date(Math.max(...allSyncTimes.map(t => new Date(t).getTime()))).toISOString()
-    : null;
-
-  const completedCount = tasks.filter(t => t.done).length;
-
   function handleClearCompleted() {
     if (completedCount === 0) { showToast("No completed tasks to clear"); return; }
     if (Platform.OS === "web") {
-      // Web doesn't have Alert — use toast confirmation flow
       if (!clearing) {
         setClearing(true);
         showToast(`Clear ${completedCount} completed task${completedCount !== 1 ? "s" : ""}?`, {
-          label: "Confirm", onPress: () => { clearCompleted(); setClearing(false); showToast("Cleared completed tasks"); },
+          label: "Confirm",
+          onPress: () => { clearCompleted(); setClearing(false); showToast("Cleared completed tasks"); },
         });
         setTimeout(() => setClearing(false), 4000);
       }
@@ -213,9 +185,8 @@ export default function SettingsScreen() {
   }
 
   function handleExport() {
-    const data = { exportedAt: new Date().toISOString(), tasks, lists };
+    const data = { exportedAt: new Date().toISOString(), tasks, lists, notes };
     const json  = JSON.stringify(data, null, 2);
-
     if (Platform.OS === "web") {
       const blob = new Blob([json], { type: "application/json" });
       const url  = URL.createObjectURL(blob);
@@ -231,219 +202,103 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      <ScrollView contentContainerStyle={{ padding: spacing[4], paddingTop: spacing[4], ...webContentStyle }}>
+    <GradientBackground>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={[{ padding: spacing[4], paddingBottom: spacing[16] }, webContentStyle]}>
 
-        {/* Header — matches tab page header style */}
-        <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginBottom: spacing[2], flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" }}>
-            <Ionicons name="chevron-back" size={16} color={colors.accent} />
-            <Text size="sm" style={{ color: colors.accent }}>Back</Text>
-          </Pressable>
-          <Text size="2xl" weight="bold">Settings</Text>
-        </View>
-
-        {/* ── Theme picker ─────────────────────────────────────────────────── */}
-        <View style={{ marginBottom: spacing[6] }}>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
-            Theme
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3], paddingHorizontal: spacing[4] }}>
-            {(Object.entries(THEMES) as [ThemeId, typeof THEMES[ThemeId]][]).map(([id, def]) => {
-              const active = themeId === id;
-              const tokens = scheme === "dark" ? def.dark : def.light;
-              const bgLabel = def.background?.type ?? "gradient";
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => setThemeId(id)}
-                  style={{
-                    width: "46%" as any,
-                    borderRadius: radius.xl,
-                    borderWidth: active ? 2 : 1,
-                    borderColor: active ? colors.accent : colors.bgBorder,
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Colour swatch strip */}
-                  <View style={{ flexDirection: "row", height: 36 }}>
-                    <View style={{ flex: 1, backgroundColor: tokens.bgPrimary }} />
-                    <View style={{ flex: 1, backgroundColor: tokens.bgSecondary }} />
-                    <View style={{ flex: 1, backgroundColor: tokens.accent }} />
-                  </View>
-                  {/* Label area */}
-                  <View style={{
-                    padding: spacing[2.5],
-                    backgroundColor: active ? `${colors.accent}14` : colors.bgSecondary,
-                    gap: spacing[0.5],
-                  }}>
-                    <Text size="xs" weight={active ? "semibold" : "medium"} style={{ color: active ? colors.accent : colors.textPrimary }}>
-                      {def.label}
-                    </Text>
-                    <Text size="xs" style={{ color: colors.textTertiary, textTransform: "capitalize" }}>
-                      {bgLabel}
-                    </Text>
-                  </View>
-                  {active && (
-                    <View style={{
-                      position: "absolute", top: spacing[1], right: spacing[1],
-                      width: 18, height: 18, borderRadius: 9,
-                      backgroundColor: colors.accent,
-                      alignItems: "center", justifyContent: "center",
-                    }}>
-                      <Text style={{ color: "#fff", fontSize: 10, lineHeight: 18 }}>✓</Text>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
+          {/* Header */}
+          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
+            <Pressable onPress={() => router.back()} hitSlop={12}
+              style={{ marginBottom: spacing[2], flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" }}>
+              <Ionicons name="chevron-back" size={16} color={colors.accent} />
+              <Text size="sm" style={{ color: colors.accent }}>Back</Text>
+            </Pressable>
+            <Text size="2xl" weight="bold">Settings</Text>
           </View>
-        </View>
 
-        {/* ── Live preview ─────────────────────────────────────────────────── */}
-        <View style={{ marginBottom: spacing[6] }}>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
-            Preview
-          </Text>
-          <View style={{ paddingHorizontal: spacing[4] }}>
-            <ThemePreview themeId={themeId} scheme={scheme} bgStyle={bgStyle} />
-          </View>
-        </View>
-
-        {/* ── Background style ──────────────────────────────────────────────── */}
-        <View style={{ marginBottom: spacing[6] }}>
-          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[4], marginBottom: spacing[3] }}>
-            Background
-          </Text>
-          <View style={{ paddingHorizontal: spacing[4] }}>
-            <LayerPicker<BgStyle>
-              value={bgStyle}
-              onChange={setBgStyle}
-              options={[
-                { id: "solid",    label: "Solid",    icon: "⬛" },
-                { id: "gradient", label: "Gradient", icon: "🌅" },
-                { id: "blur",     label: "Blur",     icon: "🫧" },
-              ]}
+          {/* ── Appearance ───────────────────────────────────────────────── */}
+          <SectionLabel>Appearance</SectionLabel>
+          <RowGroup>
+            <Row
+              icon="🎨"
+              label="Theme & Colours"
+              subtitle={`${currentTheme.label} · ${scheme === "dark" ? "Dark" : "Light"}`}
+              onPress={() => router.push("/settings/appearance" as any)}
+              chevron
             />
+            <Row
+              icon={scheme === "dark" ? "🌙" : "☀️"}
+              label="Dark mode"
+              isLast
+              right={
+                <Switch
+                  value={scheme === "dark"}
+                  onValueChange={toggle}
+                  trackColor={{ false: colors.bgBorder, true: colors.accent }}
+                  thumbColor="#fff"
+                />
+              }
+            />
+          </RowGroup>
+
+          {/* ── Sync ─────────────────────────────────────────────────────── */}
+          <SectionLabel>Sync — Supabase</SectionLabel>
+          <RowGroup>
+            <Row label="Status"      right={<SyncDot status={overallSync} />} />
+            <Row label="Last synced" right={<Text size="xs" style={{ color: colors.textSecondary }}>{formatRelativeTime(lastSynced)}</Text>} />
+            <Row label="Tasks"       right={<SyncDot status={taskSync} />} />
+            <Row label="Lists"       right={<SyncDot status={listSync} />} />
+            <Row label="Notes"       right={<SyncDot status={noteSync} />} />
+            <Row
+              label="Project"
+              subtitle="vbegnnwyrbxiqdnzvhwk · eu-north-1"
+              isLast
+            />
+          </RowGroup>
+          <View style={{ marginBottom: spacing[5] }}>
+            <Pressable
+              onPress={handleSyncNow}
+              style={{
+                backgroundColor: colors.accent,
+                borderRadius: radius.xl,
+                paddingVertical: spacing[3],
+                alignItems: "center",
+              }}
+            >
+              <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Sync now</Text>
+            </Pressable>
           </View>
-        </View>
 
-        <Section title="Appearance">
-          <SettingRow
-            label="Dark mode"
-            subtitle={scheme === "dark" ? "On" : "Off"}
-            right={
-              <Switch value={scheme === "dark"} onValueChange={toggle}
-                trackColor={{ false: colors.bgBorder, true: colors.accent }} thumbColor="#fff" />
-            }
-          />
-          <Divider />
-          {/* Accent override (only shown for default/Linear theme) */}
-          {themeId === "default" && (
-            <>
-              <SettingRow
-                label="Accent colour"
-                subtitle={ACCENT_OPTIONS.find(a => a.id === accentId)?.label}
-                right={
-                  <View style={{ flexDirection: "row", gap: spacing[2] }}>
-                    {ACCENT_OPTIONS.map(opt => {
-                      const active = colors.accent === opt.color;
-                      return (
-                        <Pressable
-                          key={opt.id}
-                          onPress={() => setAccentId(opt.id)}
-                          style={{
-                            width: 24, height: 24, borderRadius: 99,
-                            backgroundColor: opt.color,
-                            borderWidth: active ? 2 : 0,
-                            borderColor: active ? "#fff" : "transparent",
-                            transform: [{ scale: active ? 1.2 : 1 }],
-                          }}
-                        />
-                      );
-                    })}
-                  </View>
-                }
-              />
-              <Divider />
-            </>
-          )}
-          {/* Live preview strip */}
-          <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
-            <View style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.lg, backgroundColor: colors.accent }}>
-              <Text size="xs" weight="semibold" style={{ color: "#fff" }}>Button</Text>
-            </View>
-            <View style={{ paddingHorizontal: spacing[2], paddingVertical: 3, borderRadius: radius.sm, backgroundColor: `${colors.accent}18`, borderWidth: 1, borderColor: `${colors.accent}40` }}>
-              <Text size="xs" weight="medium" style={{ color: colors.accent }}>Badge</Text>
-            </View>
-            <View style={{ width: 12, height: 12, borderRadius: 99, backgroundColor: colors.accent }} />
-            <View style={{ flex: 1, height: 3, borderRadius: 99, backgroundColor: `${colors.accent}30` }}>
-              <View style={{ width: "65%", height: 3, borderRadius: 99, backgroundColor: colors.accent }} />
-            </View>
-          </View>
-        </Section>
+          {/* ── Data ─────────────────────────────────────────────────────── */}
+          <SectionLabel>Data</SectionLabel>
+          <RowGroup>
+            <Row label="Tasks" right={<Text size="sm" style={{ color: colors.textSecondary }}>{tasks.length} total · {completedCount} done</Text>} />
+            <Row label="Lists" right={<Text size="sm" style={{ color: colors.textSecondary }}>{lists.length} total</Text>} />
+            <Row label="Notes" right={<Text size="sm" style={{ color: colors.textSecondary }}>{notes.length} total</Text>} />
+            <Row
+              label="Export data"
+              subtitle="Download all data as JSON"
+              onPress={handleExport}
+              chevron
+            />
+            <Row
+              label="Clear completed tasks"
+              subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be deleted` : "No completed tasks"}
+              danger={completedCount > 0}
+              onPress={handleClearCompleted}
+              isLast
+            />
+          </RowGroup>
 
-        <Section title="Sync — Supabase">
-          <SettingRow label="Status" right={<SyncDot status={overallSync} />} />
-          <Divider />
-          <SettingRow label="Tasks" right={<SyncDot status={taskSync} />} />
-          <Divider />
-          <SettingRow label="Lists" right={<SyncDot status={listSync} />} />
-          <Divider />
-          <SettingRow label="Notes" right={<SyncDot status={noteSync} />} />
-          <Divider />
-          <SettingRow label="Last synced" right={<Text size="xs" secondary>{formatRelativeTime(lastSynced)}</Text>} />
-          <Divider />
-          <SettingRow label="Project" subtitle="vbegnnwyrbxiqdnzvhwk · eu-north-1" />
-          <Divider />
-          <SettingRow
-            label="Sync now"
-            right={
-              <Pressable onPress={handleSyncNow}
-                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, backgroundColor: colors.accent }}>
-                <Text size="xs" weight="medium" style={{ color: "#fff" }}>Sync</Text>
-              </Pressable>
-            }
-          />
-        </Section>
+          {/* ── About ────────────────────────────────────────────────────── */}
+          <SectionLabel>About</SectionLabel>
+          <RowGroup>
+            <Row label="Version" right={<Text size="sm" style={{ color: colors.textSecondary }}>1.0.0</Text>} />
+            <Row label="Stack" subtitle="Expo SDK 54 · React Native 0.81 · Supabase" isLast />
+          </RowGroup>
 
-        <Section title="Data">
-          <SettingRow label="Tasks" right={<Text size="sm" secondary>{tasks.length} total · {completedCount} done</Text>} />
-          <Divider />
-          <SettingRow label="Lists" right={<Text size="sm" secondary>{lists.length} total</Text>} />
-          <Divider />
-          <SettingRow label="Notes" right={<Text size="sm" secondary>{notes.length} total</Text>} />
-          <Divider />
-          <SettingRow
-            label="Clear completed tasks"
-            subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be deleted` : "No completed tasks"}
-            right={
-              <Pressable onPress={handleClearCompleted}
-                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: completedCount > 0 ? "#F2646444" : colors.bgBorder, backgroundColor: completedCount > 0 ? "#F2646410" : "transparent", opacity: completedCount > 0 ? 1 : 0.4 }}>
-                <Text size="xs" style={{ color: completedCount > 0 ? "#F26464" : colors.textTertiary }}>Clear</Text>
-              </Pressable>
-            }
-          />
-          <Divider />
-          <SettingRow
-            label="Export data"
-            subtitle="Download all tasks and lists as JSON"
-            right={
-              <Pressable onPress={handleExport}
-                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}>
-                <Text size="xs" secondary>Export</Text>
-              </Pressable>
-            }
-          />
-        </Section>
-
-        <Section title="About">
-          <SettingRow label="Version" right={<Text size="sm" secondary>1.0.0</Text>} />
-          <Divider />
-          <SettingRow label="Stack" subtitle="Expo SDK 54 · React Native 0.81 · Supabase" />
-        </Section>
-
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </GradientBackground>
   );
 }

@@ -13,7 +13,7 @@ import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, Surface, GradientBackground } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, categoryColors } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
@@ -306,7 +306,7 @@ function SubtasksList({ subtasks, onChange }: { subtasks: Task["subtasks"]; onCh
 function CategoryBadge({ category, uniCourse }: { category?: TaskCategory; uniCourse?: UniCourse }) {
   if (!category) return null;
   const isUni  = category === "uni";
-  const color  = isUni ? "#B48EAD" : "#88C0D0";
+  const color  = isUni ? categoryColors.uni : categoryColors.personal;
   const label  = isUni ? (uniCourse ?? "Uni") : "Personal";
   return (
     <View style={{
@@ -791,7 +791,7 @@ function AddTaskRow({ onAdd, inputRef }: {
                 <Text size="xs" style={{ color: colors.textTertiary, width: 32, marginTop: 3 }}>Cat.</Text>
                 <View style={{ flex: 1, gap: spacing[1.5] }}>
                   <View style={{ flexDirection: "row", gap: spacing[1.5] }}>
-                    {([["personal", "Personal", "#88C0D0"], ["uni", "Uni", "#B48EAD"]] as [TaskCategory, string, string][]).map(([cat, label, color]) => (
+                    {([["personal", "Personal", categoryColors.personal], ["uni", "Uni", categoryColors.uni]] as [TaskCategory, string, string][]).map(([cat, label, color]) => (
                       <Pressable
                         key={cat}
                         onPress={() => setQuickCat(c => c === cat ? undefined : cat)}
@@ -815,11 +815,11 @@ function AddTaskRow({ onAdd, inputRef }: {
                           style={{
                             paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
                             borderRadius: 99, borderWidth: 1,
-                            borderColor: quickCourse === course ? "#B48EAD" : colors.bgBorder,
-                            backgroundColor: quickCourse === course ? "#B48EAD18" : "transparent",
+                            borderColor: quickCourse === course ? categoryColors.uni : colors.bgBorder,
+                            backgroundColor: quickCourse === course ? `${categoryColors.uni}18` : "transparent",
                           }}
                         >
-                          <Text size="xs" style={{ color: quickCourse === course ? "#B48EAD" : colors.textSecondary }}>{course}</Text>
+                          <Text size="xs" style={{ color: quickCourse === course ? categoryColors.uni : colors.textSecondary }}>{course}</Text>
                         </Pressable>
                       ))}
                     </View>

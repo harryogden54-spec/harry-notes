@@ -31,10 +31,10 @@ function animate() {
 // ─── Templates ────────────────────────────────────────────────────────────────
 
 const TEMPLATES = [
-  { name: "Grocery",  color: "#27AE60", items: ["🥛 Milk", "🥚 Eggs", "🍞 Bread", "🧀 Cheese", "🍎 Apples"] },
-  { name: "Packing",  color: "#4A90D9", items: ["👕 T-shirts", "🩲 Underwear", "🧦 Socks", "🪥 Toothbrush", "💊 Medications"] },
-  { name: "Reading",  color: "#9B59B6", items: ["📖 Current book", "📚 Next up", "✅ Finished recently"] },
-  { name: "Study",    color: "#E67E22", items: ["📝 Review notes", "📚 Read chapter", "✏️ Do exercises", "🔁 Flashcards"] },
+  { name: "Grocery",  color: LIST_COLORS[2], items: ["🥛 Milk", "🥚 Eggs", "🍞 Bread", "🧀 Cheese", "🍎 Apples"] },
+  { name: "Packing",  color: LIST_COLORS[0], items: ["👕 T-shirts", "🩲 Underwear", "🧦 Socks", "🪥 Toothbrush", "💊 Medications"] },
+  { name: "Reading",  color: LIST_COLORS[1], items: ["📖 Current book", "📚 Next up", "✅ Finished recently"] },
+  { name: "Study",    color: LIST_COLORS[3], items: ["📝 Review notes", "📚 Read chapter", "✏️ Do exercises", "🔁 Flashcards"] },
 ];
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────

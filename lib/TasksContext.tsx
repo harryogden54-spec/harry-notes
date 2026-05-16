@@ -74,11 +74,18 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const loadedRef        = useRef(false);
   const tasksRef         = useRef<Task[]>([]);
   const syncDebounce     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedRef    = useRef<string | null>(null);
   const pendingDeletesRef = useRef<Set<string>>(new Set());
+  // Explicit dirty tracking — populated on every local mutation, drained
+  // after a successful upsert. Replaces the old timestamp-based inference,
+  // which could miss rows that Supabase had echoed back between debounce
+  // tick and upsert.
+  const dirtyIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
-  useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
+
+  function markDirty(...ids: string[]) {
+    for (const id of ids) dirtyIdsRef.current.add(id);
+  }
 
   // Persist locally on every change + debounced push to Supabase
   useEffect(() => {
@@ -90,18 +97,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     // are batched into a single network call after 1.5 s of quiet.
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
     syncDebounce.current = setTimeout(async () => {
+      const dirtyIds = dirtyIdsRef.current;
+      if (dirtyIds.size === 0) return;
       const snapshot = tasksRef.current;
-      if (snapshot.length === 0) return;
-      // Only push tasks that were locally mutated after the last successful sync.
-      // This prevents a pull (setTasks from syncNow) from echoing remote data
-      // back to Supabase with a bumped updated_at, which would cause false conflicts.
-      const cutoff = lastSyncedRef.current;
-      const dirty = cutoff
-        ? snapshot.filter(t => (t.updated_at ?? t.created_at) > cutoff)
-        : snapshot;
-      if (dirty.length === 0) return;
+      const dirty = snapshot.filter(t => dirtyIds.has(t.id));
+      if (dirty.length === 0) { dirtyIds.clear(); return; }
+      // Take a snapshot of what we're about to push, then clear; if the upsert
+      // fails we re-add them so they retry next tick.
+      const pushedIds = dirty.map(t => t.id);
+      dirtyIds.clear();
       const ok = await syncUpsert("tasks", dirty);
-      if (!ok) setSyncStatus("error");
+      if (!ok) {
+        for (const id of pushedIds) dirtyIds.add(id);
+        setSyncStatus("error");
+      }
     }, 1500);
   }, [tasks]);
 
@@ -129,65 +138,120 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
     loadLocal().then(async (local) => {
       clearTimeout(loadTimeout);
-      // Auto-archive tasks completed 7+ days ago
+      // Auto-archive tasks completed 7+ days ago. Bump updated_at and mark
+      // dirty so the change actually gets persisted to Supabase, otherwise
+      // the next pull would un-archive them.
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
       const cutoffStr = cutoff.toISOString();
-      const localTasks = local.map(t =>
-        t.done && !t.archived && t.completed_at && t.completed_at < cutoffStr
-          ? { ...t, archived: true }
-          : t
-      );
+      const localTasks = local.map(t => {
+        if (t.done && !t.archived && t.completed_at && t.completed_at < cutoffStr) {
+          markDirty(t.id);
+          return stamp({ ...t, archived: true });
+        }
+        return t;
+      });
       setTasks(localTasks);
       loadedRef.current = true;
       setLoaded(true);
 
       setSyncStatus("syncing");
-      try {
-        const remote = await syncFetch<Task & { _updated_at: string }>("tasks");
-        if (remote.length === 0 && localTasks.length > 0) {
-          await syncUpsert("tasks", localTasks);
-          setSyncStatus("synced");
-          setLastSynced(new Date().toISOString());
-          return;
-        }
-        const remoteMap = new Map(remote.map(r => [r.id, r]));
-        const merged = await new Promise<Task[]>(resolve => {
-          setTasks(prev => {
-            const result = [...prev];
-            for (const rem of remote) {
-              if (pendingDeletesRef.current.has(rem.id)) continue;
-              const idx = result.findIndex(t => t.id === rem.id);
-              if (idx === -1) {
-                result.push(rem);
-              } else {
-                const localUpdated  = result[idx].updated_at ?? result[idx].created_at;
-                const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
-                if (remoteUpdated > localUpdated) {
-                  // Remote wins — but never un-archive a locally-archived task
-                  result[idx] = { ...rem, archived: rem.archived ?? result[idx].archived };
-                }
-              }
-            }
-            resolve(result);
-            return result;
-          });
-        });
-        // Push any local tasks that are newer than what Supabase has
-        const needsSync = merged.filter(t => {
-          const rem = remoteMap.get(t.id);
-          const localUpdated  = t.updated_at ?? t.created_at;
-          const remoteUpdated = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
-          return localUpdated > remoteUpdated;
-        });
-        if (needsSync.length > 0) syncUpsert("tasks", needsSync).catch(console.warn);
-        setSyncStatus("synced");
-        setLastSynced(new Date().toISOString());
-      } catch {
+      const result = await syncFetch<Task & { _updated_at: string }>("tasks");
+      if (!result.ok) {
+        // Network/auth error — keep local state, surface error, do NOT
+        // upload local as "the truth" (that path is reserved for genuine
+        // empty-remote responses).
         setSyncStatus("error");
+        return;
       }
+      const remote = result.rows;
+      if (remote.length === 0 && localTasks.length > 0) {
+        // Genuine empty remote: seed it from local.
+        const ok = await syncUpsert("tasks", localTasks);
+        setSyncStatus(ok ? "synced" : "error");
+        if (ok) setLastSynced(new Date().toISOString());
+        return;
+      }
+
+      // Merge remote into local, preferring whichever has the newer updated_at.
+      const local0 = tasksRef.current;
+      const merged = [...local0];
+      const remoteMap = new Map(remote.map(r => [r.id, r]));
+      for (const rem of remote) {
+        if (pendingDeletesRef.current.has(rem.id)) continue;
+        const idx = merged.findIndex(t => t.id === rem.id);
+        if (idx === -1) {
+          merged.push(rem);
+        } else {
+          const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
+          const remoteUpdated = rem._updated_at ?? rem.updated_at ?? "";
+          if (remoteUpdated > localUpdated) {
+            // Remote wins — but never un-archive a locally-archived task
+            merged[idx] = { ...rem, archived: rem.archived ?? merged[idx].archived };
+          }
+        }
+      }
+      setTasks(merged);
+
+      // Push any local tasks newer than what Supabase has
+      const needsSync = merged.filter(t => {
+        const rem = remoteMap.get(t.id);
+        const localUpdated  = t.updated_at ?? t.created_at;
+        const remoteUpdated = rem ? (rem._updated_at ?? rem.updated_at ?? "") : "";
+        return localUpdated > remoteUpdated;
+      });
+      if (needsSync.length > 0) {
+        const ok = await syncUpsert("tasks", needsSync);
+        if (!ok) for (const t of needsSync) dirtyIdsRef.current.add(t.id);
+      }
+      setSyncStatus("synced");
+      setLastSynced(new Date().toISOString());
     }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
     return () => clearTimeout(loadTimeout);
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
+    setSyncStatus("syncing");
+    const result = await syncFetch<Task & { _updated_at: string }>("tasks");
+    if (!result.ok) { setSyncStatus("error"); return; }
+    const remote = result.rows;
+    const remoteMap = new Map(remote.map(r => [r.id, r]));
+    const local = tasksRef.current;
+
+    const merged = [...local];
+    for (const rem of remote) {
+      if (pendingDeletesRef.current.has(rem.id)) continue;
+      const idx = merged.findIndex(t => t.id === rem.id);
+      if (idx === -1) merged.push(rem);
+      else {
+        const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
+        const remoteUpdated = rem._updated_at ?? rem.updated_at ?? "";
+        if (remoteUpdated > localUpdated) {
+          merged[idx] = { ...rem, archived: rem.archived ?? merged[idx].archived };
+        }
+      }
+    }
+    setTasks(merged);
+
+    // Push any local tasks newer than what Supabase has
+    const toUpsert = merged.filter(t => {
+      const rem = remoteMap.get(t.id);
+      const localUpdated  = t.updated_at ?? t.created_at;
+      const remoteUpdated = rem ? (rem._updated_at ?? rem.updated_at ?? "") : "";
+      return localUpdated > remoteUpdated;
+    });
+    if (toUpsert.length > 0) {
+      const ok = await syncUpsert("tasks", toUpsert);
+      if (!ok) {
+        for (const t of toUpsert) dirtyIdsRef.current.add(t.id);
+        setSyncStatus("error");
+        return;
+      }
+    }
+
+    setSyncStatus("synced");
+    setLastSynced(new Date().toISOString());
   }, []);
 
   // Sync when app comes to foreground (native) or tab becomes visible (web)
@@ -201,60 +265,23 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     const onVisibility = () => { if (!document.hidden && loadedRef.current) syncNow(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const syncNow = useCallback(async () => {
-    if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    setSyncStatus("syncing");
-    try {
-      const remote = await syncFetch<Task & { _updated_at: string }>("tasks");
-      const remoteMap = new Map(remote.map(r => [r.id, r]));
-      const local = tasksRef.current;
-
-      const merged = [...local];
-      for (const rem of remote) {
-        if (pendingDeletesRef.current.has(rem.id)) continue;
-        const idx = merged.findIndex(t => t.id === rem.id);
-        if (idx === -1) merged.push(rem);
-        else {
-          const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
-          const remoteUpdated = (rem as any)._updated_at ?? rem.updated_at ?? "";
-          if (remoteUpdated > localUpdated) {
-            merged[idx] = { ...rem, archived: rem.archived ?? merged[idx].archived };
-          }
-        }
-      }
-      setTasks(merged);
-
-      // Push any local tasks that are newer than what Supabase has
-      const toUpsert = merged.filter(t => {
-        const rem = remoteMap.get(t.id);
-        const localUpdated  = t.updated_at ?? t.created_at;
-        const remoteUpdated = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
-        return localUpdated > remoteUpdated;
-      });
-      if (toUpsert.length > 0) await syncUpsert("tasks", toUpsert).catch(console.warn);
-
-      setSyncStatus("synced");
-      setLastSynced(new Date().toISOString());
-    } catch {
-      setSyncStatus("error");
-    }
-  }, []);
+  }, [syncNow]);
 
   const addTask = useCallback((title: string, due_date?: string): string => {
     const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
+    markDirty(id);
     setTasks(prev => [...prev, stamp({ id, title, done: false, due_date, created_at: now, subtasks: [], tags: [] })]);
     return id;
   }, []);
 
   const updateTask = useCallback((id: string, updates: Partial<Omit<Task, "id" | "created_at">>) => {
+    markDirty(id);
     setTasks(prev => prev.map(t => t.id === id ? stamp({ ...t, ...updates }) : t));
   }, []);
 
   const toggleTask = useCallback((id: string) => {
+    markDirty(id);
     setTasks(prev => prev.map(t => {
       if (t.id !== id) return t;
       const done = !t.done;
@@ -263,10 +290,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const archiveTask = useCallback((id: string) => {
+    markDirty(id);
     setTasks(prev => prev.map(t => t.id === id ? stamp({ ...t, archived: true }) : t));
   }, []);
 
   const unarchiveTask = useCallback((id: string) => {
+    markDirty(id);
     setTasks(prev => prev.map(t => t.id === id ? stamp({ ...t, archived: false }) : t));
   }, []);
 
@@ -274,6 +303,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     const deleted = tasksRef.current.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
     pendingDeletesRef.current.add(id);
+    dirtyIdsRef.current.delete(id); // don't push a row we're about to delete
     const timer = setTimeout(() => {
       syncDelete("tasks", id);
       pendingDeletesRef.current.delete(id);
@@ -281,7 +311,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     return () => {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
-      if (deleted) setTasks(prev => [...prev, deleted]);
+      if (deleted) {
+        markDirty(id);
+        setTasks(prev => [...prev, deleted]);
+      }
     };
   }, []);
 
@@ -314,8 +347,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     if (toArchive.length === 0) return;
     const archivedIds = new Set(toArchive.map(t => t.id));
     const archivedMap = new Map(toArchive.map(t => [t.id, t]));
+    for (const id of archivedIds) markDirty(id);
+    // Don't push directly — let the debounced effect pick them up via dirty set,
+    // so failures retry through the same path as every other mutation.
     setTasks(prev => prev.map(t => archivedIds.has(t.id) ? archivedMap.get(t.id)! : t));
-    syncUpsert("tasks", toArchive).catch(console.warn);
   }, []);
 
   return (

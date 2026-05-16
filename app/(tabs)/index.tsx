@@ -9,26 +9,14 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown } from "@/lib/utils";
+import { getTodayStr, stripMarkdown, PRIORITY_COLOR } from "@/lib/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
-
-// ─── Pastel palette ───────────────────────────────────────────────────────────
-
-const NOTE_PASTELS         = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
-const NOTE_PASTEL_BORDERS  = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
-const NOTE_PASTEL_TEXT     = "#1A1A2E";
-
-function getPastelIndex(noteId: string): number {
-  let h = 0;
-  for (let i = 0; i < noteId.length; i++) h = (h * 31 + noteId.charCodeAt(i)) >>> 0;
-  return h % NOTE_PASTELS.length;
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,13 +41,6 @@ function getTodayKey() {
 type TodayItem = { id: string; text: string; done: boolean };
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
-
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "#EF4444",
-  high:   "#F97316",
-  medium: "#EAB308",
-  low:    "#6B7280",
-};
 
 // ─── Today panel ──────────────────────────────────────────────────────────────
 
@@ -247,7 +228,7 @@ export default function DashboardScreen() {
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 {task.priority && (
-                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLORS[task.priority] }} />
+                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLOR[task.priority] }} />
                 )}
                 <View style={{ flex: 1 }}>
                   <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
@@ -283,9 +264,9 @@ export default function DashboardScreen() {
       <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: handleGoToNotes }} />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
-          const pi = getPastelIndex(note.id);
-          const bg = NOTE_PASTELS[pi];
-          const border = NOTE_PASTEL_BORDERS[pi];
+          const pi = getNotePastelIndex(note.id);
+          const bg = notePastels.bg[pi];
+          const border = notePastels.border[pi];
           return (
             <Pressable
               key={note.id}
@@ -303,16 +284,16 @@ export default function DashboardScreen() {
                 gap: spacing[1],
                 minHeight: 100,
               }}>
-                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: NOTE_PASTEL_TEXT }}>
+                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
                   {note.title || "Untitled"}
                 </Text>
                 {note.body.trim() && (
-                  <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, opacity: 0.75, lineHeight: 16 }}>
+                  <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
                     {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
                   </Text>
                 )}
                 {mounted && (
-                  <Text size="xs" style={{ color: NOTE_PASTEL_TEXT, opacity: 0.45, marginTop: "auto" as any }}>
+                  <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
                     {(() => {
                       const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
                       const mins = Math.floor(diff / 60000);
@@ -344,7 +325,7 @@ export default function DashboardScreen() {
         contentContainerStyle={{ paddingRight: spacing[3] }}
       >
         {sortedPostIts.slice(0, 6).map(n => {
-          const pi = getPastelIndex(n.id);
+          const pi = getNotePastelIndex(n.id);
           return (
             <Pressable
               key={n.id}
@@ -352,9 +333,9 @@ export default function DashboardScreen() {
               style={{ width: 140, marginRight: spacing[2] }}
             >
               <View style={{
-                backgroundColor: NOTE_PASTELS[pi],
+                backgroundColor: notePastels.bg[pi],
                 borderWidth: 1,
-                borderColor: NOTE_PASTEL_BORDERS[pi],
+                borderColor: notePastels.border[pi],
                 borderRadius: radius.lg,
                 padding: spacing[3],
                 minHeight: 72,
@@ -365,7 +346,7 @@ export default function DashboardScreen() {
                 shadowRadius: 4,
                 elevation: 2,
               }}>
-                <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, lineHeight: 18 }}>
+                <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, lineHeight: 18 }}>
                   {n.title || "…"}
                 </Text>
               </View>

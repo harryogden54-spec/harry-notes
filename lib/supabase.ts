@@ -1,25 +1,40 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createClient(
-  "https://vbegnnwyrbxiqdnzvhwk.supabase.co",
-  "sb_publishable_vu8Trd9OjPINvclyAtQ8-w_x2ZdahXp"
-);
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Generic helpers for the id/data/updated_at schema
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. " +
+    "Copy .env.example to .env and fill in your Supabase credentials."
+  );
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Result type so callers can distinguish "remote is empty" from "fetch failed".
+// The previous shape (returning [] on error) caused contexts to mistake a
+// network blip for an empty remote and re-upload the entire local store.
+export type FetchResult<T> =
+  | { ok: true; rows: T[] }
+  | { ok: false; error: string };
 
 export async function syncFetch<T extends { id: string }>(
   table: string
-): Promise<T[]> {
+): Promise<FetchResult<T>> {
   try {
     const { data, error } = await supabase
       .from(table)
       .select("id, data, updated_at");
-    if (error) { console.warn(`syncFetch ${table}:`, error.message); return []; }
-    return (data ?? []).map((row: any) => ({ ...row.data, _updated_at: row.updated_at })) as T[];
-  } catch (e) {
-    // Network unavailable on startup — fail silently, local data takes over
+    if (error) {
+      console.warn(`syncFetch ${table}:`, error.message);
+      return { ok: false, error: error.message };
+    }
+    const rows = (data ?? []).map((row: any) => ({ ...row.data, _updated_at: row.updated_at })) as T[];
+    return { ok: true, rows };
+  } catch (e: any) {
     console.warn(`syncFetch ${table}: network error`, e);
-    return [];
+    return { ok: false, error: e?.message ?? "network error" };
   }
 }
 

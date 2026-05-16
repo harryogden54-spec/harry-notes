@@ -42,11 +42,14 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const loadedRef                    = useRef(false);
   const notesRef                     = useRef<Note[]>([]);
   const syncDebounce                 = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedRef                = useRef<string | null>(null);
   const pendingDeletesRef            = useRef<Set<string>>(new Set());
+  const dirtyIdsRef                  = useRef<Set<string>>(new Set());
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
-  useEffect(() => { lastSyncedRef.current = lastSynced; }, [lastSynced]);
+
+  function markDirty(...ids: string[]) {
+    for (const id of ids) dirtyIdsRef.current.add(id);
+  }
 
   // Persist locally on every change + debounced push to Supabase
   useEffect(() => {
@@ -56,21 +59,23 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
 
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
     syncDebounce.current = setTimeout(async () => {
+      const dirtyIds = dirtyIdsRef.current;
+      if (dirtyIds.size === 0) return;
       const snapshot = notesRef.current;
-      if (snapshot.length === 0) return;
-      const cutoff = lastSyncedRef.current;
-      const dirty = cutoff
-        ? snapshot.filter(n => (n.updated_at ?? n.created_at) > cutoff)
-        : snapshot;
-      if (dirty.length === 0) return;
+      const dirty = snapshot.filter(n => dirtyIds.has(n.id));
+      if (dirty.length === 0) { dirtyIds.clear(); return; }
+      const pushedIds = dirty.map(n => n.id);
+      dirtyIds.clear();
       const ok = await syncUpsert("notes", dirty);
-      if (!ok) setSyncStatus("error");
+      if (!ok) {
+        for (const id of pushedIds) dirtyIds.add(id);
+        setSyncStatus("error");
+      }
     }, 1500);
   }, [notes]);
 
   // Load from local storage then sync from remote
   useEffect(() => {
-    // 3-second safety net: mark loaded even if storage hangs
     const loadTimeout = setTimeout(() => {
       if (!loadedRef.current) { loadedRef.current = true; setLoaded(true); }
     }, 3000);
@@ -96,36 +101,76 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       setLoaded(true);
 
       setSyncStatus("syncing");
-      try {
-        const remote = await syncFetch<Note & { _updated_at: string }>("notes");
-        if (remote.length === 0 && localNotes.length > 0) {
-          await syncUpsert("notes", localNotes);
-          setSyncStatus("synced");
-          setLastSynced(new Date().toISOString());
-          return;
-        }
-        setNotes(prev => {
-          const merged = [...prev];
-          for (const remRaw of remote) {
-            const rem = { ...remRaw, type: (remRaw.type ?? "note") as "note" | "postit" };
-            if (pendingDeletesRef.current.has(rem.id)) continue;
-            const idx = merged.findIndex(n => n.id === rem.id);
-            if (idx === -1) merged.push(rem);
-            else {
-              const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
-              const remoteUp = (rem as any)._updated_at ?? rem.updated_at ?? "";
-              if (remoteUp > localUp) merged[idx] = rem;
-            }
-          }
-          return merged;
-        });
-        setSyncStatus("synced");
-        setLastSynced(new Date().toISOString());
-      } catch {
-        setSyncStatus("error");
+      const result = await syncFetch<Note & { _updated_at: string }>("notes");
+      if (!result.ok) { setSyncStatus("error"); return; }
+      const remote = result.rows;
+      if (remote.length === 0 && localNotes.length > 0) {
+        const ok = await syncUpsert("notes", localNotes);
+        setSyncStatus(ok ? "synced" : "error");
+        if (ok) setLastSynced(new Date().toISOString());
+        return;
       }
+
+      const local0 = notesRef.current;
+      const merged = [...local0];
+      for (const remRaw of remote) {
+        const rem = { ...remRaw, type: (remRaw.type ?? "note") as "note" | "postit" };
+        if (pendingDeletesRef.current.has(rem.id)) continue;
+        const idx = merged.findIndex(n => n.id === rem.id);
+        if (idx === -1) merged.push(rem);
+        else {
+          const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
+          const remoteUp = rem._updated_at ?? rem.updated_at ?? "";
+          if (remoteUp > localUp) merged[idx] = rem;
+        }
+      }
+      setNotes(merged);
+      setSyncStatus("synced");
+      setLastSynced(new Date().toISOString());
     }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
     return () => clearTimeout(loadTimeout);
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    if (syncDebounce.current) clearTimeout(syncDebounce.current);
+    setSyncStatus("syncing");
+    const result = await syncFetch<Note & { _updated_at: string }>("notes");
+    if (!result.ok) { setSyncStatus("error"); return; }
+    const remote = result.rows;
+    const remoteMap = new Map(remote.map(r => [r.id, r]));
+    const local = notesRef.current;
+
+    const merged = [...local];
+    for (const remRaw of remote) {
+      const rem = { ...remRaw, type: (remRaw.type ?? "note") as "note" | "postit" };
+      if (pendingDeletesRef.current.has(rem.id)) continue;
+      const idx = merged.findIndex(n => n.id === rem.id);
+      if (idx === -1) merged.push(rem);
+      else {
+        const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
+        const remoteUp = rem._updated_at ?? rem.updated_at ?? "";
+        if (remoteUp > localUp) merged[idx] = rem;
+      }
+    }
+    setNotes(merged);
+
+    const toUpsert = merged.filter(n => {
+      const rem = remoteMap.get(n.id);
+      const localUp  = n.updated_at ?? n.created_at;
+      const remoteUp = rem ? (rem._updated_at ?? rem.updated_at ?? "") : "";
+      return localUp > remoteUp;
+    });
+    if (toUpsert.length > 0) {
+      const ok = await syncUpsert("notes", toUpsert);
+      if (!ok) {
+        for (const n of toUpsert) dirtyIdsRef.current.add(n.id);
+        setSyncStatus("error");
+        return;
+      }
+    }
+
+    setSyncStatus("synced");
+    setLastSynced(new Date().toISOString());
   }, []);
 
   // Sync when app comes to foreground (native) or tab becomes visible (web)
@@ -139,56 +184,19 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     const onVisibility = () => { if (!document.hidden && loadedRef.current) syncNow(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const syncNow = useCallback(async () => {
-    if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    setSyncStatus("syncing");
-    try {
-      const remote = await syncFetch<Note & { _updated_at: string }>("notes");
-      const remoteMap = new Map(remote.map(r => [r.id, r]));
-      const local = notesRef.current;
-
-      const merged = [...local];
-      for (const remRaw of remote) {
-        const rem = { ...remRaw, type: (remRaw.type ?? "note") as "note" | "postit" };
-        if (pendingDeletesRef.current.has(rem.id)) continue;
-        const idx = merged.findIndex(n => n.id === rem.id);
-        if (idx === -1) merged.push(rem);
-        else {
-          const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
-          const remoteUp = (rem as any)._updated_at ?? rem.updated_at ?? "";
-          if (remoteUp > localUp) merged[idx] = rem;
-        }
-      }
-      setNotes(merged);
-
-      // Push any local notes newer than what Supabase has
-      const toUpsert = merged.filter(n => {
-        const rem = remoteMap.get(n.id);
-        const localUp  = n.updated_at ?? n.created_at;
-        const remoteUp = rem ? ((rem as any)._updated_at ?? rem.updated_at ?? "") : "";
-        return localUp > remoteUp;
-      });
-      if (toUpsert.length > 0) await syncUpsert("notes", toUpsert).catch(console.warn);
-
-      setSyncStatus("synced");
-      setLastSynced(new Date().toISOString());
-    } catch {
-      setSyncStatus("error");
-    }
-  }, []);
+  }, [syncNow]);
 
   const addNote = useCallback((type: "note" | "postit" = "note"): string => {
     const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const now = new Date().toISOString();
     const note: Note = { id, title: "", body: "", pinned: false, type, created_at: now, updated_at: now };
+    markDirty(id);
     setNotes(prev => [note, ...prev]);
     return id;
   }, []);
 
   const updateNote = useCallback((id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => {
+    markDirty(id);
     setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, ...updates }) : n));
   }, []);
 
@@ -196,6 +204,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     const deleted = notesRef.current.find(n => n.id === id);
     setNotes(prev => prev.filter(n => n.id !== id));
     pendingDeletesRef.current.add(id);
+    dirtyIdsRef.current.delete(id);
     const timer = setTimeout(() => {
       syncDelete("notes", id);
       pendingDeletesRef.current.delete(id);
@@ -203,11 +212,15 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     return () => {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
-      if (deleted) setNotes(prev => [deleted, ...prev]);
+      if (deleted) {
+        markDirty(id);
+        setNotes(prev => [deleted, ...prev]);
+      }
     };
   }, []);
 
   const pinNote = useCallback((id: string) => {
+    markDirty(id);
     setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, pinned: !n.pinned }) : n));
   }, []);
 

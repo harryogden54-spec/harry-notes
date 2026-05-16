@@ -6,20 +6,9 @@ import {
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Text, GradientBackground } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
-
-// Pastel palette — intentional design constants
-const PASTELS = ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"] as const;
-const PASTEL_BORDERS = ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"] as const;
-const PASTEL_TEXT = "#1A1A2E";
-
-function getPastelIndex(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return hash % PASTELS.length;
-}
 
 // ─── Post-it Card ─────────────────────────────────────────────────────────────
 
@@ -28,7 +17,7 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(text);
   const inputRef = useRef<TextInput | null>(null);
-  const idx = getPastelIndex(id);
+  const idx = getNotePastelIndex(id);
 
   // Start editing immediately for brand-new empty cards
   useEffect(() => {
@@ -56,10 +45,10 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
       onPress={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 50); }}
       onLongPress={() => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
       style={{
-        backgroundColor: PASTELS[idx],
+        backgroundColor: notePastels.bg[idx],
         borderRadius: radius["2xl"],
         borderWidth: 1,
-        borderColor: PASTEL_BORDERS[idx],
+        borderColor: notePastels.border[idx],
         borderTopColor: `rgba(255,255,255,0.55)`,
         padding: spacing[4],
         minHeight: 96,
@@ -79,12 +68,12 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
           onBlur={save}
           onSubmitEditing={save}
           placeholder="Write something…"
-          placeholderTextColor={`${PASTEL_TEXT}55`}
+          placeholderTextColor={`${notePastels.text}55`}
           maxLength={100}
           multiline={false}
           returnKeyType="done"
           style={[
-            { color: PASTEL_TEXT, fontSize: 13, fontFamily: fontFamily.medium, lineHeight: 18 },
+            { color: notePastels.text, fontSize: 13, fontFamily: fontFamily.medium, lineHeight: 18 },
             { outlineStyle: "none" } as any,
           ]}
         />
@@ -92,7 +81,7 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
         <Text
           size="xs"
           numberOfLines={3}
-          style={{ color: val ? PASTEL_TEXT : `${PASTEL_TEXT}55`, fontFamily: fontFamily.medium, lineHeight: 18 }}
+          style={{ color: val ? notePastels.text : `${notePastels.text}55`, fontFamily: fontFamily.medium, lineHeight: 18 }}
         >
           {val || "Write something…"}
         </Text>

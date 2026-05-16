@@ -168,27 +168,60 @@ export async function dbLoadTasks(): Promise<any[]> {
   }));
 }
 
-export async function dbSaveTasks(tasks: any[]): Promise<void> {
-  const db = getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync("DELETE FROM tasks");
-    for (const t of tasks) {
-      await db.runAsync(
-        `INSERT INTO tasks
-           (id,title,done,archived,completed_at,due_date,priority,description,tags,subtasks,recurrence,category,uni_course,created_at,updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          t.id, t.title, t.done ? 1 : 0, t.archived ? 1 : 0, t.completed_at ?? null,
-          t.due_date ?? null,
-          t.priority ?? null, t.description ?? null,
-          t.tags      ? JSON.stringify(t.tags)     : null,
-          t.subtasks  ? JSON.stringify(t.subtasks) : null,
-          null,
-          t.category  ?? null, t.uniCourse ?? null,
-          t.created_at, t.updated_at ?? t.created_at,
-        ]
-      );
+// ─── Save queue ───────────────────────────────────────────────────────────────
+// Serialise writes per-table so concurrent saves can't interleave (a DELETE
+// from save A landing after save B's writes used to nuke B's data). Coalesces
+// pending saves so rapid state changes collapse into one disk write.
+
+type Saver = () => Promise<void>;
+const queues: Record<string, { running: boolean; pending: Saver | null }> = {};
+
+function enqueue(table: string, fn: Saver): void {
+  const q = queues[table] ?? (queues[table] = { running: false, pending: null });
+  if (q.running) { q.pending = fn; return; } // coalesce: keep only latest
+  q.running = true;
+  (async () => {
+    let next: Saver | null = fn;
+    while (next) {
+      try { await next(); } catch (e) { console.error(`db save ${table}:`, e); }
+      next = q.pending;
+      q.pending = null;
     }
+    q.running = false;
+  })();
+}
+
+export async function dbSaveTasks(tasks: any[]): Promise<void> {
+  enqueue("tasks", async () => {
+    const db = getDb();
+    const ids = new Set(tasks.map(t => t.id));
+    await db.withTransactionAsync(async () => {
+      // Upsert every current task (idempotent, no full-table wipe)
+      for (const t of tasks) {
+        try {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO tasks
+               (id,title,done,archived,completed_at,due_date,priority,description,tags,subtasks,recurrence,category,uni_course,created_at,updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+              t.id, t.title, t.done ? 1 : 0, t.archived ? 1 : 0, t.completed_at ?? null,
+              t.due_date ?? null,
+              t.priority ?? null, t.description ?? null,
+              t.tags      ? JSON.stringify(t.tags)     : null,
+              t.subtasks  ? JSON.stringify(t.subtasks) : null,
+              null,
+              t.category  ?? null, t.uniCourse ?? null,
+              t.created_at, t.updated_at ?? t.created_at,
+            ]
+          );
+        } catch (e) { console.warn(`dbSaveTasks row ${t.id}:`, e); }
+      }
+      // Delete rows that disappeared from the in-memory set
+      const existing = await db.getAllAsync<{ id: string }>("SELECT id FROM tasks");
+      for (const row of existing) {
+        if (!ids.has(row.id)) await db.runAsync("DELETE FROM tasks WHERE id = ?", row.id);
+      }
+    });
   });
 }
 
@@ -208,19 +241,27 @@ export async function dbLoadLists(): Promise<any[]> {
 }
 
 export async function dbSaveLists(lists: any[]): Promise<void> {
-  const db = getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync("DELETE FROM lists");
-    for (const l of lists) {
-      await db.runAsync(
-        `INSERT INTO lists (id,name,color,pinned,items,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
-        [
-          l.id, l.name, l.color, l.pinned ? 1 : 0,
-          JSON.stringify(l.items ?? []),
-          l.created_at, l.updated_at ?? l.created_at,
-        ]
-      );
-    }
+  enqueue("lists", async () => {
+    const db = getDb();
+    const ids = new Set(lists.map(l => l.id));
+    await db.withTransactionAsync(async () => {
+      for (const l of lists) {
+        try {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO lists (id,name,color,pinned,items,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
+            [
+              l.id, l.name, l.color, l.pinned ? 1 : 0,
+              JSON.stringify(l.items ?? []),
+              l.created_at, l.updated_at ?? l.created_at,
+            ]
+          );
+        } catch (e) { console.warn(`dbSaveLists row ${l.id}:`, e); }
+      }
+      const existing = await db.getAllAsync<{ id: string }>("SELECT id FROM lists");
+      for (const row of existing) {
+        if (!ids.has(row.id)) await db.runAsync("DELETE FROM lists WHERE id = ?", row.id);
+      }
+    });
   });
 }
 
@@ -239,17 +280,25 @@ export async function dbLoadNotes(): Promise<any[]> {
 }
 
 export async function dbSaveNotes(notes: any[]): Promise<void> {
-  const db = getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync("DELETE FROM notes");
-    for (const n of notes) {
-      await db.runAsync(
-        `INSERT INTO notes (id,title,body,pinned,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
-        [
-          n.id, n.title ?? "", n.body ?? "", n.pinned ? 1 : 0,
-          n.created_at, n.updated_at ?? n.created_at,
-        ]
-      );
-    }
+  enqueue("notes", async () => {
+    const db = getDb();
+    const ids = new Set(notes.map(n => n.id));
+    await db.withTransactionAsync(async () => {
+      for (const n of notes) {
+        try {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO notes (id,title,body,pinned,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
+            [
+              n.id, n.title ?? "", n.body ?? "", n.pinned ? 1 : 0,
+              n.created_at, n.updated_at ?? n.created_at,
+            ]
+          );
+        } catch (e) { console.warn(`dbSaveNotes row ${n.id}:`, e); }
+      }
+      const existing = await db.getAllAsync<{ id: string }>("SELECT id FROM notes");
+      for (const row of existing) {
+        if (!ids.has(row.id)) await db.runAsync("DELETE FROM notes WHERE id = ?", row.id);
+      }
+    });
   });
 }

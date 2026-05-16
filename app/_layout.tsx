@@ -56,7 +56,7 @@ function AppShell() {
   const isFirst = useRef(true);
   const fadeOpacity = useSharedValue(0);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: fadeOpacity.value }));
-  const overlayColor = scheme === "dark" ? "#0D0D0D" : "#FFFFFF";
+  const overlayColor = colors.bgPrimary;
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -93,6 +93,7 @@ function AppShell() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }, fadeStyle]} pointerEvents="none" />
     </NavThemeProvider>
