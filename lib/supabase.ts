@@ -1,14 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    "Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. " +
-    "Copy .env.example to .env and fill in your Supabase credentials."
-  );
-}
+// Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
+// Hard-coded fallback ensures the app loads even if the build didn't pick up the file.
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ??
+  "https://vbegnnwyrbxiqdnzvhwk.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  "sb_publishable_vu8Trd9OjPINvclyAtQ8-w_x2ZdahXp";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
