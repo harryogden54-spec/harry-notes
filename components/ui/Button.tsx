@@ -13,6 +13,7 @@ interface ButtonProps extends PressableProps {
   size?: Size;
   loading?: boolean;
   icon?: React.ReactNode;
+  accessibilityLabel?: string;
 }
 
 export function Button({
@@ -23,6 +24,7 @@ export function Button({
   icon,
   style,
   disabled,
+  accessibilityLabel,
   ...props
 }: ButtonProps) {
   const { colors } = useTheme();
@@ -62,6 +64,9 @@ export function Button({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!(disabled || loading) }}
       disabled={disabled || loading}
       style={({ pressed }) => ({
         backgroundColor: bg[variant],

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, TextInput, Pressable,
   KeyboardAvoidingView, Platform, RefreshControl, Modal,
@@ -12,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
-import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, Surface, GradientBackground } from "@/components/ui";
+import { Text, Checkbox, Divider, DatePicker, SearchBar, EmptyState, GlassCard, Surface, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse, UNI_COURSES } from "@/lib/TasksContext";
@@ -990,7 +991,7 @@ function EmptyDetailPane({ open }: { open: Task[] }) {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export default function TasksScreen() {
+function TasksScreen() {
   const { colors } = useTheme();
   const { tasks, addTask, loaded, syncStatus, syncNow, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
   const { showToast } = useToast();
@@ -1164,8 +1165,12 @@ export default function TasksScreen() {
   if (!loaded) {
     return (
       <GradientBackground>
-        <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <Text size="sm" secondary>Loading…</Text>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={{ padding: spacing[4], gap: spacing[3] }}>
+            {[1, 2, 3, 4, 5].map(i => (
+              <Skeleton key={i} height={52} borderRadius={10} />
+            ))}
+          </View>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -1454,3 +1459,8 @@ export default function TasksScreen() {
     </GradientBackground>
   );
 }
+
+export default function TasksScreenBounded() {
+  return <ErrorBoundary><TasksScreen /></ErrorBoundary>;
+}
+

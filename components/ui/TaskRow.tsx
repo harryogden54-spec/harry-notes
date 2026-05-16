@@ -64,6 +64,9 @@ function RowContent({ task, onPress }: Props) {
   return (
     <Pressable
       onPress={renaming ? undefined : onPress}
+      accessibilityLabel={`${task.title}, ${task.done ? "completed" : "incomplete"}`}
+      accessibilityRole="button"
+      accessibilityHint={Platform.OS !== "web" ? "Swipe right to complete, swipe left to delete" : undefined}
       style={{
         flexDirection: "row", alignItems: "center", gap: spacing[3],
         minHeight: 52,
@@ -78,7 +81,7 @@ function RowContent({ task, onPress }: Props) {
       {priorityColor && (
         <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, backgroundColor: priorityColor }} />
       )}
-      <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} />
+      <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} accessibilityLabel={task.title} />
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ position: "relative" }}>
           {renaming ? (
@@ -133,15 +136,106 @@ function RowContent({ task, onPress }: Props) {
   );
 }
 
+function WebTaskRow({ task, onPress }: Props) {
+  const { colors } = useTheme();
+  const { toggleTask, deleteTask } = useTasks();
+  const { showToast } = useToast();
+  const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function handleComplete(e: any) {
+    e.stopPropagation?.();
+    toggleTask(task.id);
+    setMenuOpen(false);
+  }
+
+  function handleDelete(e: any) {
+    e.stopPropagation?.();
+    const undo = deleteTask(task.id);
+    showToast("Task deleted", { label: "Undo", onPress: () => { undo(); } });
+    setMenuOpen(false);
+  }
+
+  return (
+    <View
+      style={{ position: "relative" }}
+      // @ts-ignore — web-only hover events
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setMenuOpen(false); }}
+    >
+      <RowContent task={task} onPress={onPress} />
+      {hovered && !task.done && (
+        <View style={{
+          position: "absolute", right: spacing[3], top: "50%",
+          transform: [{ translateY: -14 }],
+          zIndex: 10,
+        }}>
+          {menuOpen ? (
+            <View style={{
+              flexDirection: "row", gap: spacing[1],
+              backgroundColor: colors.bgSecondary,
+              borderWidth: 1, borderColor: colors.bgBorder,
+              borderRadius: radius.lg,
+              paddingHorizontal: spacing[1.5], paddingVertical: spacing[1],
+              // @ts-ignore
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            }}>
+              <Pressable
+                onPress={handleComplete}
+                style={{
+                  paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+                  borderRadius: radius.md,
+                  backgroundColor: `${colors.accent}18`,
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Complete task"
+              >
+                <Text size="xs" weight="medium" style={{ color: colors.accent }}>Complete</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDelete}
+                style={{
+                  paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+                  borderRadius: radius.md,
+                  backgroundColor: `${colors.danger}18`,
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Delete task"
+              >
+                <Text size="xs" weight="medium" style={{ color: colors.danger }}>Delete</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={(e) => { e.stopPropagation?.(); setMenuOpen(true); }}
+              style={{
+                width: 28, height: 28,
+                borderRadius: 99,
+                backgroundColor: colors.bgTertiary,
+                borderWidth: 1, borderColor: colors.bgBorder,
+                alignItems: "center", justifyContent: "center",
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Task actions"
+            >
+              <Text size="xs" style={{ color: colors.textSecondary }}>⋯</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function TaskRow({ task, onPress }: Props) {
   const { colors } = useTheme();
   const { toggleTask, deleteTask } = useTasks();
   const { showToast } = useToast();
   const swipeRef = useRef<Swipeable | null>(null);
 
-  // Web: no swipe, render directly
+  // Web: hover-revealed action menu
   if (Platform.OS === "web") {
-    return <RowContent task={task} onPress={onPress} />;
+    return <WebTaskRow task={task} onPress={onPress} />;
   }
 
   function renderCompleteAction() {

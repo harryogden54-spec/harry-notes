@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, TextInput,
   Pressable, Platform, RefreshControl, useWindowDimensions,
@@ -103,7 +104,7 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export default function PostItsScreen() {
+function PostItsScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const { notes, addNote, deleteNote, loaded, syncNow } = useNotes();
@@ -195,3 +196,8 @@ export default function PostItsScreen() {
     </GradientBackground>
   );
 }
+
+export default function PostItsScreenBounded() {
+  return <ErrorBoundary><PostItsScreen /></ErrorBoundary>;
+}
+

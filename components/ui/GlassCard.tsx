@@ -71,7 +71,7 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
           variantBorder,
           style,
           // @ts-ignore — web-only CSS properties
-          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" },
+          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: isDark ? "0 4px 16px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.12)" : "0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04)" },
         ]}
       >
         {children}

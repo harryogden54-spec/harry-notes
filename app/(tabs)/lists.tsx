@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal, RefreshControl,
@@ -637,7 +638,7 @@ export function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export default function ListsScreen() {
+function ListsScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
@@ -836,3 +837,8 @@ export default function ListsScreen() {
     </GradientBackground>
   );
 }
+
+export default function ListsScreenBounded() {
+  return <ErrorBoundary><ListsScreen /></ErrorBoundary>;
+}
+

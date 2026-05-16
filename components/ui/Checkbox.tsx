@@ -11,9 +11,10 @@ interface CheckboxProps extends Omit<PressableProps, "onPress"> {
   checked: boolean;
   onToggle: () => void;
   size?: number;
+  accessibilityLabel?: string;
 }
 
-export function Checkbox({ checked, onToggle, size = 18, ...props }: CheckboxProps) {
+export function Checkbox({ checked, onToggle, size = 18, accessibilityLabel, ...props }: CheckboxProps) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -30,7 +31,14 @@ export function Checkbox({ checked, onToggle, size = 18, ...props }: CheckboxPro
   }
 
   return (
-    <Pressable onPress={handleToggle} hitSlop={8} {...props}>
+    <Pressable
+      onPress={handleToggle}
+      hitSlop={8}
+      accessibilityRole="checkbox"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ checked }}
+      {...props}
+    >
       <Animated.View
         style={[
           {
