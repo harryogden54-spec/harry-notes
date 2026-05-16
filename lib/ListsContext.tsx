@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import { AppState, Platform, type AppStateStatus } from "react-native";
+import React, { createContext, useContext, useCallback } from "react";
+import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncFetch, syncUpsert, syncDelete } from "./supabase";
+import { syncDelete } from "./supabase";
 import { dbLoadLists, dbSaveLists } from "./db";
+import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 
 export type ListItemType = "checkbox" | "bullet";
 
@@ -26,8 +27,6 @@ export type NoteList = {
 
 // Re-exported from theme.ts as the single source of truth.
 export { listColors as LIST_COLORS } from "./theme";
-
-type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
 type ListsContextValue = {
   lists: NoteList[];
@@ -54,52 +53,19 @@ function stamp(obj: NoteList): NoteList {
   return { ...obj, updated_at: new Date().toISOString() };
 }
 
+function newId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export function ListsProvider({ children }: { children: React.ReactNode }) {
-  const [lists, setLists]           = useState<NoteList[]>([]);
-  const [loaded, setLoaded]         = useState(false);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const loadedRef        = useRef(false);
-  const listsRef         = useRef<NoteList[]>([]);
-  const syncDebounce     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDeletesRef = useRef<Set<string>>(new Set());
-  const dirtyIdsRef      = useRef<Set<string>>(new Set());
-
-  useEffect(() => { listsRef.current = lists; }, [lists]);
-
-  function markDirty(...ids: string[]) {
-    for (const id of ids) dirtyIdsRef.current.add(id);
-  }
-
-  // Persist locally on every change + debounced push to Supabase
-  useEffect(() => {
-    if (!loadedRef.current) return;
-    storage.set("lists", lists);
-    if (Platform.OS !== "web") dbSaveLists(lists).catch(console.error);
-
-    if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    syncDebounce.current = setTimeout(async () => {
-      const dirtyIds = dirtyIdsRef.current;
-      if (dirtyIds.size === 0) return;
-      const snapshot = listsRef.current;
-      const dirty = snapshot.filter(l => dirtyIds.has(l.id));
-      if (dirty.length === 0) { dirtyIds.clear(); return; }
-      const pushedIds = dirty.map(l => l.id);
-      dirtyIds.clear();
-      const ok = await syncUpsert("lists", dirty);
-      if (!ok) {
-        for (const id of pushedIds) dirtyIds.add(id);
-        setSyncStatus("error");
-      }
-    }, 1500);
-  }, [lists]);
-
-  useEffect(() => {
-    const loadTimeout = setTimeout(() => {
-      if (!loadedRef.current) { loadedRef.current = true; setLoaded(true); }
-    }, 3000);
-
-    const loadLocal = async (): Promise<NoteList[]> => {
+  const {
+    items: lists, setItems: setLists, loaded, syncStatus, lastSynced,
+    itemsRef: listsRef, pendingDeletesRef, dirtyIdsRef,
+    markDirty, syncNow,
+  } = useSyncedCollection<NoteList>({
+    table: "lists",
+    storageKey: "lists",
+    loadLocal: async () => {
       if (Platform.OS !== "web") {
         try {
           const dbLists = await dbLoadLists() as NoteList[];
@@ -110,101 +76,14 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         } catch { /* fall through */ }
       }
       return await storage.get<NoteList[]>("lists") ?? [];
-    };
-
-    loadLocal().then(async (local) => {
-      clearTimeout(loadTimeout);
-      const localLists = local;
-      setLists(localLists);
-      loadedRef.current = true;
-      setLoaded(true);
-
-      setSyncStatus("syncing");
-      const result = await syncFetch<NoteList & { _updated_at: string }>("lists");
-      if (!result.ok) { setSyncStatus("error"); return; }
-      const remote = result.rows;
-      if (remote.length === 0 && localLists.length > 0) {
-        const ok = await syncUpsert("lists", localLists);
-        setSyncStatus(ok ? "synced" : "error");
-        if (ok) setLastSynced(new Date().toISOString());
-        return;
-      }
-
-      const local0 = listsRef.current;
-      const merged = [...local0];
-      for (const rem of remote) {
-        if (pendingDeletesRef.current.has(rem.id)) continue;
-        const idx = merged.findIndex(l => l.id === rem.id);
-        if (idx === -1) merged.push(rem);
-        else {
-          const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
-          const remoteUpdated = rem._updated_at ?? rem.updated_at ?? "";
-          if (remoteUpdated > localUpdated) merged[idx] = rem;
-        }
-      }
-      setLists(merged);
-      setSyncStatus("synced");
-      setLastSynced(new Date().toISOString());
-    }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
-    return () => clearTimeout(loadTimeout);
-  }, []);
-
-  const syncNow = useCallback(async () => {
-    if (syncDebounce.current) clearTimeout(syncDebounce.current);
-    setSyncStatus("syncing");
-    const result = await syncFetch<NoteList & { _updated_at: string }>("lists");
-    if (!result.ok) { setSyncStatus("error"); return; }
-    const remote = result.rows;
-    const remoteMap = new Map(remote.map(r => [r.id, r]));
-    const local = listsRef.current;
-
-    const merged = [...local];
-    for (const rem of remote) {
-      if (pendingDeletesRef.current.has(rem.id)) continue;
-      const idx = merged.findIndex(l => l.id === rem.id);
-      if (idx === -1) merged.push(rem);
-      else {
-        const localUpdated  = merged[idx].updated_at ?? merged[idx].created_at;
-        const remoteUpdated = rem._updated_at ?? rem.updated_at ?? "";
-        if (remoteUpdated > localUpdated) merged[idx] = rem;
-      }
-    }
-    setLists(merged);
-
-    const toUpsert = merged.filter(l => {
-      const rem = remoteMap.get(l.id);
-      const localUpdated  = l.updated_at ?? l.created_at;
-      const remoteUpdated = rem ? (rem._updated_at ?? rem.updated_at ?? "") : "";
-      return localUpdated > remoteUpdated;
-    });
-    if (toUpsert.length > 0) {
-      const ok = await syncUpsert("lists", toUpsert);
-      if (!ok) {
-        for (const l of toUpsert) dirtyIdsRef.current.add(l.id);
-        setSyncStatus("error");
-        return;
-      }
-    }
-
-    setSyncStatus("synced");
-    setLastSynced(new Date().toISOString());
-  }, []);
-
-  // Sync when app comes to foreground (native) or tab becomes visible (web)
-  useEffect(() => {
-    if (Platform.OS !== "web") {
-      const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-        if (state === "active" && loadedRef.current) syncNow();
-      });
-      return () => sub.remove();
-    }
-    const onVisibility = () => { if (!document.hidden && loadedRef.current) syncNow(); };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [syncNow]);
+    },
+    saveLocal: (items) => {
+      if (Platform.OS !== "web") dbSaveLists(items).catch(console.error);
+    },
+  });
 
   const addList = useCallback((name: string, color: string, initialItems?: string[]): string => {
-    const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const id  = newId();
     const now = new Date().toISOString();
     const items: ListItem[] = (initialItems ?? []).map((content, i) => ({
       id: `${Date.now()}_${i}`, content, type: "checkbox" as ListItemType, done: false,
@@ -212,19 +91,12 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     markDirty(id);
     setLists(prev => [...prev, stamp({ id, name, color, items, created_at: now })]);
     return id;
-  }, []);
-
-  const reorderItems = useCallback((listId: string, newItems: ListItem[]) => {
-    markDirty(listId);
-    setLists(prev => prev.map(l =>
-      l.id === listId ? stamp({ ...l, items: newItems }) : l
-    ));
-  }, []);
+  }, [markDirty, setLists]);
 
   const updateList = useCallback((id: string, updates: Partial<Omit<NoteList, "id" | "created_at">>) => {
     markDirty(id);
     setLists(prev => prev.map(l => l.id === id ? stamp({ ...l, ...updates }) : l));
-  }, []);
+  }, [markDirty, setLists]);
 
   const deleteList = useCallback((id: string): (() => void) => {
     const deleted = listsRef.current.find(l => l.id === id);
@@ -243,12 +115,12 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         setLists(prev => [...prev, deleted]);
       }
     };
-  }, []);
+  }, [listsRef, pendingDeletesRef, dirtyIdsRef, markDirty, setLists]);
 
   const pinList = useCallback((id: string) => {
     markDirty(id);
     setLists(prev => prev.map(l => l.id === id ? stamp({ ...l, pinned: !l.pinned }) : l));
-  }, []);
+  }, [markDirty, setLists]);
 
   const duplicateList = useCallback((id: string) => {
     const original = listsRef.current.find(l => l.id === id);
@@ -264,15 +136,15 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     };
     markDirty(newList.id);
     setLists(prev => [...prev, newList]);
-  }, []);
+  }, [listsRef, markDirty, setLists]);
 
   const addItem = useCallback((listId: string, content: string, type: ListItemType) => {
-    const item: ListItem = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, content, type, done: false };
+    const item: ListItem = { id: newId(), content, type, done: false };
     markDirty(listId);
     setLists(prev => prev.map(l =>
       l.id === listId ? stamp({ ...l, items: [...(l.items ?? []), item] }) : l
     ));
-  }, []);
+  }, [markDirty, setLists]);
 
   const updateItem = useCallback((listId: string, itemId: string, updates: Partial<ListItem>) => {
     markDirty(listId);
@@ -281,7 +153,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         ? stamp({ ...l, items: (l.items ?? []).map(i => i.id === itemId ? { ...i, ...updates } : i) })
         : l
     ));
-  }, []);
+  }, [markDirty, setLists]);
 
   const toggleItem = useCallback((listId: string, itemId: string) => {
     markDirty(listId);
@@ -290,7 +162,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         ? stamp({ ...l, items: (l.items ?? []).map(i => i.id === itemId ? { ...i, done: !i.done } : i) })
         : l
     ));
-  }, []);
+  }, [markDirty, setLists]);
 
   const deleteItem = useCallback((listId: string, itemId: string): (() => void) => {
     let deletedItem: ListItem | undefined;
@@ -309,7 +181,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         ));
       }
     };
-  }, []);
+  }, [markDirty, setLists]);
 
   const moveItem = useCallback((fromListId: string, itemId: string, toListId: string) => {
     markDirty(fromListId, toListId);
@@ -326,7 +198,14 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
         l.id === toListId ? stamp({ ...l, items: [...(l.items ?? []), item] }) : l
       );
     });
-  }, []);
+  }, [markDirty, setLists]);
+
+  const reorderItems = useCallback((listId: string, newItems: ListItem[]) => {
+    markDirty(listId);
+    setLists(prev => prev.map(l =>
+      l.id === listId ? stamp({ ...l, items: newItems }) : l
+    ));
+  }, [markDirty, setLists]);
 
   return (
     <ListsContext.Provider value={{
