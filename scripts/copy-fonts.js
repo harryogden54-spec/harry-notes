@@ -15,7 +15,10 @@ const OUT  = path.join(DIST, "assets", "fonts");
 
 if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
 
-const NM = "assets/___node_modules";
+// Expo export uses ___node_modules on some platforms and node_modules on others
+const NM = fs.existsSync(path.join(DIST, "assets/___node_modules"))
+  ? "assets/___node_modules"
+  : "assets/node_modules";
 
 const FONTS = [
   {
