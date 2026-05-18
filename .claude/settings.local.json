@@ -12,7 +12,24 @@
       "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\" | Out-Null; \"taskUtils.ts\",\"TaskDetailModal.tsx\",\"TaskItem.tsx\",\"AddTaskRow.tsx\",\"TaskSection.tsx\",\"EmptyDetailPane.tsx\",\"TaskFilters.tsx\",\"TaskSortMenu.tsx\" | ForEach-Object { Set-Content \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\\\\$_\" \"\" -Encoding utf8 }; Get-ChildItem \"c:\\\\Users\\\\harry\\\\Documents\\\\Harry\\\\harry-notes\\\\components\\\\tasks\")",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(Start-Sleep -Seconds 8)",
+      "Bash(npm run *)",
+      "Bash(npx wrangler *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(p.scripts\\)\")",
+      "Bash(node -e \"const p = require\\('./app.json'\\); console.log\\(JSON.stringify\\(p.expo?.extra, null, 2\\)\\)\")",
+      "Bash(npx expo *)",
+      "Bash(git commit -m 'fix: use hardcoded fallback for Supabase creds so web bundle always loads *)",
+      "Bash(node scripts/copy-fonts.js)",
+      "Bash(git commit -m 'fix: copy-fonts.js use ___node_modules path \\(Expo export convention\\) *)",
+      "Bash(git commit -m 'refactor: extract useSyncedCollection hook, debounce notification reschedule *)",
+      "Bash(git commit -m 'refactor: split tasks.tsx into components/tasks/, React.memo on leaf rows *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; print\\('\\\\n'.join\\([k for k in deps if 'fuse' in k.lower\\(\\)]\\)\\)\")",
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('fuse.js'\\); console.log\\('ok'\\)\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\harry\\Documents\\Harry\\harry-notes\\components"

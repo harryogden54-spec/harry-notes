@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, Pressable,
@@ -10,26 +10,14 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown } from "@/lib/utils";
+import { getTodayStr, stripMarkdown, PRIORITY_COLOR } from "@/lib/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
-
-// ─── Pastel palette ───────────────────────────────────────────────────────────
-
-const NOTE_PASTELS         = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
-const NOTE_PASTEL_BORDERS  = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
-const NOTE_PASTEL_TEXT     = "#1A1A2E";
-
-function getPastelIndex(noteId: string): number {
-  let h = 0;
-  for (let i = 0; i < noteId.length; i++) h = (h * 31 + noteId.charCodeAt(i)) >>> 0;
-  return h % NOTE_PASTELS.length;
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,13 +42,6 @@ function getTodayKey() {
 type TodayItem = { id: string; text: string; done: boolean };
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
-
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "#EF4444",
-  high:   "#F97316",
-  medium: "#EAB308",
-  low:    "#6B7280",
-};
 
 // ─── Today panel ──────────────────────────────────────────────────────────────
 
@@ -144,7 +125,7 @@ function DashboardScreen() {
   useEffect(() => { setMounted(true); }, []);
   const now = mounted ? new Date() : null;
 
-  const openTasks = tasks
+  const openTasks = useMemo(() => tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
       const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
@@ -153,16 +134,20 @@ function DashboardScreen() {
       const aDate = a.due_date ?? "9999-99-99";
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
-    });
+    }), [tasks]);
 
-  const overdueTasks = openTasks.filter(t => !!t.due_date && t.due_date < today);
+  const overdueTasks = useMemo(() => openTasks.filter(t => !!t.due_date && t.due_date < today), [openTasks, today]);
   const overdueCount = overdueTasks.length;
 
-  const allSorted = [...notes].sort((a, b) =>
-    (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
-  );
-  const sortedNotes   = allSorted.filter(n => n.type !== "postit");
-  const sortedPostIts = allSorted.filter(n => n.type === "postit");
+  const { sortedNotes, sortedPostIts } = useMemo(() => {
+    const allSorted = [...notes].sort((a, b) =>
+      (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
+    );
+    return {
+      sortedNotes:   allSorted.filter(n => n.type !== "postit"),
+      sortedPostIts: allSorted.filter(n => n.type === "postit"),
+    };
+  }, [notes]);
 
   const handleGoToLists   = useCallback(() => router.push("/(tabs)/lists"), [router]);
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
@@ -247,7 +232,7 @@ function DashboardScreen() {
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 {task.priority && (
-                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLORS[task.priority] }} />
+                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLOR[task.priority] }} />
                 )}
                 <View style={{ flex: 1 }}>
                   <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
@@ -292,9 +277,9 @@ function DashboardScreen() {
       <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "See all", onPress: handleGoToNotes }} />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
-          const pi = getPastelIndex(note.id);
-          const bg = NOTE_PASTELS[pi];
-          const border = NOTE_PASTEL_BORDERS[pi];
+          const pi = getNotePastelIndex(note.id);
+          const bg = notePastels.bg[pi];
+          const border = notePastels.border[pi];
           return (
             <Pressable
               key={note.id}
@@ -312,16 +297,16 @@ function DashboardScreen() {
                 gap: spacing[1],
                 minHeight: 100,
               }}>
-                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: NOTE_PASTEL_TEXT }}>
+                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
                   {note.title || "Untitled"}
                 </Text>
                 {note.body.trim() && (
-                  <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, opacity: 0.75, lineHeight: 16 }}>
+                  <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
                     {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
                   </Text>
                 )}
                 {mounted && (
-                  <Text size="xs" style={{ color: NOTE_PASTEL_TEXT, opacity: 0.45, marginTop: "auto" as any }}>
+                  <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
                     {(() => {
                       const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
                       const mins = Math.floor(diff / 60000);
@@ -362,7 +347,7 @@ function DashboardScreen() {
         contentContainerStyle={{ paddingRight: spacing[3] }}
       >
         {sortedPostIts.slice(0, 6).map(n => {
-          const pi = getPastelIndex(n.id);
+          const pi = getNotePastelIndex(n.id);
           return (
             <Pressable
               key={n.id}
@@ -370,9 +355,9 @@ function DashboardScreen() {
               style={{ width: 140, marginRight: spacing[2] }}
             >
               <View style={{
-                backgroundColor: NOTE_PASTELS[pi],
+                backgroundColor: notePastels.bg[pi],
                 borderWidth: 1,
-                borderColor: NOTE_PASTEL_BORDERS[pi],
+                borderColor: notePastels.border[pi],
                 borderRadius: radius.lg,
                 padding: spacing[3],
                 minHeight: 72,
@@ -383,7 +368,7 @@ function DashboardScreen() {
                 shadowRadius: 4,
                 elevation: 2,
               }}>
-                <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, lineHeight: 18 }}>
+                <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, lineHeight: 18 }}>
                   {n.title || "…"}
                 </Text>
               </View>

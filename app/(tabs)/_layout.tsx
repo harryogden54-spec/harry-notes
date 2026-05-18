@@ -1,43 +1,20 @@
 import React, { useRef, useCallback, useState, useEffect } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
-import { Platform, Text, Animated, View, Pressable, useWindowDimensions, ScrollView, TextInput } from "react-native";
-import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
+import { Platform, Animated, View, Pressable, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { radius, spacing, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
+import { spacing, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
-import { useLists } from "@/lib/ListsContext";
-import { getTodayStr } from "@/lib/utils";
-import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
-import { SearchResults } from "@/components/dashboard/SearchResults";
 import { useNotes } from "@/lib/NotesContext";
-import { useThemeContext } from "@/lib/ThemeContext";
-import { useSyncStatus } from "@/lib/useSyncStatus";
-
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
-
-type NavItem = {
-  name: string;
-  label: string;
-  iconOutline: IoniconName;
-  iconFilled: IoniconName;
-  path: string;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  { name: "index",   label: "Home",     iconOutline: "home-outline",     iconFilled: "home",     path: "/(tabs)/" },
-  { name: "today",   label: "Today",    iconOutline: "today-outline",    iconFilled: "today",    path: "/(tabs)/today" },
-  { name: "tasks",   label: "Tasks",    iconOutline: "checkbox-outline", iconFilled: "checkbox", path: "/(tabs)/tasks" },
-  { name: "notes",   label: "Notes",    iconOutline: "albums-outline",   iconFilled: "albums",   path: "/(tabs)/notes" },
-  { name: "postits", label: "Post Its", iconOutline: "layers-outline",   iconFilled: "layers",   path: "/(tabs)/postits" },
-];
+import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
+import {
+  PersistentHeader, OfflineBanner, Sidebar, ShortcutsHelp, GlobalSearchModal, NAV_ITEMS,
+} from "@/components/nav";
+import type { IoniconName } from "@/components/nav";
 
 function TabIcon({ focused, color, iconOutline, iconFilled }: {
-  focused: boolean;
-  color: string;
-  iconOutline: IoniconName;
-  iconFilled: IoniconName;
+  focused: boolean; color: string; iconOutline: IoniconName; iconFilled: IoniconName;
 }) {
   return <Ionicons name={focused ? iconFilled : iconOutline} size={22} color={color} />;
 }
@@ -671,6 +648,7 @@ export default function TabLayout() {
   const { onTabPress } = useFadeTab();
   const { width } = useWindowDimensions();
   const router = useRouter();
+  const pathname = usePathname();
   const { addTask, updateTask } = useTasks();
   const { addNote } = useNotes();
 
@@ -680,9 +658,8 @@ export default function TabLayout() {
   const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
   const collapsed = manualCollapsed !== null ? manualCollapsed : autoCollapsed;
 
-  const pathname = usePathname();
-  const [showQuickAdd, setShowQuickAdd]       = useState(false);
-  const [showShortcuts, setShowShortcuts]     = useState(false);
+  const [showQuickAdd, setShowQuickAdd]         = useState(false);
+  const [showShortcuts, setShowShortcuts]       = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   // Global keyboard shortcuts (web only)
@@ -700,7 +677,6 @@ export default function TabLayout() {
         setShowQuickAdd(v => !v);
         return;
       }
-
       if (e.key === "Escape") {
         setShowQuickAdd(false);
         setShowShortcuts(false);
@@ -708,12 +684,9 @@ export default function TabLayout() {
         gPressed = false;
         return;
       }
-
       if (isInput) return;
-
       if (e.key === "/") { e.preventDefault(); setShowGlobalSearch(v => !v); return; }
       if (e.key === "?") { e.preventDefault(); setShowShortcuts(v => !v); return; }
-
       if (e.key === "g" || e.key === "G") {
         e.preventDefault();
         gPressed = true;
@@ -729,7 +702,6 @@ export default function TabLayout() {
         else if (key === "t") { e.preventDefault(); router.push("/(tabs)/tasks" as any); }
         else if (key === "n") { e.preventDefault(); router.push("/(tabs)/notes" as any); }
         else if (key === "p") { e.preventDefault(); router.push("/(tabs)/postits" as any); }
-        return;
       }
     }
 
@@ -737,7 +709,12 @@ export default function TabLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  const handleQuickAddTask = useCallback((title: string, dueDate?: string, category?: import("@/lib/TasksContext").TaskCategory, uniCourse?: import("@/lib/TasksContext").UniCourse) => {
+  const handleQuickAddTask = useCallback((
+    title: string,
+    dueDate?: string,
+    category?: import("@/lib/TasksContext").TaskCategory,
+    uniCourse?: import("@/lib/TasksContext").UniCourse,
+  ) => {
     const id = addTask(title, dueDate);
     if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
   }, [addTask, updateTask]);
@@ -752,21 +729,12 @@ export default function TabLayout() {
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PersistentHeader showTitle={false} />
           <OfflineBanner />
-          <Tabs
-            screenOptions={{
-              tabBarStyle: { display: "none" },
-              headerShown: false,
-            }}
-          >
-            {NAV_ITEMS.map(item => (
-              <Tabs.Screen key={item.name} name={item.name} />
-            ))}
-            {/* Hidden: routable but not in nav */}
+          <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
+            {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
             <Tabs.Screen name="calendar" options={{ href: null }} />
             <Tabs.Screen name="lists" options={{ href: null }} />
           </Tabs>
         </View>
-
         <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
         {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
         <GlobalSearchModal visible={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
@@ -804,64 +772,41 @@ export default function TabLayout() {
     <>
       <PersistentHeader />
       <OfflineBanner />
-      {/* Dual FAB — task (primary) + note/list (secondary) */}
+      {/* Dual FAB */}
       <View
-        style={{
-          position: "absolute",
-          bottom: Platform.OS === "ios" ? 100 : 76,
-          right: spacing[5],
-          zIndex: 50,
-          alignItems: "flex-end",
-          gap: spacing[2],
-        }}
+        style={{ position: "absolute", bottom: Platform.OS === "ios" ? 100 : 76, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2] }}
         pointerEvents="box-none"
       >
-        {/* Secondary: context-aware — new list on notes tab, new post-it on postits tab, new note elsewhere */}
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (pathname.includes("/postits")) addNote("postit");
-            else if (pathname.includes("/notes")) router.push("/(tabs)/notes?create=list" as any);
+            if (pathname?.includes("/postits")) addNote("postit");
+            else if (pathname?.includes("/notes")) router.push("/(tabs)/notes?create=list" as any);
             else router.push("/(tabs)/notes?create=note" as any);
           }}
           style={{
-            width: 44, height: 44,
-            borderRadius: 99,
-            backgroundColor: colors.bgSecondary,
-            borderWidth: 1,
-            borderColor: colors.bgBorder,
+            width: 44, height: 44, borderRadius: 99,
+            backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.bgBorder,
             alignItems: "center", justifyContent: "center",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.12,
-            shadowRadius: 4,
-            elevation: 4,
+            shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 4,
           }}
         >
           <Ionicons
-            name={pathname.includes("/postits") ? "layers-outline" : pathname.includes("/notes") ? "list-outline" : "document-text-outline"}
+            name={pathname?.includes("/postits") ? "layers-outline" : pathname?.includes("/notes") ? "list-outline" : "document-text-outline"}
             size={19}
             color={colors.textSecondary}
           />
         </Pressable>
-
-        {/* Primary: new task */}
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setShowQuickAdd(true);
           }}
           style={{
-            width: 52, height: 52,
-            borderRadius: 99,
-            backgroundColor: colors.accent,
-            alignItems: "center", justifyContent: "center",
+            width: 52, height: 52, borderRadius: 99,
+            backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
             // @ts-ignore
-            shadowColor: colors.accent,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.4,
-            shadowRadius: 8,
-            elevation: 8,
+            shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
           }}
         >
           <Ionicons name="add" size={26} color={colors.textInverse} />
@@ -884,34 +829,13 @@ export default function TabLayout() {
           headerShown: false,
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={{ title: "Home", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="home-outline" iconFilled="home" /> }}
-          listeners={{ tabPress: onTabPress }}
-        />
-        <Tabs.Screen
-          name="today"
-          options={{ title: "Today", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="today-outline" iconFilled="today" /> }}
-          listeners={{ tabPress: onTabPress }}
-        />
-        <Tabs.Screen
-          name="tasks"
-          options={{ title: "Tasks", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="checkbox-outline" iconFilled="checkbox" /> }}
-          listeners={{ tabPress: onTabPress }}
-        />
-        <Tabs.Screen
-          name="notes"
-          options={{ title: "Notes", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="albums-outline" iconFilled="albums" /> }}
-          listeners={{ tabPress: onTabPress }}
-        />
-        <Tabs.Screen
-          name="postits"
-          options={{ title: "Post Its", tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} iconOutline="layers-outline" iconFilled="layers" /> }}
-          listeners={{ tabPress: onTabPress }}
-        />
-        {/* Hidden from tab bar */}
+        <Tabs.Screen name="index"   options={{ title: "Home",     tabBarIcon: p => <TabIcon {...p} iconOutline="home-outline"     iconFilled="home"     /> }} listeners={{ tabPress: onTabPress }} />
+        <Tabs.Screen name="today"   options={{ title: "Today",    tabBarIcon: p => <TabIcon {...p} iconOutline="today-outline"    iconFilled="today"    /> }} listeners={{ tabPress: onTabPress }} />
+        <Tabs.Screen name="tasks"   options={{ title: "Tasks",    tabBarIcon: p => <TabIcon {...p} iconOutline="checkbox-outline" iconFilled="checkbox" /> }} listeners={{ tabPress: onTabPress }} />
+        <Tabs.Screen name="notes"   options={{ title: "Notes",    tabBarIcon: p => <TabIcon {...p} iconOutline="albums-outline"   iconFilled="albums"   /> }} listeners={{ tabPress: onTabPress }} />
+        <Tabs.Screen name="postits" options={{ title: "Post Its", tabBarIcon: p => <TabIcon {...p} iconOutline="layers-outline"   iconFilled="layers"   /> }} listeners={{ tabPress: onTabPress }} />
         <Tabs.Screen name="calendar" options={{ href: null }} />
-        <Tabs.Screen name="lists" options={{ href: null }} />
+        <Tabs.Screen name="lists"   options={{ href: null }} />
       </Tabs>
     </>
   );

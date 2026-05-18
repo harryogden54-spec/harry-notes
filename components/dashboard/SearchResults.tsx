@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import Fuse from "fuse.js";
 import { Text } from "@/components/ui/Text";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -23,19 +24,24 @@ interface Props {
 export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
-  const q = query.toLowerCase();
-  const matchTasks = tasks.filter(t =>
-    t.title.toLowerCase().includes(q) ||
-    t.description?.toLowerCase().includes(q)
-  );
-  const matchLists = lists.filter(l =>
-    l.name.toLowerCase().includes(q) ||
-    (l.items ?? []).some(i => i.content.toLowerCase().includes(q))
-  );
-  const matchNotes = notes.filter(n =>
-    n.title.toLowerCase().includes(q) ||
-    n.body.toLowerCase().includes(q)
-  );
+
+  const matchTasks = useMemo(() => {
+    if (!query) return [];
+    const fuse = new Fuse(tasks, { keys: ["title", "description"], threshold: 0.35, ignoreLocation: true });
+    return fuse.search(query).map(r => r.item).slice(0, 8);
+  }, [tasks, query]);
+
+  const matchNotes = useMemo(() => {
+    if (!query) return [];
+    const fuse = new Fuse(notes, { keys: ["title", "body"], threshold: 0.35, ignoreLocation: true });
+    return fuse.search(query).map(r => r.item).slice(0, 6);
+  }, [notes, query]);
+
+  const matchLists = useMemo(() => {
+    if (!query) return [];
+    const fuse = new Fuse(lists, { keys: ["name", "items.content"], threshold: 0.35, ignoreLocation: true });
+    return fuse.search(query).map(r => r.item).slice(0, 5);
+  }, [lists, query]);
 
   if (matchTasks.length === 0 && matchLists.length === 0 && matchNotes.length === 0) {
     return <EmptyState type="search" title="No results" subtitle={`Nothing found for "${query}".`} />;
@@ -83,7 +89,7 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
           {matchLists.map(l => {
             const color = l.color ?? colors.accent;
             const items = l.items ?? [];
-            const done = items.filter(i => i.type === "checkbox" && i.done).length;
+            const done  = items.filter(i => i.type === "checkbox" && i.done).length;
             const total = items.filter(i => i.type === "checkbox").length;
             return (
               <Pressable key={l.id} onPress={() => router.push("/(tabs)/lists" as any)}>
@@ -97,7 +103,7 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
                   </View>
                   {total > 0 && (
                     <View style={{ height: 3, borderRadius: 99, backgroundColor: `${color}30`, marginTop: spacing[2] }}>
-                      <View style={{ height: 3, borderRadius: 99, backgroundColor: color, width: `${total > 0 ? Math.round(done / total * 100) : 0}%` as any }} />
+                      <View style={{ height: 3, borderRadius: 99, backgroundColor: color, width: `${Math.round(done / total * 100)}%` as any }} />
                     </View>
                   )}
                 </GlassCard>

@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import "react-native-reanimated";
 import "../global.css";
 
@@ -56,7 +56,7 @@ function AppShell() {
   const isFirst = useRef(true);
   const fadeOpacity = useSharedValue(0);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: fadeOpacity.value }));
-  const overlayColor = scheme === "dark" ? "#0D0D0D" : "#FFFFFF";
+  const overlayColor = colors.bgPrimary;
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -68,13 +68,25 @@ function AppShell() {
     initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
   }, [fontsLoaded]);
 
-  // Request permission once on first load, then reschedule whenever tasks change
+  // Fingerprint only the fields that affect notification scheduling.
+  // Without this, every keystroke in any task field cancels + reschedules all
+  // notifications via cancelAllScheduledNotificationsAsync.
+  const notifKey = useMemo(
+    () => tasks
+      .filter(t => !t.done && t.due_date)
+      .map(t => `${t.id}:${t.title}:${t.due_date}`)
+      .sort()
+      .join("|"),
+    [tasks]
+  );
+
   useEffect(() => {
     if (Platform.OS === "web" || !tasksLoaded) return;
     requestNotificationPermission().then(granted => {
       if (granted) scheduleTaskReminders(tasks);
     });
-  }, [tasks, tasksLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifKey, tasksLoaded]);
 
   // Theme cross-fade: flash an opaque overlay then fade it out on scheme change
   useEffect(() => {
@@ -93,6 +105,7 @@ function AppShell() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }, fadeStyle]} pointerEvents="none" />
     </NavThemeProvider>

@@ -1,0 +1,62 @@
+import React from "react";
+import { View } from "react-native";
+import { useTheme } from "@/lib/useTheme";
+import { Text } from "@/components/ui";
+import { spacing, fontFamily } from "@/lib/theme";
+
+type Colors = ReturnType<typeof useTheme>["colors"];
+
+export function renderInline(text: string, colors: Colors): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let keyIdx = 0;
+
+  const patterns: [RegExp, (inner: string) => React.ReactNode][] = [
+    [/\*\*(.+?)\*\*/s, (s) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{s}</Text>],
+    [/__(.+?)__/s,     (s) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{s}</Text>],
+    [/_(.+?)_/s,       (s) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{s}</Text>],
+    [/\*(.+?)\*/s,     (s) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{s}</Text>],
+    [/`(.+?)`/s,       (s) => <Text key={keyIdx++} style={{ fontFamily: "monospace" as any, fontSize: 13, color: colors.accent, backgroundColor: colors.bgTertiary }}>{` ${s} `}</Text>],
+    [/\[\[(.+?)\]\]/s, (s) => <Text key={keyIdx++} style={{ color: colors.accent, textDecorationLine: "underline" }}>{s}</Text>],
+  ];
+
+  while (remaining.length > 0) {
+    let earliest: { index: number; match: RegExpMatchArray; render: (s: string) => React.ReactNode } | null = null;
+    for (const [regex, render] of patterns) {
+      const m = remaining.match(regex);
+      if (m && m.index !== undefined) {
+        if (!earliest || m.index < earliest.index) earliest = { index: m.index, match: m, render };
+      }
+    }
+    if (!earliest) {
+      parts.push(<Text key={keyIdx++} style={{ color: colors.textSecondary }}>{remaining}</Text>);
+      break;
+    }
+    if (earliest.index > 0) parts.push(<Text key={keyIdx++} style={{ color: colors.textSecondary }}>{remaining.slice(0, earliest.index)}</Text>);
+    parts.push(earliest.render(earliest.match[1]));
+    remaining = remaining.slice(earliest.index + earliest.match[0].length);
+  }
+  return parts;
+}
+
+export function MarkdownView({ body, colors }: { body: string; colors: Colors }) {
+  const lines = body.split("\n");
+  const nodes: React.ReactNode[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const key = `md-${i}`;
+    if (line.startsWith("### "))     nodes.push(<Text key={key} style={{ fontSize: 15, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[3], marginBottom: spacing[1] }}>{renderInline(line.slice(4), colors)}</Text>);
+    else if (line.startsWith("## ")) nodes.push(<Text key={key} style={{ fontSize: 18, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[4], marginBottom: spacing[1.5] }}>{renderInline(line.slice(3), colors)}</Text>);
+    else if (line.startsWith("# "))  nodes.push(<Text key={key} style={{ fontSize: 22, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[5], marginBottom: spacing[2] }}>{renderInline(line.slice(2), colors)}</Text>);
+    else if (line.match(/^---+$/))   nodes.push(<View key={key} style={{ height: 1, backgroundColor: colors.bgBorder, marginVertical: spacing[3] }} />);
+    else if (line.match(/^[-*] /))   nodes.push(
+      <View key={key} style={{ flexDirection: "row", gap: spacing[2], marginVertical: 2 }}>
+        <Text style={{ color: colors.textTertiary, fontSize: 15, lineHeight: 24 }}>•</Text>
+        <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 15, lineHeight: 24 }}>{renderInline(line.slice(2), colors)}</Text>
+      </View>
+    );
+    else if (line.trim() === "") nodes.push(<View key={key} style={{ height: spacing[2] }} />);
+    else nodes.push(<Text key={key} style={{ color: colors.textSecondary, fontSize: 15, lineHeight: 24 }}>{renderInline(line, colors)}</Text>);
+  }
+  return <View style={{ gap: 0 }}>{nodes}</View>;
+}

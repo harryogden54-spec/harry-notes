@@ -32,10 +32,10 @@ function animate() {
 // ─── Templates ────────────────────────────────────────────────────────────────
 
 const TEMPLATES = [
-  { name: "Grocery",  color: "#27AE60", items: ["🥛 Milk", "🥚 Eggs", "🍞 Bread", "🧀 Cheese", "🍎 Apples"] },
-  { name: "Packing",  color: "#4A90D9", items: ["👕 T-shirts", "🩲 Underwear", "🧦 Socks", "🪥 Toothbrush", "💊 Medications"] },
-  { name: "Reading",  color: "#9B59B6", items: ["📖 Current book", "📚 Next up", "✅ Finished recently"] },
-  { name: "Study",    color: "#E67E22", items: ["📝 Review notes", "📚 Read chapter", "✏️ Do exercises", "🔁 Flashcards"] },
+  { name: "Grocery",  color: LIST_COLORS[2], items: ["🥛 Milk", "🥚 Eggs", "🍞 Bread", "🧀 Cheese", "🍎 Apples"] },
+  { name: "Packing",  color: LIST_COLORS[0], items: ["👕 T-shirts", "🩲 Underwear", "🧦 Socks", "🪥 Toothbrush", "💊 Medications"] },
+  { name: "Reading",  color: LIST_COLORS[1], items: ["📖 Current book", "📚 Next up", "✅ Finished recently"] },
+  { name: "Study",    color: LIST_COLORS[3], items: ["📝 Review notes", "📚 Read chapter", "✏️ Do exercises", "🔁 Flashcards"] },
 ];
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────
@@ -248,10 +248,11 @@ function ListItemRow({
           onMouseLeave={() => { setHovered(false); setShowMove(false); }}
           style={{
             flexDirection: "row", alignItems: "center", gap: spacing[3],
-            paddingVertical: spacing[2], paddingHorizontal: spacing[1],
+            paddingVertical: spacing[3], paddingHorizontal: spacing[2],
             borderRadius: radius.sm,
-            backgroundColor: isDragActive ? colors.bgTertiary : hovered ? colors.bgTertiary : "transparent",
-            opacity: item.done ? 0.5 : 1,
+            borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
+            backgroundColor: isDragActive ? colors.bgTertiary : hovered ? `${colors.bgTertiary}CC` : "transparent",
+            opacity: item.done ? 0.55 : 1,
           }}
         >
           {drag && (
@@ -327,7 +328,15 @@ function AddItemRow({ listId, defaultType }: { listId: string; defaultType: List
   }
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[2] }}>
+    <View style={{
+      flexDirection: "row", alignItems: "center", gap: spacing[2],
+      marginTop: spacing[2],
+      paddingHorizontal: spacing[2], paddingVertical: spacing[2],
+      backgroundColor: colors.bgSecondary,
+      borderTopWidth: 1, borderTopColor: colors.bgBorder,
+      borderRadius: radius.md,
+    }}>
+      <Text size="sm" style={{ color: colors.textTertiary, fontWeight: "600" }}>+</Text>
       <Pressable onPress={() => setType(t => t === "checkbox" ? "bullet" : "checkbox")} hitSlop={8}>
         {type === "checkbox"
           ? <View style={{ width: 15, height: 15, borderRadius: 3, borderWidth: 1.5, borderColor: colors.bgBorder }} />
@@ -424,7 +433,7 @@ export function ListDetailPane({ list, otherLists }: { list: NoteList; otherList
       {/* Header */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], marginBottom: spacing[2] }}>
         <Pressable onPress={() => setEditingColor(v => !v)} hitSlop={8}>
-          <View style={{ width: 16, height: 16, borderRadius: 99, backgroundColor: color }} />
+          <View style={{ width: 20, height: 20, borderRadius: 99, backgroundColor: color, shadowColor: color, shadowOpacity: 0.4, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }} />
         </Pressable>
         {editingName ? (
           <TextInput
@@ -440,8 +449,13 @@ export function ListDetailPane({ list, otherLists }: { list: NoteList; otherList
             ]}
           />
         ) : (
-          <Pressable onPress={() => setEditingName(true)} style={{ flex: 1 }}>
+          <Pressable onPress={() => setEditingName(true)} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
             <Text size="2xl" weight="bold">{list.name}</Text>
+            {items.length > 0 && (
+              <View style={{ backgroundColor: `${color}22`, borderRadius: 99, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
+                <Text size="xs" style={{ color }}>{activeItems.length}/{items.length}</Text>
+              </View>
+            )}
           </Pressable>
         )}
         <Pressable
