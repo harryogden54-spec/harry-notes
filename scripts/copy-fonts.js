@@ -15,7 +15,7 @@ const OUT  = path.join(DIST, "assets", "fonts");
 
 if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
 
-const NM = "assets/node_modules";
+const NM = "assets/___node_modules";
 
 const FONTS = [
   {

@@ -17,8 +17,8 @@ interface CardPressableProps extends PressableProps {
 
 function cardStyle(colors: ReturnType<typeof useTheme>["colors"], variant: CardVariant, isDark: boolean) {
   const base = {
-    borderRadius: radius.xl,
-    padding: spacing[4],
+    borderRadius: radius["2xl"],
+    padding: spacing[5],
   };
 
   switch (variant) {
@@ -28,13 +28,12 @@ function cardStyle(colors: ReturnType<typeof useTheme>["colors"], variant: CardV
         backgroundColor: colors.bgSecondary,
         borderWidth: 1,
         borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-        // iOS shadow
+        // Soft ambient shadow — iOS-style
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 8,
-        // Android elevation
-        elevation: 3,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
       };
     case "outlined":
       return {

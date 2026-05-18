@@ -1,36 +1,22 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
   Platform, KeyboardAvoidingView, TextInput, RefreshControl,
   useWindowDimensions,
 } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { Text, SearchBar, Surface, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
+import { spacing, radius, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown } from "@/lib/utils";
-import { QuickAddModal }      from "@/components/dashboard/QuickAddModal";
+import { getTodayStr, stripMarkdown, PRIORITY_COLOR } from "@/lib/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
-
-// ─── Pastel palette ───────────────────────────────────────────────────────────
-
-const NOTE_PASTELS         = ["#FFF9C4","#FCE4EC","#E8F5E9","#E3F2FD","#EDE7F6","#FBE9E7"];
-const NOTE_PASTEL_BORDERS  = ["#F0E68C","#F8BBD9","#C8E6C9","#BBDEFB","#D1C4E9","#FFCCBC"];
-const NOTE_PASTEL_TEXT     = "#1A1A2E";
-
-function getPastelIndex(noteId: string): number {
-  let h = 0;
-  for (let i = 0; i < noteId.length; i++) h = (h * 31 + noteId.charCodeAt(i)) >>> 0;
-  return h % NOTE_PASTELS.length;
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,13 +41,6 @@ function getTodayKey() {
 type TodayItem = { id: string; text: string; done: boolean };
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
-
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "#EF4444",
-  high:   "#F97316",
-  medium: "#EAB308",
-  low:    "#6B7280",
-};
 
 // ─── Today panel ──────────────────────────────────────────────────────────────
 
@@ -113,9 +92,6 @@ function TodayPanel() {
 function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
   const { colors } = useTheme();
   const items = list.items ?? [];
-  const doneCount  = items.filter((i: any) => i.done).length;
-  const totalCheck = items.filter((i: any) => i.type === "checkbox").length;
-  const pct        = totalCheck === 0 ? 0 : Math.round((doneCount / totalCheck) * 100);
   const listColor  = list.color ?? colors.accent;
 
   return (
@@ -125,14 +101,9 @@ function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
           <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: listColor }} />
           <Text size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
           <Text size="xs" style={{ color: colors.textTertiary }}>
-            {totalCheck > 0 ? `${doneCount}/${totalCheck}` : items.length}
+            {items.length}
           </Text>
         </View>
-        {totalCheck > 0 && (
-          <View style={{ height: 3, borderRadius: 99, backgroundColor: `${listColor}25`, overflow: "hidden" }}>
-            <View style={{ height: 3, width: `${pct}%` as any, borderRadius: 99, backgroundColor: listColor }} />
-          </View>
-        )}
       </Surface>
     </Pressable>
   );
@@ -149,20 +120,15 @@ export default function DashboardScreen() {
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
   const [search, setSearch]    = useState("");
-  const [showTaskSheet, setShowTaskSheet] = useState(false);
-  const [refreshing, setRefreshing]       = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const today                  = getTodayStr();
+  const [refreshing, setRefreshing] = useState(false);
+  const today                       = getTodayStr();
 
   // Hydration guard
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const now = mounted ? new Date() : null;
 
-  const taskFabScale = useSharedValue(1);
-  const taskFabStyle = useAnimatedStyle(() => ({ transform: [{ scale: taskFabScale.value }] }));
-
-  const openTasks = tasks
+  const openTasks = useMemo(() => tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
       const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
@@ -171,18 +137,25 @@ export default function DashboardScreen() {
       const aDate = a.due_date ?? "9999-99-99";
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
-    });
+    }), [tasks]);
 
-  const overdueTasks = openTasks.filter(t => !!t.due_date && t.due_date < today);
+  const overdueTasks = useMemo(() => openTasks.filter(t => !!t.due_date && t.due_date < today), [openTasks, today]);
   const overdueCount = overdueTasks.length;
 
-  const sortedNotes = [...notes].sort((a, b) =>
-    (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
-  );
+  const { sortedNotes, sortedPostIts } = useMemo(() => {
+    const allSorted = [...notes].sort((a, b) =>
+      (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
+    );
+    return {
+      sortedNotes:   allSorted.filter(n => n.type !== "postit"),
+      sortedPostIts: allSorted.filter(n => n.type === "postit"),
+    };
+  }, [notes]);
 
-  const handleGoToLists = useCallback(() => router.push("/(tabs)/lists"), [router]);
-  const handleGoToTasks = useCallback(() => router.push("/(tabs)/tasks"), [router]);
-  const handleGoToNotes = useCallback(() => router.push("/(tabs)/notes"), [router]);
+  const handleGoToLists   = useCallback(() => router.push("/(tabs)/lists"), [router]);
+  const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
+  const handleGoToNotes   = useCallback(() => router.push("/(tabs)/notes"), [router]);
+  const handleGoToPostIts = useCallback(() => router.push("/(tabs)/postits"), [router]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -190,27 +163,6 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [syncTasks, showToast]);
 
-  const handleQuickAddTask = useCallback((title: string, dueDate?: string, category?: import("@/lib/TasksContext").TaskCategory, uniCourse?: import("@/lib/TasksContext").UniCourse) => {
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const id = addTask(title, dueDate);
-    if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
-  }, [addTask, updateTask]);
-
-  // Web keyboard shortcuts
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    function onKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (e.key === "Escape") { setShowTaskSheet(false); setShowShortcuts(false); return; }
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "n" || e.key === "N") { e.preventDefault(); setShowTaskSheet(true); }
-      if (e.key === "/") { e.preventDefault(); searchRef.current?.focus(); }
-      if (e.key === "t" || e.key === "T") { e.preventDefault(); router.push("/(tabs)/today"); }
-      if (e.key === "?") { e.preventDefault(); setShowShortcuts(v => !v); }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
 
   const { width } = useWindowDimensions();
   const isWide   = width >= 768;
@@ -219,7 +171,7 @@ export default function DashboardScreen() {
   // ─── Header ───────────────────────────────────────────────────────────────────
 
   const header = (
-    <View style={{ paddingTop: spacing[4], paddingBottom: spacing[4], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+    <View style={{ paddingTop: spacing[8], paddingBottom: spacing[4], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
       <View style={{ flex: 1 }}>
         <Text size="2xl" weight="bold">{mounted ? greeting() : "Good morning"}</Text>
         <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
@@ -266,21 +218,21 @@ export default function DashboardScreen() {
         action={{ label: "All tasks", onPress: handleGoToTasks }}
       />
       {!tasksLoaded ? (
-        <Surface style={{ padding: spacing[4], gap: spacing[3] }}>
+        <GlassCard style={{ padding: spacing[4], gap: spacing[3] }}>
           <Skeleton height={16} borderRadius={6} />
           <Skeleton height={16} borderRadius={6} width="80%" />
-        </Surface>
+        </GlassCard>
       ) : openTasks.length === 0 ? (
-        <Surface style={{ padding: spacing[4], alignItems: "center" }}>
+        <GlassCard style={{ padding: spacing[4], alignItems: "center" }}>
           <Text size="sm" secondary>No open tasks</Text>
-        </Surface>
+        </GlassCard>
       ) : (
-        <Surface style={{ overflow: "hidden", flex: 1 }}>
+        <GlassCard style={{ overflow: "hidden", flex: 1 }}>
           {tasksCardItems.map((task, i) => (
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 {task.priority && (
-                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLORS[task.priority] }} />
+                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLOR[task.priority] }} />
                 )}
                 <View style={{ flex: 1 }}>
                   <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
@@ -293,7 +245,7 @@ export default function DashboardScreen() {
               <Text size="xs" style={{ color: colors.accent }}>View all {openTasks.length} tasks →</Text>
             </Pressable>
           )}
-        </Surface>
+        </GlassCard>
       )}
     </View>
   );
@@ -303,22 +255,22 @@ export default function DashboardScreen() {
   const todayCard = (
     <View style={{ flex: 1 }}>
       <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
-      <Surface style={{ padding: spacing[3], flex: 1 }}>
+      <GlassCard style={{ padding: spacing[4], flex: 1 }}>
         <TodayPanel />
-      </Surface>
+      </GlassCard>
     </View>
   );
 
   // ─── Notes row ────────────────────────────────────────────────────────────────
 
   const notesRow = sortedNotes.length > 0 ? (
-    <View style={{ marginBottom: spacing[5] }}>
+    <View style={{ marginBottom: spacing[6] }}>
       <SectionHeader label="Notes" count={sortedNotes.length} action={{ label: "All notes", onPress: handleGoToNotes }} />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
-          const pi = getPastelIndex(note.id);
-          const bg = NOTE_PASTELS[pi];
-          const border = NOTE_PASTEL_BORDERS[pi];
+          const pi = getNotePastelIndex(note.id);
+          const bg = notePastels.bg[pi];
+          const border = notePastels.border[pi];
           return (
             <Pressable
               key={note.id}
@@ -336,16 +288,16 @@ export default function DashboardScreen() {
                 gap: spacing[1],
                 minHeight: 100,
               }}>
-                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: NOTE_PASTEL_TEXT }}>
+                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
                   {note.title || "Untitled"}
                 </Text>
                 {note.body.trim() && (
-                  <Text size="xs" numberOfLines={3} style={{ color: NOTE_PASTEL_TEXT, opacity: 0.75, lineHeight: 16 }}>
+                  <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
                     {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
                   </Text>
                 )}
                 {mounted && (
-                  <Text size="xs" style={{ color: NOTE_PASTEL_TEXT, opacity: 0.45, marginTop: "auto" as any }}>
+                  <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
                     {(() => {
                       const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
                       const mins = Math.floor(diff / 60000);
@@ -363,6 +315,49 @@ export default function DashboardScreen() {
           );
         })}
       </View>
+    </View>
+  ) : null;
+
+  // ─── Post Its preview ─────────────────────────────────────────────────────────
+
+  const postItsRow = sortedPostIts.length > 0 ? (
+    <View style={{ marginBottom: spacing[6] }}>
+      <SectionHeader label="Post Its" count={sortedPostIts.length} action={{ label: "See all", onPress: handleGoToPostIts }} />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingRight: spacing[3] }}
+      >
+        {sortedPostIts.slice(0, 6).map(n => {
+          const pi = getNotePastelIndex(n.id);
+          return (
+            <Pressable
+              key={n.id}
+              onPress={handleGoToPostIts}
+              style={{ width: 140, marginRight: spacing[2] }}
+            >
+              <View style={{
+                backgroundColor: notePastels.bg[pi],
+                borderWidth: 1,
+                borderColor: notePastels.border[pi],
+                borderRadius: radius.lg,
+                padding: spacing[3],
+                minHeight: 72,
+                justifyContent: "center",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.07,
+                shadowRadius: 4,
+                elevation: 2,
+              }}>
+                <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, lineHeight: 18 }}>
+                  {n.title || "…"}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   ) : null;
 
@@ -397,18 +392,19 @@ export default function DashboardScreen() {
     <>
       {overdueBanner}
       {isWide ? (
-        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[5], alignItems: "stretch" }}>
+        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[6], alignItems: "stretch" }}>
           {tasksCard}
           {todayCard}
         </View>
       ) : (
         <>
           <View style={{ marginBottom: spacing[4] }}>{tasksCard}</View>
-          <View style={{ marginBottom: spacing[5] }}>{todayCard}</View>
+          <View style={{ marginBottom: spacing[6] }}>{todayCard}</View>
         </>
       )}
-      {listsShelf}
       {notesRow}
+      {postItsRow}
+      {listsShelf}
     </>
   );
 
@@ -446,66 +442,6 @@ export default function DashboardScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Single FAB (task quick-add) ───────────────────────────────────────── */}
-      <View
-        style={{ position: "absolute", bottom: spacing[8], right: spacing[5], alignItems: "flex-end" }}
-        pointerEvents="box-none"
-      >
-        <Pressable
-          onPress={() => setShowTaskSheet(true)}
-          onPressIn={() => { taskFabScale.value = withSpring(0.9, { damping: 20, stiffness: 300 }); }}
-          onPressOut={() => { taskFabScale.value = withSpring(1.0, { damping: 20, stiffness: 300 }); }}
-        >
-          <Animated.View style={[taskFabStyle, {
-            width: 52, height: 52, borderRadius: 26,
-            backgroundColor: colors.accent,
-            alignItems: "center", justifyContent: "center",
-          }]}>
-            <Ionicons name="add" size={26} color="#fff" />
-          </Animated.View>
-        </Pressable>
-      </View>
-
-      {/* ── Quick-add modal (task) ────────────────────────────────────────────── */}
-      <QuickAddModal visible={showTaskSheet} onClose={() => setShowTaskSheet(false)} onAdd={handleQuickAddTask} />
-
-      {/* ── Keyboard shortcuts modal ──────────────────────────────────────────── */}
-      {showShortcuts && Platform.OS === "web" && (
-        <Pressable
-          onPress={() => setShowShortcuts(false)}
-          style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 50, alignItems: "center", justifyContent: "center" } as any}
-        >
-          <Pressable onPress={e => e.stopPropagation()} style={{
-            backgroundColor: colors.bgSecondary,
-            borderWidth: 1, borderColor: colors.bgBorder,
-            borderRadius: radius.xl, padding: spacing[6], width: 360, gap: spacing[4],
-          }}>
-            <Text size="base" weight="semibold">Keyboard shortcuts</Text>
-            <View style={{ flexDirection: "row", gap: spacing[8] }}>
-              <View style={{ flex: 1, gap: spacing[2] }}>
-                {([["N", "New task"], ["/", "Focus search"], ["T", "Go to Today"]] as [string, string][]).map(([key, desc]) => (
-                  <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text size="sm" secondary>{desc}</Text>
-                    <View style={{ backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
-                      <Text size="xs" weight="medium" style={{ color: colors.textPrimary, fontFamily: "monospace" as any }}>{key}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-              <View style={{ flex: 1, gap: spacing[2] }}>
-                {([["?", "Show shortcuts"], ["Esc", "Close"]] as [string, string][]).map(([key, desc]) => (
-                  <View key={key} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text size="sm" secondary>{desc}</Text>
-                    <View style={{ backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 2 }}>
-                      <Text size="xs" weight="medium" style={{ color: colors.textPrimary, fontFamily: "monospace" as any }}>{key}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      )}
     </SafeAreaView>
     </GradientBackground>
   );

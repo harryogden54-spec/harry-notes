@@ -6,7 +6,7 @@ import {
 import * as Haptics from "expo-haptics";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/lib/useTheme";
-import { Text, Surface, GradientBackground } from "@/components/ui";
+import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
@@ -47,6 +47,7 @@ export default function TodayScreen() {
   const [showCarryover, setShowCarryover] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
   const [mounted, setMounted]         = useState(false);
+  const [showTimer, setShowTimer]     = useState(false);
   const inputRef = useRef<TextInput | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
@@ -228,10 +229,30 @@ export default function TodayScreen() {
             }
           >
             {/* Header */}
-            <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
-              <Text size="2xl" weight="bold">Today</Text>
-              <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{dateLabel}</Text>
+            <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-end" }}>
+              <View style={{ flex: 1 }}>
+                <Text size="2xl" weight="bold">Today</Text>
+                <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{dateLabel}</Text>
+              </View>
+              <Pressable
+                onPress={() => setShowTimer(v => !v)}
+                style={{
+                  paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+                  borderRadius: radius.sm, borderWidth: 1,
+                  borderColor: showTimer ? colors.accent : colors.bgBorder,
+                  backgroundColor: showTimer ? `${colors.accent}18` : "transparent",
+                }}
+              >
+                <Text size="xs" style={{ color: showTimer ? colors.accent : colors.textTertiary }}>⏱ Focus</Text>
+              </Pressable>
             </View>
+
+            {/* Focus timer widget */}
+            {showTimer && (
+              <View style={{ marginBottom: spacing[4] }}>
+                <FocusTimer />
+              </View>
+            )}
 
             {/* Add input */}
             <Surface style={{ marginBottom: spacing[4], padding: 0, overflow: "hidden" }}>

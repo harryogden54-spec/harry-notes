@@ -19,12 +19,13 @@ export function TextInput({ label, style, ...props }: InputProps) {
         style={[
           {
             backgroundColor: colors.bgSecondary,
-            borderRadius: radius.md,
+            borderRadius: radius.xl,
             borderWidth: 1,
             borderColor: colors.bgBorder,
-            paddingHorizontal: spacing[3],
-            paddingVertical: spacing[2],
+            paddingHorizontal: spacing[4],
+            paddingVertical: spacing[3],
             color: colors.textPrimary,
+            minHeight: 44,
             ...typography.base,
           },
           style,

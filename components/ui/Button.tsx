@@ -65,7 +65,7 @@ export function Button({
       disabled={disabled || loading}
       style={({ pressed }) => ({
         backgroundColor: bg[variant],
-        borderRadius: radius.md,
+        borderRadius: radius.xl,
         borderWidth: 1,
         borderColor: border[variant],
         flexDirection: "row" as const,

@@ -6,7 +6,10 @@
 
 // ─── Theme types ──────────────────────────────────────────────────────────────
 
-export type ThemeId = "default" | "nord" | "warmEarth" | "slate" | "rose" | "forest" | "dusk" | "steel" | "sand" | "midnight";
+export type ThemeId =
+  | "default" | "nord" | "warmEarth" | "slate" | "rose" | "forest"
+  | "dusk" | "steel" | "sand" | "midnight"
+  | "twilight" | "mocha" | "retro" | "paper" | "solar" | "neon";
 
 export type ThemeTokens = {
   bgPrimary: string;
@@ -196,6 +199,102 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
+  twilight: {
+    label: "Twilight",
+    background: { type: "gradient", value: "twilight" },
+    dark: {
+      bgPrimary: "#1A1B26", bgSecondary: "#1F2030", bgTertiary: "#24263A", bgBorder: "#2E3145",
+      textPrimary: "#C0CAF5", textSecondary: "#7D8AB8", textTertiary: "#4A5478", textInverse: "#1A1B26",
+      accent: "#7AA2F7", accentHover: "#8AB2FF", accentSubtle: "#1A2238",
+      ...SEMANTIC_DARK,
+    },
+    light: {
+      bgPrimary: "#E6E7EE", bgSecondary: "#D8DAE8", bgTertiary: "#C8CCDE", bgBorder: "#B0B5CC",
+      textPrimary: "#1A1B26", textSecondary: "#40435C", textTertiary: "#6A6F8C", textInverse: "#E6E7EE",
+      accent: "#3D5AFE", accentHover: "#4D6AFE", accentSubtle: "#D8E0FF",
+      ...SEMANTIC_LIGHT,
+    },
+  },
+  mocha: {
+    label: "Mocha",
+    background: { type: "gradient", value: "mocha" },
+    dark: {
+      bgPrimary: "#1E1E2E", bgSecondary: "#252537", bgTertiary: "#2D2D44", bgBorder: "#3A3A55",
+      textPrimary: "#CDD6F4", textSecondary: "#A6ADC8", textTertiary: "#6C7086", textInverse: "#1E1E2E",
+      accent: "#CBA6F7", accentHover: "#DBB6FF", accentSubtle: "#2C1F3D",
+      ...SEMANTIC_DARK,
+    },
+    light: {
+      bgPrimary: "#EFF1F5", bgSecondary: "#E6E9EF", bgTertiary: "#DCE0E8", bgBorder: "#BCC0CC",
+      textPrimary: "#4C4F69", textSecondary: "#6C6F85", textTertiary: "#8C8FA1", textInverse: "#EFF1F5",
+      accent: "#8839EF", accentHover: "#9849FF", accentSubtle: "#F0E5FA",
+      ...SEMANTIC_LIGHT,
+    },
+  },
+  retro: {
+    label: "Retro",
+    background: { type: "noise", value: "retro" },
+    dark: {
+      bgPrimary: "#282828", bgSecondary: "#32302F", bgTertiary: "#3C3836", bgBorder: "#504945",
+      textPrimary: "#EBDBB2", textSecondary: "#BDAE93", textTertiary: "#7C6F64", textInverse: "#282828",
+      accent: "#FE8019", accentHover: "#FF9029", accentSubtle: "#3A2418",
+      ...SEMANTIC_DARK,
+    },
+    light: {
+      bgPrimary: "#FBF1C7", bgSecondary: "#F2E5BC", bgTertiary: "#EBDBB2", bgBorder: "#D5C4A1",
+      textPrimary: "#3C3836", textSecondary: "#665C54", textTertiary: "#928374", textInverse: "#FBF1C7",
+      accent: "#D65D0E", accentHover: "#E66D1E", accentSubtle: "#F5E0C8",
+      ...SEMANTIC_LIGHT,
+    },
+  },
+  paper: {
+    label: "Paper",
+    background: { type: "solid", value: "paper" },
+    dark: {
+      bgPrimary: "#1A1A1A", bgSecondary: "#222222", bgTertiary: "#2A2A2A", bgBorder: "#3A3A3A",
+      textPrimary: "#FAFAFA", textSecondary: "#A8A8A8", textTertiary: "#6A6A6A", textInverse: "#1A1A1A",
+      accent: "#FAFAFA", accentHover: "#FFFFFF", accentSubtle: "#2E2E2E",
+      ...SEMANTIC_DARK,
+    },
+    light: {
+      bgPrimary: "#FAFAFA", bgSecondary: "#F0F0F0", bgTertiary: "#E5E5E5", bgBorder: "#D0D0D0",
+      textPrimary: "#0A0A0A", textSecondary: "#404040", textTertiary: "#808080", textInverse: "#FAFAFA",
+      accent: "#0A0A0A", accentHover: "#1A1A1A", accentSubtle: "#E0E0E0",
+      ...SEMANTIC_LIGHT,
+    },
+  },
+  solar: {
+    label: "Solar",
+    background: { type: "gradient", value: "solar" },
+    dark: {
+      bgPrimary: "#002B36", bgSecondary: "#073642", bgTertiary: "#0E4654", bgBorder: "#205060",
+      textPrimary: "#FDF6E3", textSecondary: "#93A1A1", textTertiary: "#586E75", textInverse: "#002B36",
+      accent: "#B58900", accentHover: "#C59910", accentSubtle: "#1A2418",
+      ...SEMANTIC_DARK,
+    },
+    light: {
+      bgPrimary: "#FDF6E3", bgSecondary: "#EEE8D5", bgTertiary: "#E5DBC2", bgBorder: "#C8BFA0",
+      textPrimary: "#002B36", textSecondary: "#586E75", textTertiary: "#93A1A1", textInverse: "#FDF6E3",
+      accent: "#CB4B16", accentHover: "#DB5B26", accentSubtle: "#F5DCC8",
+      ...SEMANTIC_LIGHT,
+    },
+  },
+  neon: {
+    label: "Neon",
+    background: { type: "geometric", value: "neon" },
+    dark: {
+      bgPrimary: "#0A0014", bgSecondary: "#10001E", bgTertiary: "#1A0030", bgBorder: "#2E0050",
+      textPrimary: "#F0E0FF", textSecondary: "#B080E0", textTertiary: "#604080", textInverse: "#0A0014",
+      accent: "#FF00FF", accentHover: "#FF30FF", accentSubtle: "#2E0030",
+      ...SEMANTIC_DARK,
+    },
+    light: {
+      bgPrimary: "#FFF0FA", bgSecondary: "#FFE5F5", bgTertiary: "#FFD8EE", bgBorder: "#FFB8E0",
+      textPrimary: "#3A0028", textSecondary: "#7A1858", textTertiary: "#A05080", textInverse: "#FFF0FA",
+      accent: "#D500A6", accentHover: "#E510B6", accentSubtle: "#FFD8EE",
+      ...SEMANTIC_LIGHT,
+    },
+  },
 };
 
 export const spacing = {
@@ -256,3 +355,37 @@ export const fontFamily = {
   semibold: "Inter_600SemiBold",
   bold:     "Inter_700Bold",
 } as const;
+
+// ─── Note pastels (sticky-note backgrounds) ───────────────────────────────────
+// Intentionally fixed across themes — pastel notes don't recolour with the
+// app theme (they'd lose their "paper note" feel).
+
+export const notePastels = {
+  bg:      ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"] as const,
+  border:  ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"] as const,
+  text:    "#1A1A2E",
+} as const;
+
+/** Stable index from any string id — same id always picks the same pastel. */
+export function getNotePastelIndex(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % notePastels.bg.length;
+}
+
+// ─── Category colours ─────────────────────────────────────────────────────────
+// Personal vs Uni — also fixed across themes so they're recognisable.
+
+export const categoryColors = {
+  personal: "#88C0D0",
+  uni:      "#B48EAD",
+} as const;
+
+// ─── List default colours ─────────────────────────────────────────────────────
+// Picker palette for user-created lists.
+
+export const listColors: readonly string[] = [
+  "#4A90D9", "#9B59B6", "#27AE60", "#E67E22",
+  "#E74C3C", "#E8C84A", "#E91E8C", "#1ABC9C",
+];
+

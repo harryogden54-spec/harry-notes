@@ -22,14 +22,14 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
       alignItems: "center",
       gap: spacing[2],
       backgroundColor: colors.bgSecondary,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: colors.bgBorder,
-      paddingHorizontal: spacing[3],
-      paddingVertical: spacing[2],
+      paddingHorizontal: spacing[4],
+      height: 44,
       marginBottom: spacing[3],
     }}>
-      <Text style={{ color: colors.textTertiary, fontSize: 14 }}>⌕</Text>
+      <Text style={{ color: colors.textTertiary, fontSize: 15 }}>⌕</Text>
       <TextInput
         ref={ref}
         value={value}
@@ -37,7 +37,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
         placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         style={[
-          { flex: 1, color: colors.textPrimary, fontSize: 14 },
+          { flex: 1, color: colors.textPrimary, fontSize: 15 },
           // @ts-ignore
           { outlineStyle: "none" },
         ]}

@@ -66,11 +66,18 @@ function RowContent({ task, onPress }: Props) {
       onPress={renaming ? undefined : onPress}
       style={{
         flexDirection: "row", alignItems: "center", gap: spacing[3],
-        paddingVertical: spacing[2] + 4, paddingHorizontal: spacing[3],
+        minHeight: 52,
+        paddingVertical: spacing[3], paddingHorizontal: spacing[4],
+        paddingLeft: priorityColor ? spacing[4] + 3 : spacing[4],
         borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
         backgroundColor: colors.bgSecondary,
+        opacity: task.done ? 0.45 : 1,
       }}
     >
+      {/* Priority left-border strip */}
+      {priorityColor && (
+        <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, backgroundColor: priorityColor }} />
+      )}
       <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} />
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ position: "relative" }}>
@@ -97,7 +104,7 @@ function RowContent({ task, onPress }: Props) {
               style={{ flex: 1 }}
             >
               <Text size="sm" weight={task.done ? "regular" : "medium"} numberOfLines={1}
-                style={{ color: task.done ? colors.textTertiary : isOverdue ? colors.danger : colors.textPrimary }}>
+                style={{ color: isOverdue && !task.done ? colors.danger : colors.textPrimary }}>
                 {task.title}
               </Text>
               <Animated.View style={[{
@@ -117,13 +124,11 @@ function RowContent({ task, onPress }: Props) {
           </View>
         )}
       </View>
-      {isOverdue && <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: colors.danger }} />}
       {due && (
-        <View style={{ backgroundColor: `${due.color}18`, borderRadius: radius.sm, paddingHorizontal: spacing[2], paddingVertical: 3, borderWidth: 1, borderColor: `${due.color}40` }}>
+        <View style={{ backgroundColor: `${due.color}18`, borderRadius: radius.md, paddingHorizontal: spacing[2], paddingVertical: 3, borderWidth: 1, borderColor: `${due.color}40` }}>
           <Text size="xs" weight="medium" style={{ color: due.color }}>{due.label}</Text>
         </View>
       )}
-      {priorityColor && <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: priorityColor }} />}
     </Pressable>
   );
 }
