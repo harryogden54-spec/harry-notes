@@ -207,9 +207,9 @@ export async function dbSaveTasks(tasks: any[]): Promise<void> {
               t.id, t.title, t.done ? 1 : 0, t.archived ? 1 : 0, t.completed_at ?? null,
               t.due_date ?? null,
               t.priority ?? null, t.description ?? null,
-              t.tags      ? JSON.stringify(t.tags)     : null,
-              t.subtasks  ? JSON.stringify(t.subtasks) : null,
-              null,
+              t.tags       ? JSON.stringify(t.tags)      : null,
+              t.subtasks   ? JSON.stringify(t.subtasks)  : null,
+              t.recurrence ?? null,
               t.category  ?? null, t.uniCourse ?? null,
               t.created_at, t.updated_at ?? t.created_at,
             ]

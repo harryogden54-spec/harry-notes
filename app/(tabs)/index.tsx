@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
   Platform, KeyboardAvoidingView, TextInput, RefreshControl,
@@ -128,7 +128,7 @@ export default function DashboardScreen() {
   useEffect(() => { setMounted(true); }, []);
   const now = mounted ? new Date() : null;
 
-  const openTasks = tasks
+  const openTasks = useMemo(() => tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
       const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
@@ -137,16 +137,20 @@ export default function DashboardScreen() {
       const aDate = a.due_date ?? "9999-99-99";
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
-    });
+    }), [tasks]);
 
-  const overdueTasks = openTasks.filter(t => !!t.due_date && t.due_date < today);
+  const overdueTasks = useMemo(() => openTasks.filter(t => !!t.due_date && t.due_date < today), [openTasks, today]);
   const overdueCount = overdueTasks.length;
 
-  const allSorted = [...notes].sort((a, b) =>
-    (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
-  );
-  const sortedNotes   = allSorted.filter(n => n.type !== "postit");
-  const sortedPostIts = allSorted.filter(n => n.type === "postit");
+  const { sortedNotes, sortedPostIts } = useMemo(() => {
+    const allSorted = [...notes].sort((a, b) =>
+      (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
+    );
+    return {
+      sortedNotes:   allSorted.filter(n => n.type !== "postit"),
+      sortedPostIts: allSorted.filter(n => n.type === "postit"),
+    };
+  }, [notes]);
 
   const handleGoToLists   = useCallback(() => router.push("/(tabs)/lists"), [router]);
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
