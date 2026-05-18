@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
-  Platform, Alert, Switch,
+  Platform, Alert, Switch, Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -141,7 +141,9 @@ export default function SettingsScreen() {
   const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
   const { showToast } = useToast();
   const router = useRouter();
-  const [clearing, setClearing] = useState(false);
+  const { unarchiveTask, deleteTask } = useTasks();
+  const [clearing, setClearing]   = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
 
   const overallSync = taskSync === "error" || listSync === "error" || noteSync === "error" ? "error"
     : taskSync === "syncing" || listSync === "syncing" || noteSync === "syncing" ? "syncing"
@@ -184,22 +186,49 @@ export default function SettingsScreen() {
     }
   }
 
-  function handleExport() {
-    const data = { exportedAt: new Date().toISOString(), tasks, lists, notes };
-    const json  = JSON.stringify(data, null, 2);
-    if (Platform.OS === "web") {
-      const blob = new Blob([json], { type: "application/json" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = `harry-notes-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast("Export downloaded");
-    } else {
-      showToast("Export is only available on web for now");
-    }
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
   }
+
+  function handleExportJSON() {
+    if (Platform.OS !== "web") { showToast("Export is only available on web"); return; }
+    const data = { exportedAt: new Date().toISOString(), tasks, lists, notes };
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), `harry-notes-${new Date().toISOString().slice(0, 10)}.json`);
+    showToast("JSON export downloaded");
+  }
+
+  function handleExportMarkdown() {
+    if (Platform.OS !== "web") { showToast("Export is only available on web"); return; }
+    const date = new Date().toISOString().slice(0, 10);
+    let md = `# harry-notes export — ${date}\n\n`;
+    md += `## Tasks\n\n`;
+    tasks.filter(t => !t.archived).forEach(t => {
+      md += `- [${t.done ? "x" : " "}] ${t.title}`;
+      if (t.due_date) md += ` (due ${t.due_date})`;
+      if (t.description) md += `\n  > ${t.description}`;
+      md += "\n";
+    });
+    md += `\n## Notes\n\n`;
+    notes.filter(n => n.type === "note" || !n.type).forEach(n => {
+      md += `### ${n.title || "Untitled"}\n\n${n.body}\n\n---\n\n`;
+    });
+    md += `## Lists\n\n`;
+    lists.forEach(l => {
+      md += `### ${l.name}\n\n`;
+      (l.items ?? []).forEach(i => {
+        if (i.type === "checkbox") md += `- [${i.done ? "x" : " "}] ${i.content}\n`;
+        else md += `${i.content}\n`;
+      });
+      md += "\n";
+    });
+    downloadBlob(new Blob([md], { type: "text/markdown" }), `harry-notes-${date}.md`);
+    showToast("Markdown export downloaded");
+  }
+
+  const archivedTasks = tasks.filter(t => t.archived);
 
   return (
     <GradientBackground>
@@ -272,23 +301,69 @@ export default function SettingsScreen() {
           {/* ── Data ─────────────────────────────────────────────────────── */}
           <SectionLabel>Data</SectionLabel>
           <RowGroup>
-            <Row label="Tasks" right={<Text size="sm" style={{ color: colors.textSecondary }}>{tasks.length} total · {completedCount} done</Text>} />
+            <Row label="Tasks" right={<Text size="sm" style={{ color: colors.textSecondary }}>{tasks.filter(t => !t.archived).length} active · {completedCount} done</Text>} />
             <Row label="Lists" right={<Text size="sm" style={{ color: colors.textSecondary }}>{lists.length} total</Text>} />
             <Row label="Notes" right={<Text size="sm" style={{ color: colors.textSecondary }}>{notes.length} total</Text>} />
-            <Row
-              label="Export data"
-              subtitle="Download all data as JSON"
-              onPress={handleExport}
-              chevron
-            />
+            <Row icon="📦" label="Trash / Archive" subtitle={archivedTasks.length > 0 ? `${archivedTasks.length} archived task${archivedTasks.length !== 1 ? "s" : ""}` : "Empty"} onPress={() => setShowTrash(true)} chevron />
+            <Row icon="📄" label="Export as JSON"     subtitle="Download all data as JSON"     onPress={handleExportJSON}     chevron />
+            <Row icon="📝" label="Export as Markdown" subtitle="Download notes + tasks as .md" onPress={handleExportMarkdown} chevron />
             <Row
               label="Clear completed tasks"
-              subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be deleted` : "No completed tasks"}
+              subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be archived` : "No completed tasks"}
               danger={completedCount > 0}
               onPress={handleClearCompleted}
               isLast
             />
           </RowGroup>
+
+          {/* Trash modal */}
+          <Modal visible={showTrash} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowTrash(false)}>
+            <GradientBackground>
+              <SafeAreaView style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
+                  <Text size="lg" weight="bold" style={{ flex: 1 }}>Trash</Text>
+                  <Pressable onPress={() => setShowTrash(false)} hitSlop={12}>
+                    <Text size="sm" style={{ color: colors.accent }}>Done</Text>
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[8] }}>
+                  {archivedTasks.length === 0 ? (
+                    <View style={{ alignItems: "center", paddingVertical: spacing[12] }}>
+                      <Text size="2xl" style={{ marginBottom: spacing[2] }}>🗑</Text>
+                      <Text size="sm" secondary>No archived tasks</Text>
+                    </View>
+                  ) : (
+                    <View style={{ gap: spacing[2] }}>
+                      {archivedTasks.map(t => (
+                        <View key={t.id} style={{ backgroundColor: colors.bgSecondary, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.bgBorder, padding: spacing[4], flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
+                          <View style={{ flex: 1 }}>
+                            <Text size="sm" weight="medium" numberOfLines={1} style={{ color: colors.textPrimary }}>{t.title}</Text>
+                            {t.completed_at && (
+                              <Text size="xs" style={{ color: colors.textTertiary, marginTop: 2 }}>
+                                Completed {new Date(t.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                              </Text>
+                            )}
+                          </View>
+                          <Pressable
+                            onPress={() => { unarchiveTask(t.id); showToast("Task restored"); }}
+                            style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, borderWidth: 1, borderColor: colors.accent }}
+                          >
+                            <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => { deleteTask(t.id); showToast("Task deleted"); }}
+                            style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, borderWidth: 1, borderColor: colors.danger }}
+                          >
+                            <Text size="xs" style={{ color: colors.danger }}>Delete</Text>
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </ScrollView>
+              </SafeAreaView>
+            </GradientBackground>
+          </Modal>
 
           {/* ── About ────────────────────────────────────────────────────── */}
           <SectionLabel>About</SectionLabel>
