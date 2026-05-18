@@ -9,7 +9,7 @@ export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }>
 };
 export const PRIORITY_ORDER: Priority[] = ["urgent", "high", "medium", "low"];
 
-export type SortBy = "priority" | "due_date" | "title" | "created";
+export type SortBy = "priority" | "due_date" | "title" | "created" | "completed";
 
 export function formatDate(date: string) {
   const today    = getTodayStr();
@@ -33,9 +33,10 @@ export function sortByPriority(tasks: Task[]) {
 }
 
 export function applySort(tasks: Task[], by: SortBy): Task[] {
-  if (by === "priority") return sortByPriority(tasks);
-  if (by === "due_date") return [...tasks].sort((a, b) => (a.due_date ?? "9999") < (b.due_date ?? "9999") ? -1 : 1);
-  if (by === "title")    return [...tasks].sort((a, b) => a.title.localeCompare(b.title));
+  if (by === "priority")  return sortByPriority(tasks);
+  if (by === "due_date")  return [...tasks].sort((a, b) => (a.due_date ?? "9999") < (b.due_date ?? "9999") ? -1 : 1);
+  if (by === "title")     return [...tasks].sort((a, b) => a.title.localeCompare(b.title));
+  if (by === "completed") return [...tasks].sort((a, b) => (b.completed_at ?? b.updated_at ?? "") > (a.completed_at ?? a.updated_at ?? "") ? 1 : -1);
   return [...tasks];
 }
 

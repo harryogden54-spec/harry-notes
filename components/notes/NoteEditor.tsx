@@ -129,16 +129,16 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         </View>
 
         {/* Body */}
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing[4], gap: spacing[3] }} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[6], paddingTop: spacing[6], paddingBottom: spacing[16], gap: spacing[3] }} keyboardShouldPersistTaps="handled">
           <TextInput
             ref={titleRef}
             value={note.title}
             onChangeText={title => updateNote(note.id, { title })}
-            placeholder="Title"
+            placeholder="Untitled"
             placeholderTextColor={colors.textTertiary}
             returnKeyType="next"
             onSubmitEditing={() => { setPreview(false); bodyRef.current?.focus(); }}
-            style={[{ color: colors.textPrimary, fontSize: 22, fontFamily: fontFamily.bold, lineHeight: 30, marginBottom: spacing[2] }, { outlineStyle: "none" } as any]}
+            style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
           {preview ? (
             note.body.trim()
@@ -155,7 +155,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
               placeholderTextColor={colors.textTertiary}
               multiline
               textAlignVertical="top"
-              style={[{ color: colors.textSecondary, fontSize: 15, lineHeight: 24, minHeight: 300 }, { outlineStyle: "none" } as any]}
+              style={[{ color: colors.textSecondary, fontSize: 15, lineHeight: 26, minHeight: 300 }, { outlineStyle: "none", minHeight: "60vh" } as any]}
             />
           )}
         </ScrollView>
@@ -164,7 +164,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         <BacklinksPanel note={note} allNotes={allNotes} onOpen={handleOpenNote} />
 
         {/* Footer */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[4], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder }}>
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[6], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
           <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
         </View>
 
@@ -176,11 +176,13 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           />
         )}
         {!preview && (
-          <MarkdownToolbar
-            body={note.body}
-            selRef={selRef}
-            onApply={(text, cur) => { updateNote(note.id, { body: text }); setCursor(cur); setWikiQuery(null); }}
-          />
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
+            <MarkdownToolbar
+              body={note.body}
+              selRef={selRef}
+              onApply={(text, cur) => { updateNote(note.id, { body: text }); setCursor(cur); setWikiQuery(null); }}
+            />
+          </View>
         )}
       </View>
     </KeyboardAvoidingView>

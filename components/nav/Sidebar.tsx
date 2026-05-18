@@ -5,10 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
-import { getTodayStr } from "@/lib/utils";
-import type { IoniconName, NavItem } from "./navConfig";
+import type { NavItem } from "./navConfig";
 import { NAV_ITEMS } from "./navConfig";
 
 function ActiveBar({ active, accent }: { active: boolean; accent: string }) {
@@ -59,14 +57,9 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { tasks } = useTasks();
   const { lists } = useLists();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  const today = getTodayStr();
-  const nextWeek = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })();
-  const overdueCount  = tasks.filter(t => !t.done && !t.archived && !!t.due_date && t.due_date < today).length;
-  const thisWeekCount = tasks.filter(t => !t.done && !t.archived && !!t.due_date && t.due_date >= today && t.due_date <= nextWeek).length;
 
   const chevronRot = useSharedValue(collapsed ? 1 : 0);
   useEffect(() => {
@@ -81,10 +74,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
     return pathname.includes(`/${name}`);
   };
 
-  const filters: { id: string; label: string; count: number; icon: IoniconName; color: string }[] = [
-    { id: "overdue",   label: "Overdue",       count: overdueCount,  icon: "warning-outline",  color: colors.danger },
-    { id: "thisweek", label: "Due this week", count: thisWeekCount, icon: "calendar-outline", color: colors.accent },
-  ];
 
   return (
     <View style={{
@@ -209,7 +198,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                 return (
                   <Pressable
                     key={list.id}
-                    onPress={() => router.push(`/(tabs)/notes?listId=${list.id}` as any)}
+                    onPress={() => router.replace(`/(tabs)/notes?listId=${list.id}&_t=${Date.now()}` as any)}
                     // @ts-ignore
                     onHoverIn={() => setHoveredItem(`list_${list.id}`)}
                     onHoverOut={() => setHoveredItem(null)}
@@ -241,47 +230,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
           </View>
         )}
 
-        {/* Filters section */}
-        <View style={{ marginTop: spacing[2] }}>
-          <SectionLabel label="Filters" collapsed={collapsed} />
-          <View style={{ gap: 1, paddingHorizontal: collapsed ? 0 : spacing[2] }}>
-            {filters.map(f => {
-              const hovered = hoveredItem === `filter_${f.id}`;
-              return (
-                <Pressable
-                  key={f.id}
-                  onPress={() => router.push(`/(tabs)/tasks?filter=${f.id}` as any)}
-                  // @ts-ignore
-                  onHoverIn={() => setHoveredItem(`filter_${f.id}`)}
-                  onHoverOut={() => setHoveredItem(null)}
-                  style={{
-                    flexDirection: "row", alignItems: "center",
-                    gap: collapsed ? 0 : spacing[2],
-                    paddingHorizontal: collapsed ? 0 : spacing[3],
-                    paddingVertical: spacing[1.5],
-                    borderRadius: radius.sm,
-                    justifyContent: collapsed ? "center" : "flex-start",
-                    backgroundColor: hovered ? `${f.color}0C` : "transparent",
-                  }}
-                >
-                  <Ionicons name={f.icon} size={14} color={f.count > 0 ? f.color : colors.textTertiary} />
-                  {!collapsed && (
-                    <>
-                      <Text style={{ flex: 1, fontSize: 12, fontFamily: fontFamily.regular, color: f.count > 0 ? f.color : colors.textSecondary }}>
-                        {f.label}
-                      </Text>
-                      {f.count > 0 && (
-                        <View style={{ backgroundColor: `${f.color}20`, borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1 }}>
-                          <Text style={{ fontSize: 10, color: f.color, fontFamily: fontFamily.medium }}>{f.count}</Text>
-                        </View>
-                      )}
-                    </>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
       </ScrollView>
 
       {/* Bottom: Settings */}

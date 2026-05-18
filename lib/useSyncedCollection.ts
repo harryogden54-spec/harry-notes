@@ -60,8 +60,18 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       if (dirty.length === 0) { dirtyIds.clear(); return; }
       const pushedIds = dirty.map(t => t.id);
       dirtyIds.clear();
-      const ok = await syncUpsert(table, dirty);
-      if (!ok) {
+      setSyncStatus("syncing");
+      try {
+        const ok = await syncUpsert(table, dirty);
+        if (!ok) {
+          for (const id of pushedIds) dirtyIds.add(id);
+          setSyncStatus("error");
+        } else {
+          setSyncStatus("synced");
+          setLastSynced(new Date().toISOString());
+        }
+      } catch {
+        // Network error — restore dirty IDs so next sync retries them
         for (const id of pushedIds) dirtyIds.add(id);
         setSyncStatus("error");
       }

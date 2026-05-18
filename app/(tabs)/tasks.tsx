@@ -13,6 +13,7 @@ import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
+import { storage } from "@/lib/storage";
 import { getTodayStr } from "@/lib/utils";
 
 import {
@@ -39,8 +40,10 @@ export default function TasksScreen() {
   const [selectedIds, setSelectedIds]           = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId]           = useState<string | null>(null);
   const [sortBy, setSortBy]                     = useState<SortBy>("priority");
-  const [grouped, setGrouped]                   = useState(true);
+  const [grouped, setGrouped]                   = useState(false);
+  const [compact, setCompact]                   = useState(false);
   const [showArchive, setShowArchive]           = useState(false);
+  const prefsLoaded = useRef(false);
   const addInputRef    = useRef<TextInput | null>(null);
   const scrollViewRef  = useRef<RNScrollView>(null);
   const taskYPositions = useRef<Record<string, number>>({});
@@ -48,6 +51,25 @@ export default function TasksScreen() {
   const handleTaskMeasureY = useCallback((id: string, y: number) => {
     taskYPositions.current[id] = y;
   }, []);
+
+  // Load persisted task-view prefs on mount
+  useEffect(() => {
+    Promise.all([
+      storage.get<boolean>("tasks_grouped"),
+      storage.get<boolean>("tasks_compact"),
+      storage.get<string>("tasks_sort_by"),
+    ]).then(([g, c, s]) => {
+      if (g !== null && g !== undefined) setGrouped(g);
+      if (c !== null && c !== undefined) setCompact(c);
+      if (s !== null && s !== undefined) setSortBy(s as SortBy);
+      prefsLoaded.current = true;
+    });
+  }, []);
+
+  // Persist prefs when changed (after initial load)
+  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_grouped", grouped); }, [grouped]);
+  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_compact", compact); }, [compact]);
+  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_sort_by", sortBy); }, [sortBy]);
 
   useEffect(() => {
     if (params.filter === "overdue" || params.filter === "today") setFocusMode(true);
@@ -157,6 +179,7 @@ export default function TasksScreen() {
     highlightId, onTaskMeasureY: handleTaskMeasureY,
     sortBy, onLongPress: handleLongPress,
     onUpdate: updateTask,
+    compact,
   };
 
   // Sync status pill
@@ -278,6 +301,14 @@ export default function TasksScreen() {
                     }}>
                       <Text size="xs" style={{ color: colors.textSecondary }}>{grouped ? "Grouped" : "Flat"}</Text>
                     </Pressable>
+                    <Pressable onPress={() => setCompact(v => !v)} style={{
+                      paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                      borderRadius: radius.sm, borderWidth: 1,
+                      borderColor: compact ? colors.accent : colors.bgBorder,
+                      backgroundColor: compact ? `${colors.accent}15` : colors.bgTertiary,
+                    }}>
+                      <Text size="xs" style={{ color: compact ? colors.accent : colors.textSecondary }}>Compact</Text>
+                    </Pressable>
                     <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
                   </>
                 )}
@@ -303,8 +334,8 @@ export default function TasksScreen() {
                 <EmptyState type="tasks" title="No tasks yet" subtitle={'Tap the field above or press "N" to add your first task.'} />
               ) : !grouped ? (
                 <>
-                  <Section label="All tasks" tasks={applySort(visible.filter(t => !t.done), sortBy)} {...sectionProps} sortBy="created" />
-                  {done.length > 0 && <Section label="Completed" tasks={done} {...sectionProps} sortBy="created" persistCollapse="tasks_section_collapsed_completed" />}
+                  <Section label="All tasks" tasks={applySort(visible.filter(t => !t.done), sortBy)} {...sectionProps} />
+                  {done.length > 0 && <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" />}
                 </>
               ) : (
                 <>
@@ -312,7 +343,7 @@ export default function TasksScreen() {
                   {todayTasks.length > 0 && <Section label="Today"      tasks={todayTasks} {...sectionProps} />}
                   <Section label="Scheduled" tasks={scheduled} {...sectionProps} />
                   <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
-                  {done.length > 0       && <Section label="Completed"  tasks={done}       {...sectionProps} persistCollapse="tasks_section_collapsed_completed" />}
+                  {done.length > 0       && <Section label="Completed"  tasks={done}       {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" />}
                 </>
               )}
 
@@ -384,7 +415,7 @@ export default function TasksScreen() {
               {selectedTaskId && tasks.find(t => t.id === selectedTaskId) ? (
                 <TaskDetailPanel task={tasks.find(t => t.id === selectedTaskId)!} onClose={() => setSelectedTaskId(null)} />
               ) : (
-                <EmptyDetailPane open={open} />
+                <EmptyDetailPane open={open} onFocusAddInput={() => addInputRef.current?.focus()} />
               )}
             </View>
           )}

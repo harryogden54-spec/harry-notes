@@ -38,29 +38,34 @@ export default function NotesScreen() {
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [creatingList, setCreatingList]   = useState(false);
 
-  const params = useLocalSearchParams<{ create?: string; listId?: string; openId?: string }>();
-  const handledParam = useRef(false);
+  const params = useLocalSearchParams<{ create?: string; listId?: string; openId?: string; _t?: string }>();
+  const handledCreate = useRef(false);
 
+  // One-shot: create actions should only fire once per navigation intent
   useEffect(() => {
-    if (!loaded || handledParam.current) return;
+    if (!loaded || handledCreate.current) return;
     if (params.create === "note") {
-      handledParam.current = true;
+      handledCreate.current = true;
       const id = addNote("note");
       if (isDesktop) setSelectedNote(id);
       else setOpenNoteId(id);
     } else if (params.create === "list") {
-      handledParam.current = true;
+      handledCreate.current = true;
       setCreatingList(true);
-    } else if (params.listId) {
-      handledParam.current = true;
+    }
+  }, [loaded, params.create, addNote, isDesktop]);
+
+  // Repeatable: listId/openId fire every time the param changes (sidebar navigation)
+  useEffect(() => {
+    if (!loaded) return;
+    if (params.listId) {
       if (isDesktop) setSelectedList(params.listId);
       else setExpandedListId(params.listId);
     } else if (params.openId) {
-      handledParam.current = true;
       if (isDesktop) setSelectedNote(params.openId);
       else setOpenNoteId(params.openId);
     }
-  }, [loaded, params.create, params.listId, params.openId, addNote, isDesktop]);
+  }, [loaded, params.listId, params.openId, isDesktop]);
 
   // Desktop: auto-select first list when loaded
   useEffect(() => {

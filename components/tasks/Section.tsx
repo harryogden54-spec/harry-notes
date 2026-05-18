@@ -28,6 +28,7 @@ type Props = {
   onLongPress?: (id: string) => void;
   persistCollapse?: string;
   onUpdate: (id: string, updates: Partial<Omit<Task, "id" | "created_at">>) => void;
+  compact?: boolean;
 };
 
 export const Section = React.memo(function Section({
@@ -36,6 +37,7 @@ export const Section = React.memo(function Section({
   onReorderUp, onReorderDown, onReorder,
   highlightId, onTaskMeasureY, sortBy = "priority",
   onLongPress, persistCollapse, onUpdate,
+  compact = false,
 }: Props) {
   const { colors } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
@@ -72,10 +74,11 @@ export const Section = React.memo(function Section({
         onMeasureY={y => onTaskMeasureY?.(t.id, y)}
         onLongPress={() => onLongPress?.(t.id)}
         onUpdate={onUpdate}
+        compact={compact}
       />
     </ScaleDecorator>
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [expandedId, selectMode, selectedIds, highlightId, onUpdate]);
+  ), [expandedId, selectMode, selectedIds, highlightId, onUpdate, compact]);
 
   if (tasks.length === 0 && !emptyMessage) return null;
 

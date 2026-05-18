@@ -32,6 +32,7 @@ type Props = {
   highlighted?: boolean;
   onMeasureY?: (y: number) => void;
   onUpdate: (id: string, updates: Partial<Omit<Task, "id" | "created_at">>) => void;
+  compact?: boolean;
 };
 
 export const TaskItem = React.memo(function TaskItem({
@@ -40,6 +41,7 @@ export const TaskItem = React.memo(function TaskItem({
   onReorderUp, onReorderDown,
   onLongPress, onDelete, onDragStart,
   highlighted, onMeasureY, onUpdate,
+  compact = false,
 }: Props) {
   const { colors } = useTheme();
   const [hovered, setHovered] = useState(false);
@@ -102,7 +104,7 @@ export const TaskItem = React.memo(function TaskItem({
             opacity: selected ? 0.85 : 1,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: compact ? spacing[1] : spacing[2] }}>
             {selectMode ? (
               <Checkbox checked={selected} onToggle={onSelect} size={16} />
             ) : (
@@ -119,11 +121,13 @@ export const TaskItem = React.memo(function TaskItem({
                   color: task.done ? colors.textTertiary : colors.textPrimary,
                   textDecorationLine: task.done ? "line-through" : "none",
                 }}>{task.title}</Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
-                  {task.due_date && <Text size="xs" style={{ color: dueDateColor }}>{formatDate(task.due_date)}</Text>}
-                  {subtasks.length > 0 && <Text size="xs" style={{ color: colors.textTertiary }}>{doneSubtasks}/{subtasks.length}</Text>}
-                  {task.category && <CategoryBadge category={task.category} uniCourse={task.uniCourse} />}
-                </View>
+                {!compact && (
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
+                    {task.due_date && <Text size="xs" style={{ color: dueDateColor }}>{formatDate(task.due_date)}</Text>}
+                    {subtasks.length > 0 && <Text size="xs" style={{ color: colors.textTertiary }}>{doneSubtasks}/{subtasks.length}</Text>}
+                    {task.category && <CategoryBadge category={task.category} uniCourse={task.uniCourse} />}
+                  </View>
+                )}
               </View>
               {task.priority && <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: priorityColor }} />}
               {hovered && !selectMode && !isExpanded && (
