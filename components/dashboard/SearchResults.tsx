@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { View, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore – fuse.js ships types but they are not resolved in this project setup
 import Fuse from "fuse.js";
 import { Text } from "@/components/ui/Text";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -28,19 +30,19 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
   const matchTasks = useMemo(() => {
     if (!query) return [];
     const fuse = new Fuse(tasks, { keys: ["title", "description"], threshold: 0.35, ignoreLocation: true });
-    return fuse.search(query).map(r => r.item).slice(0, 8);
+    return fuse.search(query).map((r: { item: Task }) => r.item).slice(0, 8);
   }, [tasks, query]);
 
   const matchNotes = useMemo(() => {
     if (!query) return [];
     const fuse = new Fuse(notes, { keys: ["title", "body"], threshold: 0.35, ignoreLocation: true });
-    return fuse.search(query).map(r => r.item).slice(0, 6);
+    return fuse.search(query).map((r: { item: Note }) => r.item).slice(0, 6);
   }, [notes, query]);
 
   const matchLists = useMemo(() => {
     if (!query) return [];
     const fuse = new Fuse(lists, { keys: ["name", "items.content"], threshold: 0.35, ignoreLocation: true });
-    return fuse.search(query).map(r => r.item).slice(0, 5);
+    return fuse.search(query).map((r: { item: NoteList }) => r.item).slice(0, 5);
   }, [lists, query]);
 
   if (matchTasks.length === 0 && matchLists.length === 0 && matchNotes.length === 0) {
@@ -55,7 +57,7 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
             Tasks · {matchTasks.length}
           </Text>
           <GlassCard style={{ overflow: "hidden" }}>
-            {matchTasks.map((t, i) => (
+            {matchTasks.map((t: Task, i: number) => (
               <View key={t.id} style={i === matchTasks.length - 1 ? { borderBottomWidth: 0 } : undefined}>
                 <TaskRow task={t} onPress={() => onTaskPress(t.id)} />
               </View>
@@ -68,8 +70,8 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
           <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
             Notes · {matchNotes.length}
           </Text>
-          {matchNotes.map(n => {
-            const preview = stripMarkdown(n.body.split("\n").find(l => l.trim()) ?? "");
+          {matchNotes.map((n: Note) => {
+            const preview = stripMarkdown(n.body.split("\n").find((l: string) => l.trim()) ?? "");
             return (
               <Pressable key={n.id} onPress={() => router.push(`/(tabs)/notes?openId=${n.id}` as any)}>
                 <GlassCard style={{ padding: spacing[3], marginBottom: spacing[2] }}>
@@ -86,11 +88,11 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
           <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
             Lists · {matchLists.length}
           </Text>
-          {matchLists.map(l => {
+          {matchLists.map((l: NoteList) => {
             const color = l.color ?? colors.accent;
             const items = l.items ?? [];
-            const done  = items.filter(i => i.type === "checkbox" && i.done).length;
-            const total = items.filter(i => i.type === "checkbox").length;
+            const done  = items.filter((i: NoteList["items"][number]) => i.type === "checkbox" && i.done).length;
+            const total = items.filter((i: NoteList["items"][number]) => i.type === "checkbox").length;
             return (
               <Pressable key={l.id} onPress={() => router.push("/(tabs)/lists" as any)}>
                 <GlassCard style={{ padding: spacing[3], marginBottom: spacing[2], borderLeftWidth: 3, borderLeftColor: color }}>

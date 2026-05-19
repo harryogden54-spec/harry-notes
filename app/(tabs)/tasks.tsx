@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
-import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
+import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
