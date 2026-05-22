@@ -59,8 +59,31 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const [preview, setPreview]     = useState(false);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
 
+  // Track the title as it was when editing began so we can propagate renames.
+  const committedTitleRef = useRef(note.title);
+  useEffect(() => { committedTitleRef.current = note.title; }, [note.id]);
+
   useEffect(() => { if (!note.title) setTimeout(() => titleRef.current?.focus(), 50); }, [note.id]);
   useEffect(() => { setPreview(false); }, [note.id]);
+
+  // Propagate title renames to all notes that contain [[oldTitle]].
+  // Runs on blur/submit so we don't rewrite on every keystroke.
+  function handleTitleCommit() {
+    const oldTitle = committedTitleRef.current;
+    const newTitle = note.title;
+    committedTitleRef.current = newTitle;
+    if (!oldTitle || oldTitle === newTitle) return;
+    const pattern = `[[${oldTitle}]]`;
+    const replacement = `[[${newTitle || "Untitled"}]]`;
+    let count = 0;
+    for (const n of notes) {
+      if (n.id !== note.id && n.body.includes(pattern)) {
+        updateNote(n.id, { body: n.body.split(pattern).join(replacement) });
+        count++;
+      }
+    }
+    if (count > 0) showToast(`Updated ${count} link${count !== 1 ? "s" : ""}`);
+  }
 
   function handleBodyChange(body: string) {
     updateNote(note.id, { body });
@@ -137,7 +160,8 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             placeholder="Untitled"
             placeholderTextColor={colors.textTertiary}
             returnKeyType="next"
-            onSubmitEditing={() => { setPreview(false); bodyRef.current?.focus(); }}
+            onBlur={handleTitleCommit}
+            onSubmitEditing={() => { handleTitleCommit(); setPreview(false); bodyRef.current?.focus(); }}
             style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
           {preview ? (

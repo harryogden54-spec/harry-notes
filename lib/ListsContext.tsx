@@ -67,13 +67,12 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     storageKey: "lists",
     loadLocal: async () => {
       if (Platform.OS !== "web") {
-        try {
-          const dbLists = await dbLoadLists() as NoteList[];
-          if (dbLists.length > 0) return dbLists;
-          const stored = await storage.get<NoteList[]>("lists") ?? [];
-          if (stored.length > 0) await dbSaveLists(stored);
-          return stored;
-        } catch { /* fall through */ }
+        // Re-throw on DB error — see TasksContext for rationale.
+        const dbLists = await dbLoadLists() as NoteList[];
+        if (dbLists.length > 0) return dbLists;
+        const stored = await storage.get<NoteList[]>("lists") ?? [];
+        if (stored.length > 0) await dbSaveLists(stored);
+        return stored;
       }
       return await storage.get<NoteList[]>("lists") ?? [];
     },

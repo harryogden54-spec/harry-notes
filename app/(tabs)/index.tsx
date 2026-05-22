@@ -16,13 +16,11 @@ import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown, PRIORITY_COLOR } from "@/lib/utils";
+import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
+import { useMounted } from "@/lib/useMounted";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const DAY_NAMES   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function greeting() {
   const h = new Date().getHours();
@@ -31,12 +29,8 @@ function greeting() {
   return "Good evening";
 }
 
-function formatHeaderDate(d: Date): string {
-  return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-}
-
 function getTodayKey() {
-  return `today_items_${new Date().toISOString().slice(0, 10)}`;
+  return `today_items_${getLocalDateStr()}`;
 }
 
 type TodayItem = { id: string; text: string; done: boolean };
@@ -120,9 +114,7 @@ function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const today                       = getTodayStr();
 
-  // Hydration guard
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   const now = mounted ? new Date() : null;
 
   const openTasks = useMemo(() => tasks
@@ -446,12 +438,25 @@ function DashboardScreen() {
         >
           <View style={outerPadding as any}>
             {header}
-            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes…" inputRef={searchRef} shortcutKey="/" />
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Search tasks, lists, notes…"
+              inputRef={searchRef}
+              shortcutKey="/"
+              onSubmitEditing={() => {
+                const q = search.trim();
+                if (q) { addTask(q); setSearch(""); showToast(`Added: ${q}`); }
+              }}
+            />
 
             {search.trim() ? (
               <View style={{ marginTop: spacing[3] }}>
-                <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
-                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
+                <SearchResults
+                  tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)}
+                  onAdd={title => { addTask(title); setSearch(""); showToast(`Added: ${title}`); }}
+                />
               </View>
             ) : (
               <View style={{ marginTop: spacing[2] }}>{mainContent}</View>

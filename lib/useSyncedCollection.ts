@@ -16,8 +16,9 @@ type Config<T extends HasId> = {
   saveLocal: (items: T[]) => void;
   /** Optional post-load transform — e.g. auto-archive. Returns items + dirty IDs. */
   onLoad?: (items: T[]) => { items: T[]; dirty: string[] };
-  /** Optional transform applied to each remote row before merging — e.g. type coercion. */
-  normalizeRemote?: (row: T & { _updated_at?: string }) => T;
+  /** Optional transform applied to each remote row before merging — e.g. type coercion.
+   *  Receives the row with _updated_at already stripped. */
+  normalizeRemote?: (row: T) => T;
   /** How to merge when remote wins (has newer updated_at). Defaults to replacing local. */
   mergeRow?: (local: T, remote: T) => T;
 };
@@ -85,7 +86,9 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     for (const rawRem of remote) {
       if (pendingDeletesRef.current.has(rawRem.id)) continue;
       const { _updated_at, ...rest } = rawRem as any;
-      const rem: T = normalizeRemote ? normalizeRemote(rawRem) : rest as T;
+      // Always strip _updated_at before handing to the normalizer so it never
+      // leaks into in-memory state and gets cloned on every stamp() call.
+      const rem: T = normalizeRemote ? normalizeRemote(rest as T & { _updated_at?: string }) : rest as T;
       const idx = merged.findIndex(t => t.id === rem.id);
       if (idx === -1) {
         merged.push(rem);
@@ -97,7 +100,9 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         }
       }
     }
-    return merged;
+    // Strip items pending deletion — remote may have returned them before the
+    // delete propagated, or a sibling mutation may have re-added them locally.
+    return merged.filter(t => !pendingDeletesRef.current.has(t.id));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Initial load ─────────────────────────────────────────────────────────────
@@ -147,7 +152,15 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       }
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
-    }).catch(() => { clearTimeout(loadTimeout); setSyncStatus("error"); });
+    }).catch((e) => {
+      // loadLocal threw (e.g. DB error on native). Mark as loaded so the UI
+      // isn't stuck in a spinner — the user sees the error state and can retry.
+      clearTimeout(loadTimeout);
+      console.warn(`[useSyncedCollection:${table}] loadLocal failed:`, e);
+      loadedRef.current = true;
+      setLoaded(true);
+      setSyncStatus("error");
+    });
 
     return () => clearTimeout(loadTimeout);
   }, []); // run once on mount
@@ -156,15 +169,39 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   const syncNow = useCallback(async () => {
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
     setSyncStatus("syncing");
+
+    // Snapshot items BEFORE the async fetch. Any writes that arrive during the
+    // await are captured in dirtyIdsRef and re-integrated below, rather than
+    // being overwritten by setItems(merged) using a stale snapshot.
+    const preSnapshot = itemsRef.current;
+
     const fetchResult = await syncFetch<T & { _updated_at: string }>(table);
     if (!fetchResult.ok) { setSyncStatus("error"); return; }
     const remote = fetchResult.rows;
     const remoteMap = new Map(remote.map(r => [r.id, r]));
 
-    const merged = doMerge(itemsRef.current, remote);
-    setItems(merged);
+    const merged = doMerge(preSnapshot, remote);
 
-    const toUpsert = merged.filter(t => {
+    // Re-integrate writes that landed DURING the fetch (in itemsRef.current
+    // now but not in preSnapshot). They're already in dirtyIdsRef so they'll
+    // be upserted below; here we just make sure the UI doesn't lose them.
+    const mergedMap = new Map(merged.map(t => [t.id, t] as [string, T]));
+    for (const item of itemsRef.current) {
+      if (pendingDeletesRef.current.has(item.id)) continue;
+      const existing = mergedMap.get(item.id);
+      if (!existing) {
+        mergedMap.set(item.id, item);
+      } else {
+        const currUp  = item.updated_at ?? item.created_at;
+        const existUp = existing.updated_at ?? existing.created_at;
+        if (currUp > existUp) mergedMap.set(item.id, item);
+      }
+    }
+    const finalMerged = Array.from(mergedMap.values());
+    setItems(finalMerged);
+
+    const toUpsert = finalMerged.filter(t => {
+      if (dirtyIdsRef.current.has(t.id)) return true;
       const rem = remoteMap.get(t.id);
       const localUp  = t.updated_at ?? t.created_at;
       const remoteUp = rem ? (rem._updated_at ?? rem.updated_at ?? "") : "";

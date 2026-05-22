@@ -34,28 +34,34 @@ async function fireCompletionNotification(mode: Mode) {
 
 export function FocusTimer() {
   const { colors } = useTheme();
-  const [mode, setMode]       = useState<Mode>("focus");
+  const [mode, setMode]           = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(PRESETS.focus);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning]     = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Wall-clock end time — immune to tab throttling which can delay setInterval
+  // by up to 60s in hidden tabs, causing a 25-min timer to drift badly.
+  const endsAtRef   = useRef<number | null>(null);
 
-  // Tick
+  // Tick: compute remaining from wall clock, not by decrementing.
   useEffect(() => {
     if (!running) return;
-    intervalRef.current = setInterval(() => {
-      setRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          setRunning(false);
-          if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          fireCompletionNotification(mode);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    endsAtRef.current = Date.now() + remaining * 1000;
+
+    const tick = () => {
+      const left = Math.max(0, Math.round((endsAtRef.current! - Date.now()) / 1000));
+      setRemaining(left);
+      if (left <= 0) {
+        clearInterval(intervalRef.current!);
+        setRunning(false);
+        endsAtRef.current = null;
+        if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        fireCompletionNotification(mode);
+      }
+    };
+
+    intervalRef.current = setInterval(tick, 500);
     return () => clearInterval(intervalRef.current!);
-  }, [running, mode]);
+  }, [running, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const switchMode = useCallback((m: Mode) => {
     clearInterval(intervalRef.current!);

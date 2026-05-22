@@ -1,19 +1,28 @@
 import type { Priority } from "./TasksContext";
 
+/**
+ * Format a Date as YYYY-MM-DD using the device's LOCAL timezone.
+ * Never use `toISOString().slice(0, 10)` for date keys — that returns UTC,
+ * which drifts ahead by a day for users in UTC+ timezones after midnight local.
+ */
+export function getLocalDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function getTodayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateStr();
 }
 
 export function getTomorrowStr(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return getLocalDateStr(d);
 }
 
 export function getNextWeekStr(): string {
   const d = new Date();
   d.setDate(d.getDate() + 7);
-  return d.toISOString().slice(0, 10);
+  return getLocalDateStr(d);
 }
 
 export function formatDueDate(
@@ -103,3 +112,11 @@ export const PRIORITY_COLOR: Record<Priority, string> = {
   medium: "#7AB0D9",
   low:    "#8ABF7A",
 };
+
+export const DAY_NAMES   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"] as const;
+export const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"] as const;
+
+/** "Monday, 22 May" style header date using local timezone. */
+export function formatHeaderDate(d: Date = new Date()): string {
+  return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+}

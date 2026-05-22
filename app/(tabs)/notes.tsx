@@ -56,7 +56,9 @@ function NotesScreen() {
     }
   }, [loaded, params.create, addNote, isDesktop]);
 
-  // Repeatable: listId/openId fire every time the param changes (sidebar navigation)
+  // Repeatable: listId/openId fire every time the param changes (sidebar navigation).
+  // params._t is included so that re-navigating to the same listId (same-id sidebar click)
+  // still triggers this effect — the sidebar appends &_t=<timestamp> for exactly this case.
   useEffect(() => {
     if (!loaded) return;
     if (params.listId) {
@@ -66,7 +68,7 @@ function NotesScreen() {
       if (isDesktop) setSelectedNote(params.openId);
       else setOpenNoteId(params.openId);
     }
-  }, [loaded, params.listId, params.openId, isDesktop]);
+  }, [loaded, params.listId, params.openId, params._t, isDesktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Desktop: auto-select first list when loaded
   useEffect(() => {
@@ -84,16 +86,7 @@ function NotesScreen() {
     prevListsLen.current = lists.length;
   }, [lists.length, isDesktop]);
 
-  // Desktop: auto-select newly created note
-  const prevNotesLen = useRef(0);
-  useEffect(() => {
-    if (isDesktop && filteredNotes.length > prevNotesLen.current && prevNotesLen.current > 0) {
-      const newest = [...filteredNotes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
-      if (newest) { setSelectedNote(newest.id); setSelectedList(null); }
-    }
-    prevNotesLen.current = filteredNotes.length;
-  });
-
+  // Derive filtered collections before the effects that depend on their length.
   const fullNotes = notes.filter(n => n.type === "note" || !n.type);
 
   const filteredNotes = fullNotes.filter(n => {
@@ -105,6 +98,16 @@ function NotesScreen() {
   const filteredLists = lists.filter(l =>
     !search || l.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Desktop: auto-select newly created note
+  const prevNotesLen = useRef(0);
+  useEffect(() => {
+    if (isDesktop && filteredNotes.length > prevNotesLen.current && prevNotesLen.current > 0) {
+      const newest = [...filteredNotes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
+      if (newest) { setSelectedNote(newest.id); setSelectedList(null); }
+    }
+    prevNotesLen.current = filteredNotes.length;
+  }, [filteredNotes.length, isDesktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNewNote = useCallback(() => {
     const id = addNote("note");

@@ -68,13 +68,12 @@ function AppShell() {
     initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
   }, [fontsLoaded]);
 
-  // Fingerprint only the fields that affect notification scheduling.
-  // Without this, every keystroke in any task field cancels + reschedules all
-  // notifications via cancelAllScheduledNotificationsAsync.
+  // Fingerprint only id+due_date — title changes do not affect scheduling and
+  // were causing cancelAllScheduledNotificationsAsync on every keystroke.
   const notifKey = useMemo(
     () => tasks
       .filter(t => !t.done && t.due_date)
-      .map(t => `${t.id}:${t.title}:${t.due_date}`)
+      .map(t => `${t.id}:${t.due_date}`)
       .sort()
       .join("|"),
     [tasks]

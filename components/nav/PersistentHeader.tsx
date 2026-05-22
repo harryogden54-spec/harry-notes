@@ -5,6 +5,7 @@ import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { useSyncStatus } from "@/lib/useSyncStatus";
+import { useMounted } from "@/lib/useMounted";
 
 const THEME_IDS = Object.keys(THEMES) as ThemeId[];
 
@@ -25,8 +26,7 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
   const { colors } = useTheme();
   const { themeId, setThemeId } = useThemeContext();
   const { status, lastSynced } = useSyncStatus();
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
 
   function cycleTheme() {
     const next = THEME_IDS[(THEME_IDS.indexOf(themeId) + 1) % THEME_IDS.length];

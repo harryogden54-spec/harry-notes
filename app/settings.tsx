@@ -15,6 +15,7 @@ import { useToast } from "@/lib/ToastContext";
 import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
+import { getLocalDateStr } from "@/lib/utils";
 
 // ─── Shared row primitives ────────────────────────────────────────────────────
 
@@ -164,23 +165,23 @@ export default function SettingsScreen() {
   }
 
   function handleClearCompleted() {
-    if (completedCount === 0) { showToast("No completed tasks to clear"); return; }
+    if (completedCount === 0) { showToast("No completed tasks to archive"); return; }
     if (Platform.OS === "web") {
       if (!clearing) {
         setClearing(true);
-        showToast(`Clear ${completedCount} completed task${completedCount !== 1 ? "s" : ""}?`, {
+        showToast(`Archive ${completedCount} completed task${completedCount !== 1 ? "s" : ""}?`, {
           label: "Confirm",
-          onPress: () => { clearCompleted(); setClearing(false); showToast("Cleared completed tasks"); },
+          onPress: () => { clearCompleted(); setClearing(false); showToast("Archived completed tasks"); },
         });
         setTimeout(() => setClearing(false), 4000);
       }
     } else {
       Alert.alert(
-        "Clear completed tasks",
-        `Permanently delete ${completedCount} completed task${completedCount !== 1 ? "s" : ""}?`,
+        "Archive completed tasks",
+        `Move ${completedCount} completed task${completedCount !== 1 ? "s" : ""} to the archive?`,
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Clear", style: "destructive", onPress: () => { clearCompleted(); showToast("Cleared completed tasks"); } },
+          { text: "Archive", style: "destructive", onPress: () => { clearCompleted(); showToast("Archived completed tasks"); } },
         ]
       );
     }
@@ -196,13 +197,13 @@ export default function SettingsScreen() {
   function handleExportJSON() {
     if (Platform.OS !== "web") { showToast("Export is only available on web"); return; }
     const data = { exportedAt: new Date().toISOString(), tasks, lists, notes };
-    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), `harry-notes-${new Date().toISOString().slice(0, 10)}.json`);
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), `harry-notes-${getLocalDateStr()}.json`);
     showToast("JSON export downloaded");
   }
 
   function handleExportMarkdown() {
     if (Platform.OS !== "web") { showToast("Export is only available on web"); return; }
-    const date = new Date().toISOString().slice(0, 10);
+    const date = getLocalDateStr();
     let md = `# harry-notes export — ${date}\n\n`;
     md += `## Tasks\n\n`;
     tasks.filter(t => !t.archived).forEach(t => {
@@ -308,7 +309,7 @@ export default function SettingsScreen() {
             <Row icon="📄" label="Export as JSON"     subtitle="Download all data as JSON"     onPress={handleExportJSON}     chevron />
             <Row icon="📝" label="Export as Markdown" subtitle="Download notes + tasks as .md" onPress={handleExportMarkdown} chevron />
             <Row
-              label="Clear completed tasks"
+              label="Archive completed tasks"
               subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be archived` : "No completed tasks"}
               danger={completedCount > 0}
               onPress={handleClearCompleted}

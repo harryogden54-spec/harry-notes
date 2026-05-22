@@ -79,13 +79,16 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     storageKey: "tasks",
     loadLocal: async () => {
       if (Platform.OS !== "web") {
-        try {
-          const dbTasks = await dbLoadTasks() as Task[];
-          if (dbTasks.length > 0) return dbTasks;
-          const stored = await storage.get<Task[]>("tasks") ?? [];
-          if (stored.length > 0) await dbSaveTasks(stored);
-          return stored;
-        } catch { /* fall through */ }
+        // Re-throw on DB error: the caller (useSyncedCollection) will surface
+        // syncStatus:"error" and mark the app as loaded. Silently falling back
+        // to AsyncStorage on a DB throw would overwrite real data with a
+        // potentially-stale mirror and is extremely hard to debug.
+        const dbTasks = await dbLoadTasks() as Task[];
+        if (dbTasks.length > 0) return dbTasks;
+        // DB returned 0 rows — migrate from AsyncStorage on first install.
+        const stored = await storage.get<Task[]>("tasks") ?? [];
+        if (stored.length > 0) await dbSaveTasks(stored);
+        return stored;
       }
       return await storage.get<Task[]>("tasks") ?? [];
     },
@@ -93,7 +96,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS !== "web") dbSaveTasks(items).catch(console.error);
     },
     // Auto-archive tasks completed 7+ days ago on initial load.
-    // Bumping updated_at and marking dirty ensures the change reaches Supabase.
+    // Use completed_at + 7 days as updated_at so a real archive event on
+    // another device (with a later timestamp) always wins in LWW merge.
     onLoad: (items) => {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
@@ -102,7 +106,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       const updated = items.map(t => {
         if (t.done && !t.archived && t.completed_at && t.completed_at < cutoffStr) {
           dirty.push(t.id);
-          return stamp({ ...t, archived: true });
+          const archiveAt = new Date(t.completed_at);
+          archiveAt.setDate(archiveAt.getDate() + 7);
+          return { ...t, archived: true, updated_at: archiveAt.toISOString() };
         }
         return t;
       });

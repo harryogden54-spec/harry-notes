@@ -21,9 +21,11 @@ interface Props {
   notes: Note[];
   query: string;
   onTaskPress: (id: string) => void;
+  /** Called when the user presses Enter (or the "Add as task" button) on a no-results query. */
+  onAdd?: (title: string) => void;
 }
 
-export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props) {
+export function SearchResults({ tasks, lists, notes, query, onTaskPress, onAdd }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
 
@@ -46,7 +48,26 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
   }, [lists, query]);
 
   if (matchTasks.length === 0 && matchLists.length === 0 && matchNotes.length === 0) {
-    return <EmptyState type="search" title="No results" subtitle={`Nothing found for "${query}".`} />;
+    return (
+      <View>
+        <EmptyState type="search" title="No results" subtitle={`Nothing found for "${query}".`} />
+        {onAdd && (
+          <Pressable
+            onPress={() => onAdd(query)}
+            style={{
+              alignSelf: "center", marginTop: spacing[2],
+              paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+              borderRadius: 99, borderWidth: 1, borderColor: colors.accent,
+              backgroundColor: `${colors.accent}14`,
+            }}
+          >
+            <Text size="sm" style={{ color: colors.accent }}>
+              + Add "{query}" as a task
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    );
   }
 
   return (

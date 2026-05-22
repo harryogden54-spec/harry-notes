@@ -1,13 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
-// Hard-coded fallback ensures the app loads even if the build didn't pick up the file.
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ??
-  "https://vbegnnwyrbxiqdnzvhwk.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
-  "sb_publishable_vu8Trd9OjPINvclyAtQ8-w_x2ZdahXp";
+// Fail loudly if missing so a misconfigured build surfaces immediately rather
+// than silently syncing to the wrong project or exposing credentials in source.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    "[supabase] EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set in .env. " +
+    "Copy .env.example to .env and fill in your project credentials."
+  );
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -42,6 +46,12 @@ export async function syncUpsert<T extends { id: string }>(
   items: T[]
 ): Promise<boolean> {
   if (items.length === 0) return true;
+  // CLOCK-SKEW TODO: we currently stamp updated_at from the client clock.
+  // If two devices have skewed clocks, LWW can silently drop edits.
+  // Fix: remove updated_at from rows below and add a Postgres trigger on each
+  // table that sets updated_at = now() on INSERT/UPDATE. Then syncFetch's
+  // _updated_at will always be a server timestamp and ordering will be correct.
+  // Requires a Supabase migration before the client change lands.
   const rows = items.map(item => ({
     id: item.id,
     data: item,
