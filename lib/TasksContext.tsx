@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { syncDelete } from "./supabase";
 import { dbLoadTasks, dbSaveTasks } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
+import { advanceByRecurrence } from "./utils";
 
 export type Priority   = "urgent" | "high" | "medium" | "low";
 export type TaskCategory = "personal" | "uni";
@@ -40,6 +41,7 @@ export type Task = {
   subtasks?: Subtask[];
   category?: TaskCategory;
   uniCourse?: UniCourse;
+  recurrence?: string;
 };
 
 type TasksContextValue = {
@@ -133,11 +135,37 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTask = useCallback((id: string) => {
     markDirty(id);
-    setTasks(prev => prev.map(t => {
-      if (t.id !== id) return t;
-      const done = !t.done;
-      return stamp({ ...t, done, completed_at: done ? new Date().toISOString() : undefined });
-    }));
+    setTasks(prev => {
+      const task = prev.find(t => t.id === id);
+      if (!task) return prev;
+      const done = !task.done;
+      const updated = prev.map(t =>
+        t.id === id ? stamp({ ...t, done, completed_at: done ? new Date().toISOString() : undefined }) : t
+      );
+      // Spawn next instance when completing a recurring task
+      if (done && task.recurrence) {
+        const nextId  = newId();
+        const nextDue = advanceByRecurrence(task.due_date, task.recurrence);
+        const now     = new Date().toISOString();
+        const next: Task = stamp({
+          id: nextId,
+          title: task.title,
+          done: false,
+          due_date: nextDue,
+          priority: task.priority,
+          category: task.category,
+          uniCourse: task.uniCourse,
+          description: task.description,
+          subtasks: [],
+          tags: task.tags ?? [],
+          recurrence: task.recurrence,
+          created_at: now,
+        });
+        markDirty(nextId);
+        return [...updated, next];
+      }
+      return updated;
+    });
   }, [markDirty, setTasks]);
 
   const archiveTask = useCallback((id: string) => {

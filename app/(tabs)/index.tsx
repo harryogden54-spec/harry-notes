@@ -110,14 +110,15 @@ function DashboardScreen() {
   const { notes, loaded: notesLoaded } = useNotes();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
-  const [search, setSearch]    = useState("");
+  const [search, setSearch]       = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const today                       = getTodayStr();
 
   const mounted = useMounted();
   const now = mounted ? new Date() : null;
 
-  const openTasks = useMemo(() => tasks
+  const allOpenTasks = useMemo(() => tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
       const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
@@ -127,6 +128,18 @@ function DashboardScreen() {
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
     }), [tasks]);
+
+  // Unique categories that exist in open tasks, for the filter chips.
+  const availableCategories = useMemo(() =>
+    [...new Set(allOpenTasks.map(t => t.category).filter(Boolean))] as string[],
+    [allOpenTasks]
+  );
+
+  // Apply category filter if selected (auto-clear if that category disappears).
+  const openTasks = useMemo(() => {
+    if (!categoryFilter || !availableCategories.includes(categoryFilter)) return allOpenTasks;
+    return allOpenTasks.filter(t => t.category === categoryFilter);
+  }, [allOpenTasks, categoryFilter, availableCategories]);
 
   const overdueTasks = useMemo(() => openTasks.filter(t => !!t.due_date && t.due_date < today), [openTasks, today]);
   const overdueCount = overdueTasks.length;
@@ -199,6 +212,8 @@ function DashboardScreen() {
 
   // ─── Tasks card ───────────────────────────────────────────────────────────────
 
+  const CATEGORY_LABEL: Record<string, string> = { personal: "Personal", uni: "Uni" };
+
   const tasksCardItems = openTasks.slice(0, 5);
   const tasksOverflow  = openTasks.length - 5;
 
@@ -206,9 +221,33 @@ function DashboardScreen() {
     <View style={{ flex: 1 }}>
       <SectionHeader
         label="Tasks"
-        count={tasksLoaded ? openTasks.length : undefined}
+        count={tasksLoaded ? allOpenTasks.length : undefined}
         action={{ label: "All tasks", onPress: handleGoToTasks }}
       />
+      {/* Per-category filter chips — only shown when multiple categories exist */}
+      {tasksLoaded && availableCategories.length > 1 && (
+        <View style={{ flexDirection: "row", gap: spacing[1.5], marginBottom: spacing[2], flexWrap: "wrap" }}>
+          {availableCategories.map(cat => {
+            const active = categoryFilter === cat;
+            return (
+              <Pressable
+                key={cat}
+                onPress={() => setCategoryFilter(prev => prev === cat ? null : cat)}
+                style={{
+                  paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                  borderRadius: 99, borderWidth: 1,
+                  borderColor: active ? colors.accent : colors.bgBorder,
+                  backgroundColor: active ? `${colors.accent}18` : "transparent",
+                }}
+              >
+                <Text size="xs" style={{ color: active ? colors.accent : colors.textSecondary }}>
+                  {CATEGORY_LABEL[cat] ?? cat}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
       {!tasksLoaded ? (
         <GlassCard style={{ padding: spacing[4], gap: spacing[3] }}>
           <Skeleton height={16} borderRadius={6} />

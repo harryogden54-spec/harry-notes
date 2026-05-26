@@ -10,6 +10,7 @@ import { MetaRow } from "./MetaRow";
 import { PrioritySelector } from "./PrioritySelector";
 import { DueDateSelector } from "./DueDateSelector";
 import { CategorySelector } from "./CategorySelector";
+import { RecurrenceSelector } from "./RecurrenceSelector";
 import { SubtasksList } from "./SubtasksList";
 
 type Props = { task: Task; onClose?: () => void };
@@ -107,6 +108,12 @@ export function TaskDetailPanel({ task, onClose }: Props) {
           category={task.category}
           uniCourse={task.uniCourse}
           onChange={(category, uniCourse) => updateTask(task.id, { category, uniCourse })}
+        />
+      </MetaRow>
+      <MetaRow icon="↻">
+        <RecurrenceSelector
+          value={task.recurrence}
+          onChange={recurrence => updateTask(task.id, { recurrence })}
         />
       </MetaRow>
 

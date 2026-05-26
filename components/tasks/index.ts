@@ -4,6 +4,7 @@ export { CategoryBadge } from "./CategoryBadge";
 export { PrioritySelector } from "./PrioritySelector";
 export { DueDateSelector } from "./DueDateSelector";
 export { CategorySelector } from "./CategorySelector";
+export { RecurrenceSelector } from "./RecurrenceSelector";
 export { SubtasksList } from "./SubtasksList";
 export { TaskItem } from "./TaskItem";
 export { TaskDetailPanel } from "./TaskDetailPanel";
