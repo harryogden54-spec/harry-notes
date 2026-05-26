@@ -182,7 +182,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
   const { tasks } = useTasks();
-  const { notes } = useNotes();
+  const { notes, addNote, updateNote } = useNotes();
   const { lists } = useLists();
   const { themeId, setThemeId } = useThemeContext();
 
@@ -271,6 +271,17 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
 
   // Reset activeIdx when items change
   useEffect(() => { setActiveIdx(0); }, [query]);
+
+  // Feature 4: create a note pre-seeded with [[Task title]] and navigate to it.
+  function handleTakeNote(taskTitle: string) {
+    const id = addNote("note");
+    updateNote(id, {
+      title: `Notes: ${taskTitle}`,
+      body: `[[${taskTitle}]]\n\n`,
+    });
+    onClose();
+    setTimeout(() => router.push(`/(tabs)/notes?openId=${id}` as any), 50);
+  }
 
   const content = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
@@ -379,13 +390,36 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
                     <Text style={{ fontSize: 10, fontFamily: fontFamily.semibold, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[1], paddingHorizontal: spacing[1] }}>Recent</Text>
                     {items.filter(i => i.kind === "recent").map((item) => {
                       const flatIdx = items.indexOf(item) + 1;
+                      const isActive = activeIdx === flatIdx;
+                      const isTask = "sub" in item && item.sub === "Task";
                       return (
-                        <Pressable key={item.id} onPress={item.run}
-                          style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: activeIdx === flatIdx ? `${colors.accent}10` : "transparent" }}>
-                          {"icon" in item && <Ionicons name={item.icon} size={15} color={colors.textTertiary} />}
-                          <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.label}</Text>
-                          {"sub" in item && <Text size="xs" style={{ color: colors.textTertiary }}>{item.sub}</Text>}
-                        </Pressable>
+                        <View key={item.id}>
+                          <Pressable onPress={item.run}
+                            style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: isActive ? `${colors.accent}10` : "transparent" }}>
+                            {"icon" in item && <Ionicons name={item.icon} size={15} color={colors.textTertiary} />}
+                            <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.label}</Text>
+                            {"sub" in item && <Text size="xs" style={{ color: colors.textTertiary }}>{item.sub}</Text>}
+                          </Pressable>
+                          {/* Feature 4: when a task row is active, show "Take note about…" action */}
+                          {isActive && isTask && (
+                            <Pressable
+                              onPress={() => handleTakeNote(item.label)}
+                              style={{
+                                flexDirection: "row", alignItems: "center", gap: spacing[2],
+                                marginLeft: spacing[6], marginBottom: spacing[1],
+                                paddingHorizontal: spacing[2.5], paddingVertical: spacing[1.5],
+                                borderRadius: radius.md, borderWidth: 1,
+                                borderColor: `${colors.accent}40`,
+                                backgroundColor: `${colors.accent}08`,
+                              }}
+                            >
+                              <Ionicons name="document-text-outline" size={13} color={colors.accent} />
+                              <Text size="xs" style={{ color: colors.accent }}>
+                                Take note about "{item.label.length > 30 ? item.label.slice(0, 30) + "…" : item.label}"
+                              </Text>
+                            </Pressable>
+                          )}
+                        </View>
                       );
                     })}
                   </View>

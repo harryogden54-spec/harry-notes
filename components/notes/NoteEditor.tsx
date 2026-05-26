@@ -1,11 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useNotes, type Note } from "@/lib/NotesContext";
+import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
+import { getTodayStr } from "@/lib/utils";
 import { MarkdownView } from "./MarkdownView";
 import { MarkdownToolbar, type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions, getWikiQuery } from "./WikiLinkSuggestions";
@@ -86,7 +88,9 @@ type Props = {
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
   const { notes, updateNote, deleteNote, pinNote } = useNotes();
+  const { tasks } = useTasks();
   const { showToast } = useToast();
+  const today = getTodayStr();
   const titleRef = useRef<TextInput | null>(null);
   const bodyRef  = useRef<TextInput | null>(null);
   const selRef   = useRef<Sel>({ start: 0, end: 0 });
@@ -141,6 +145,21 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
 
   const wordCount = note.body.trim() ? note.body.trim().split(/\s+/).length : 0;
   const allNotes = notes.filter(n => n.type === "note" || !n.type);
+
+  const openTasks = tasks.filter(t => !t.done && !t.archived);
+  const replCtx = useMemo(() => ({
+    tasksOverdue: openTasks.filter(t => !!t.due_date && t.due_date < today).length,
+    tasksToday:   openTasks.filter(t => t.due_date === today).length,
+    tasksOpen:    openTasks.length,
+    notesCount:   allNotes.length,
+    tasksDueIn:   (n: number) => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() + n);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+      return openTasks.filter(t => !!t.due_date && t.due_date >= today && t.due_date <= cutoffStr).length;
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [openTasks.length, today, allNotes.length]);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -201,7 +220,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           />
           {preview ? (
             note.body.trim()
-              ? <MarkdownView body={note.body} colors={colors} />
+              ? <MarkdownView body={note.body} colors={colors} replCtx={replCtx} />
               : <Text size="sm" tertiary style={{ fontStyle: "italic" }}>Nothing to preview yet.</Text>
           ) : (
             <TextInput

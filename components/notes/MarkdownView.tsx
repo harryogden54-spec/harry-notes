@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, fontFamily } from "@/lib/theme";
+import { evalREPL, type REPLContext } from "./replEval";
 
 type Colors = ReturnType<typeof useTheme>["colors"];
 
@@ -39,12 +40,31 @@ export function renderInline(text: string, colors: Colors): React.ReactNode {
   return parts;
 }
 
-export function MarkdownView({ body, colors }: { body: string; colors: Colors }) {
+export function MarkdownView({ body, colors, replCtx }: { body: string; colors: Colors; replCtx?: REPLContext }) {
   const lines = body.split("\n");
   const nodes: React.ReactNode[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const key = `md-${i}`;
+
+    // ── REPL lines: "> expression" ──────────────────────────────────────────
+    if (line.startsWith("> ") && replCtx) {
+      const expr   = line.slice(2);
+      const result = evalREPL(expr, replCtx);
+      nodes.push(
+        <View key={key} style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginVertical: 2 }}>
+          <Text style={{ color: colors.textTertiary, fontSize: 13, lineHeight: 22, fontFamily: fontFamily.medium }}>{">"}</Text>
+          <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 14, lineHeight: 22, fontFamily: "monospace" as any }}>{expr}</Text>
+          {result !== undefined && (
+            <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2, borderWidth: 1, borderColor: colors.bgBorder }}>
+              <Text style={{ fontSize: 12, color: colors.accent, fontFamily: "monospace" as any }}>{result}</Text>
+            </View>
+          )}
+        </View>
+      );
+      continue;
+    }
+
     if (line.startsWith("### "))     nodes.push(<Text key={key} style={{ fontSize: 15, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[3], marginBottom: spacing[1] }}>{renderInline(line.slice(4), colors)}</Text>);
     else if (line.startsWith("## ")) nodes.push(<Text key={key} style={{ fontSize: 18, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[4], marginBottom: spacing[1.5] }}>{renderInline(line.slice(3), colors)}</Text>);
     else if (line.startsWith("# "))  nodes.push(<Text key={key} style={{ fontSize: 22, fontFamily: fontFamily.bold, color: colors.textPrimary, marginTop: spacing[5], marginBottom: spacing[2] }}>{renderInline(line.slice(2), colors)}</Text>);
