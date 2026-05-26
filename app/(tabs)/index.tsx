@@ -19,6 +19,7 @@ import { storage } from "@/lib/storage";
 import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
+import { YearInPixels }       from "@/components/dashboard/YearInPixels";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,27 @@ function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
         </View>
       </Surface>
     </Pressable>
+  );
+}
+
+// ─── History section (Year-in-Pixels) ────────────────────────────────────────
+
+function HistorySection() {
+  const { colors } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={{ marginBottom: spacing[6] }}>
+      <Pressable
+        onPress={() => setExpanded(v => !v)}
+        style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: expanded ? spacing[3] : 0 }}
+      >
+        <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textTertiary, fontFamily: fontFamily.semibold, textTransform: "uppercase" }}>
+          Year in Pixels
+        </Text>
+        <Text style={{ fontSize: 11, color: colors.textTertiary }}>{expanded ? "▲" : "▼"}</Text>
+      </Pressable>
+      {expanded && <YearInPixels />}
+    </View>
   );
 }
 
@@ -454,6 +476,7 @@ function DashboardScreen() {
       {postItsRow}
       {listsShelf}
       {notesRow}
+      <HistorySection />
     </>
   );
 
