@@ -14,29 +14,64 @@ import { timeAgo } from "./utils";
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
   const { colors } = useTheme();
   const title = note.title || "Untitled";
-  const pattern = `[[${title}]]`;
-  const linkedFrom = allNotes.filter(n => n.id !== note.id && n.body.includes(pattern));
-  if (linkedFrom.length === 0) return null;
+
+  // Incoming: notes that contain [[this note's title]]
+  const linkedFrom = allNotes.filter(n => n.id !== note.id && n.body.includes(`[[${title}]]`));
+
+  // Outgoing: notes this note references via [[Title]]
+  const wikiPattern = /\[\[([^\][\n]+)\]\]/g;
+  const referencedTitles = new Set<string>();
+  for (const m of note.body.matchAll(wikiPattern)) {
+    referencedTitles.add(m[1]);
+  }
+  const linkedTo = allNotes.filter(n => n.id !== note.id && referencedTitles.has(n.title || "Untitled"));
+
+  if (linkedFrom.length === 0 && linkedTo.length === 0) return null;
 
   return (
-    <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderTopWidth: 1, borderTopColor: colors.bgBorder }}>
-      <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>
-        Linked from ({linkedFrom.length})
-      </Text>
-      <View style={{ gap: spacing[1.5] }}>
-        {linkedFrom.map(n => (
-          <Pressable
-            key={n.id}
-            onPress={() => onOpen(n.id)}
-            style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
-          >
-            <View style={{ width: 4, height: 4, borderRadius: 99, backgroundColor: colors.accent }} />
-            <Text size="xs" style={{ color: colors.accent, textDecorationLine: "underline" }}>
-              {n.title || "Untitled"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+    <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderTopWidth: 1, borderTopColor: colors.bgBorder, gap: spacing[2.5] }}>
+      {linkedTo.length > 0 && (
+        <View>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[1.5] }}>
+            Links to · {linkedTo.length}
+          </Text>
+          <View style={{ gap: spacing[1] }}>
+            {linkedTo.map(n => (
+              <Pressable
+                key={n.id}
+                onPress={() => onOpen(n.id)}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
+              >
+                <Text size="xs" style={{ color: colors.textTertiary }}>→</Text>
+                <Text size="xs" style={{ color: colors.accent, textDecorationLine: "underline" }}>
+                  {n.title || "Untitled"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+      {linkedFrom.length > 0 && (
+        <View>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[1.5] }}>
+            Linked from · {linkedFrom.length}
+          </Text>
+          <View style={{ gap: spacing[1] }}>
+            {linkedFrom.map(n => (
+              <Pressable
+                key={n.id}
+                onPress={() => onOpen(n.id)}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
+              >
+                <Text size="xs" style={{ color: colors.textTertiary }}>←</Text>
+                <Text size="xs" style={{ color: colors.accent, textDecorationLine: "underline" }}>
+                  {n.title || "Untitled"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }

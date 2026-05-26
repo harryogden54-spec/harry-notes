@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, SafeAreaView, Pressable,
@@ -38,6 +38,7 @@ function NotesScreen() {
   const [openNoteId, setOpenNoteId]       = useState<string | null>(null);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [creatingList, setCreatingList]   = useState(false);
+  const [showOrphans, setShowOrphans]     = useState(false);
 
   const params = useLocalSearchParams<{ create?: string; listId?: string; openId?: string; _t?: string }>();
   const handledCreate = useRef(false);
@@ -89,7 +90,23 @@ function NotesScreen() {
   // Derive filtered collections before the effects that depend on their length.
   const fullNotes = notes.filter(n => n.type === "note" || !n.type);
 
+  // Build sets of notes that have at least one link (in or out) for the Orphans filter.
+  const noteWithLinksIds = useMemo(() => {
+    const wikiRe = /\[\[([^\][\n]+)\]\]/g;
+    const titleToId = new Map(fullNotes.map(n => [n.title || "Untitled", n.id]));
+    const ids = new Set<string>();
+    fullNotes.forEach(n => {
+      // outgoing: this note references another
+      for (const m of n.body.matchAll(wikiRe)) {
+        const targetId = titleToId.get(m[1]);
+        if (targetId) { ids.add(n.id); ids.add(targetId); }
+      }
+    });
+    return ids;
+  }, [fullNotes]);
+
   const filteredNotes = fullNotes.filter(n => {
+    if (showOrphans && noteWithLinksIds.has(n.id)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q);
@@ -191,8 +208,24 @@ function NotesScreen() {
               <Divider style={{ marginBottom: spacing[4] }} />
 
               <NotesSectionHeader label="Notes" count={filteredNotes.length} onAdd={handleNewNote} addLabel="New note" />
+              {fullNotes.length > 2 && (
+                <Pressable
+                  onPress={() => setShowOrphans(v => !v)}
+                  style={{
+                    alignSelf: "flex-start", marginBottom: spacing[2],
+                    paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                    borderRadius: 99, borderWidth: 1,
+                    borderColor: showOrphans ? colors.accent : colors.bgBorder,
+                    backgroundColor: showOrphans ? `${colors.accent}18` : "transparent",
+                  }}
+                >
+                  <Text size="xs" style={{ color: showOrphans ? colors.accent : colors.textSecondary }}>
+                    {showOrphans ? "◎ Orphans" : "◎ Orphans"}
+                  </Text>
+                </Pressable>
+              )}
               {filteredNotes.length === 0 ? (
-                <EmptyState type="notes" title={search ? "No notes match" : "No notes yet"} subtitle={search ? "Try a different search." : "Capture a thought."} />
+                <EmptyState type="notes" title={showOrphans ? "No orphan notes" : search ? "No notes match" : "No notes yet"} subtitle={showOrphans ? "All notes have links." : search ? "Try a different search." : "Capture a thought."} />
               ) : (
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
                   {filteredNotes.map(n => (
@@ -268,9 +301,22 @@ function NotesScreen() {
               <View style={{ paddingHorizontal: spacing[4], marginBottom: spacing[1] }}>
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1 }}>Notes</Text>
-                  <Pressable onPress={handleNewNote} hitSlop={12}>
-                    <Text size="xs" style={{ color: colors.accent }}>+</Text>
-                  </Pressable>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+                    {fullNotes.length > 2 && (
+                      <Pressable onPress={() => setShowOrphans(v => !v)} hitSlop={8}
+                        style={{
+                          paddingHorizontal: spacing[1.5], paddingVertical: 2, borderRadius: 4,
+                          backgroundColor: showOrphans ? `${colors.accent}20` : "transparent",
+                          borderWidth: 1, borderColor: showOrphans ? colors.accent : colors.bgBorder,
+                        }}
+                      >
+                        <Text style={{ fontSize: 9, color: showOrphans ? colors.accent : colors.textTertiary }}>orphans</Text>
+                      </Pressable>
+                    )}
+                    <Pressable onPress={handleNewNote} hitSlop={12}>
+                      <Text size="xs" style={{ color: colors.accent }}>+</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
               {sortedNotes.length === 0 ? (
