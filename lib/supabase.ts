@@ -3,17 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 // Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
 // Fail loudly if missing so a misconfigured build surfaces immediately rather
 // than silently syncing to the wrong project or exposing credentials in source.
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    "[supabase] EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set in .env. " +
-    "Copy .env.example to .env and fill in your project credentials."
+  console.warn(
+    "[supabase] EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are not set. " +
+    "Sync will be disabled. Copy .env.example to .env and fill in your project credentials."
   );
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(
+  SUPABASE_URL || "https://placeholder.supabase.co",
+  SUPABASE_ANON_KEY || "placeholder"
+);
 
 // Result type so callers can distinguish "remote is empty" from "fetch failed".
 // The previous shape (returning [] on error) caused contexts to mistake a
