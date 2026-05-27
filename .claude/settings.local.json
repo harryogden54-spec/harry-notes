@@ -29,7 +29,8 @@
       "Bash(git commit -m 'refactor: split tasks.tsx into components/tasks/, React.memo on leaf rows *)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; print\\('\\\\n'.join\\([k for k in deps if 'fuse' in k.lower\\(\\)]\\)\\)\")",
       "Bash(npm install *)",
-      "Bash(node -e \"require\\('fuse.js'\\); console.log\\('ok'\\)\")"
+      "Bash(node -e \"require\\('fuse.js'\\); console.log\\('ok'\\)\")",
+      "Bash(xargs wc -l)"
     ],
     "additionalDirectories": [
       "c:\\Users\\harry\\Documents\\Harry\\harry-notes\\components"

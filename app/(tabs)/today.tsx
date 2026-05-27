@@ -12,7 +12,8 @@ import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
 import { useTasks } from "@/lib/TasksContext";
-import { getTodayStr } from "@/lib/utils";
+import { getTodayStr, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
+import { useMounted } from "@/lib/useMounted";
 
 type TodayItem = {
   id: string;
@@ -22,21 +23,15 @@ type TodayItem = {
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 
-function getTodayLabel() {
-  const d = new Date();
-  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
-}
 
 function getTodayKey() {
-  return `today_items_${new Date().toISOString().slice(0, 10)}`;
+  return `today_items_${getLocalDateStr()}`;
 }
 
 function getYesterdayKey() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return `today_items_${d.toISOString().slice(0, 10)}`;
+  return `today_items_${getLocalDateStr(d)}`;
 }
 
 function TodayScreen() {
@@ -46,14 +41,13 @@ function TodayScreen() {
   const [input, setInput]             = useState("");
   const [carryover, setCarryover]     = useState<TodayItem[]>([]);
   const [showCarryover, setShowCarryover] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
-  const [mounted, setMounted]         = useState(false);
+  const mounted = useMounted();
   const [showTimer, setShowTimer]     = useState(false);
   const inputRef = useRef<TextInput | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
-
-  const dateLabel = mounted ? getTodayLabel() : "";
+  const dateLabel = mounted ? formatHeaderDate() : "";
 
   const todayKey     = getTodayKey();
   const yesterdayKey = getYesterdayKey();
@@ -73,6 +67,21 @@ function TodayScreen() {
         setCarryover(incomplete);
         setShowCarryover(true);
       }
+
+      // Garbage-collect today_items_* keys older than 7 days. AsyncStorage on
+      // web (localStorage) has a ~5 MB quota — year-old keys add up quietly.
+      try {
+        const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 7);
+        const allKeys = await AsyncStorage.getAllKeys();
+        const staleKeys = allKeys.filter(k => {
+          if (!k.startsWith("today_items_")) return false;
+          const dateStr = k.replace("today_items_", "");
+          return dateStr < getLocalDateStr(cutoff);
+        });
+        if (staleKeys.length > 0) await AsyncStorage.multiRemove(staleKeys);
+      } catch { /* non-critical */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -319,39 +328,59 @@ function TodayScreen() {
               </View>
             )}
 
-            {/* Suggestions (only when list is empty and there are overdue/today tasks) */}
-            {items.length === 0 && suggestions.length > 0 && (
+            {/* Suggestions — full panel when empty, collapsed chip when list has items */}
+            {suggestions.length > 0 && (
               <View style={{ marginTop: spacing[2] }}>
-                <Text size="xs" weight="semibold" style={{
-                  textTransform: "uppercase", letterSpacing: 1.2,
-                  color: colors.textSecondary, fontSize: 11,
-                  marginBottom: spacing[2],
-                }}>
-                  SUGGESTED · {suggestions.length}
-                </Text>
-                <Surface style={{ overflow: "hidden", padding: 0 }}>
-                  {suggestions.map((task, i) => (
-                    <View key={task.id} style={{
-                      flexDirection: "row", alignItems: "center",
-                      paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-                      gap: spacing[3],
-                      borderBottomWidth: i === suggestions.length - 1 ? 0 : 1,
-                      borderBottomColor: colors.bgBorder,
+                {items.length > 0 ? (
+                  // Collapsed chip — tapping reveals the same panel below
+                  <Pressable
+                    onPress={() => setShowSuggestions(v => !v)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], alignSelf: "flex-start" }}
+                  >
+                    <Text size="xs" weight="semibold" style={{
+                      textTransform: "uppercase", letterSpacing: 1.2,
+                      color: showSuggestions ? colors.accent : colors.textSecondary, fontSize: 11,
                     }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: task.due_date && task.due_date < todayStr ? colors.danger : colors.warning }} />
-                      <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{task.title}</Text>
-                      {task.due_date && task.due_date < todayStr && (
-                        <Text size="xs" style={{ color: colors.danger, marginRight: spacing[1] }}>Overdue</Text>
-                      )}
-                      <Pressable
-                        onPress={() => addSuggestion(task.title)}
-                        style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: `${colors.accent}18`, borderWidth: 1, borderColor: `${colors.accent}40` }}
-                      >
-                        <Text size="xs" style={{ color: colors.accent }} weight="medium">+ Add</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </Surface>
+                      SUGGESTED · {suggestions.length}
+                    </Text>
+                    <Text size="xs" style={{ color: showSuggestions ? colors.accent : colors.textTertiary }}>
+                      {showSuggestions ? "▲" : "▼"}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Text size="xs" weight="semibold" style={{
+                    textTransform: "uppercase", letterSpacing: 1.2,
+                    color: colors.textSecondary, fontSize: 11,
+                    marginBottom: spacing[2],
+                  }}>
+                    SUGGESTED · {suggestions.length}
+                  </Text>
+                )}
+                {(items.length === 0 || showSuggestions) && (
+                  <Surface style={{ overflow: "hidden", padding: 0, marginTop: spacing[2] }}>
+                    {suggestions.map((task, i) => (
+                      <View key={task.id} style={{
+                        flexDirection: "row", alignItems: "center",
+                        paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+                        gap: spacing[3],
+                        borderBottomWidth: i === suggestions.length - 1 ? 0 : 1,
+                        borderBottomColor: colors.bgBorder,
+                      }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: task.due_date && task.due_date < todayStr ? colors.danger : colors.warning }} />
+                        <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{task.title}</Text>
+                        {task.due_date && task.due_date < todayStr && (
+                          <Text size="xs" style={{ color: colors.danger, marginRight: spacing[1] }}>Overdue</Text>
+                        )}
+                        <Pressable
+                          onPress={() => addSuggestion(task.title)}
+                          style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: `${colors.accent}18`, borderWidth: 1, borderColor: `${colors.accent}40` }}
+                        >
+                          <Text size="xs" style={{ color: colors.accent }} weight="medium">+ Add</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </Surface>
+                )}
               </View>
             )}
 

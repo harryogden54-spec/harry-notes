@@ -47,13 +47,12 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     storageKey: "notes",
     loadLocal: async () => {
       if (Platform.OS !== "web") {
-        try {
-          const dbNotes = await dbLoadNotes() as Note[];
-          if (dbNotes.length > 0) return dbNotes;
-          const stored = await storage.get<Note[]>("notes") ?? [];
-          if (stored.length > 0) await dbSaveNotes(stored);
-          return stored;
-        } catch { /* fall through */ }
+        // Re-throw on DB error — see TasksContext for rationale.
+        const dbNotes = await dbLoadNotes() as Note[];
+        if (dbNotes.length > 0) return dbNotes;
+        const stored = await storage.get<Note[]>("notes") ?? [];
+        if (stored.length > 0) await dbSaveNotes(stored);
+        return stored;
       }
       return await storage.get<Note[]>("notes") ?? [];
     },

@@ -13,64 +13,57 @@ export function getDb(): SQLite.SQLiteDatabase {
   return _db;
 }
 
-const SCHEMA_VERSION = 5;
+// Bump this when adding migrations below. The CREATE TABLE statements below
+// should always reflect the CURRENT schema so fresh installs get the right
+// columns immediately (without relying on migrations to add them).
+const SCHEMA_VERSION = 6;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
 
-  // Create tables
+  // ── Current schema ──────────────────────────────────────────────────────────
+  // Always kept in sync with SCHEMA_VERSION. Fresh installs get all columns.
+  // Migrations below handle upgrading existing installs one version at a time.
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
 
     CREATE TABLE IF NOT EXISTS tasks (
-      id          TEXT PRIMARY KEY,
-      title       TEXT NOT NULL,
-      done        INTEGER NOT NULL DEFAULT 0,
-      due_date    TEXT,
-      priority    TEXT,
-      description TEXT,
-      tags        TEXT,
-      subtasks    TEXT,
-      recurrence  TEXT,
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL
+      id           TEXT PRIMARY KEY,
+      title        TEXT NOT NULL,
+      done         INTEGER NOT NULL DEFAULT 0,
+      archived     INTEGER NOT NULL DEFAULT 0,
+      completed_at TEXT,
+      due_date     TEXT,
+      priority     TEXT,
+      description  TEXT,
+      tags         TEXT,
+      subtasks     TEXT,
+      recurrence   TEXT,
+      category     TEXT,
+      uni_course   TEXT,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS lists (
-      id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      color       TEXT NOT NULL DEFAULT '#4A90D9',
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS list_items (
-      id          TEXT PRIMARY KEY,
-      list_id     TEXT NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
-      content     TEXT NOT NULL,
-      type        TEXT NOT NULL DEFAULT 'bullet',
-      done        INTEGER NOT NULL DEFAULT 0,
-      url         TEXT,
-      position    INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      color      TEXT NOT NULL DEFAULT '#4A90D9',
+      items      TEXT,
+      pinned     INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS notes (
-      id          TEXT PRIMARY KEY,
-      title       TEXT NOT NULL DEFAULT '',
-      body        TEXT NOT NULL DEFAULT '',
-      pinned      INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS sticky_notes (
       id         TEXT PRIMARY KEY,
-      content    TEXT NOT NULL DEFAULT '',
-      colour     TEXT NOT NULL DEFAULT '#88C0D0',
-      createdAt  TEXT NOT NULL
+      title      TEXT NOT NULL DEFAULT '',
+      body       TEXT NOT NULL DEFAULT '',
+      pinned     INTEGER NOT NULL DEFAULT 0,
+      type       TEXT NOT NULL DEFAULT 'note',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS schema_version (
@@ -79,15 +72,13 @@ export async function initDb(): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_tasks_done ON tasks(done);
     CREATE INDEX IF NOT EXISTS idx_tasks_due  ON tasks(due_date);
-    CREATE INDEX IF NOT EXISTS idx_list_items_list ON list_items(list_id);
   `);
 
-  // Run migrations for existing installs
+  // ── Migrations ──────────────────────────────────────────────────────────────
   const rows = await db.getAllAsync<{ version: number }>("SELECT version FROM schema_version LIMIT 1");
   const current = rows[0]?.version ?? 0;
 
   if (current < 1) {
-    // v1: add missing columns to tasks if upgrading from bare schema
     const cols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(tasks)");
     const names = cols.map(c => c.name);
     if (!names.includes("priority"))    await db.execAsync("ALTER TABLE tasks ADD COLUMN priority TEXT");
@@ -97,28 +88,13 @@ export async function initDb(): Promise<void> {
     if (!names.includes("recurrence"))  await db.execAsync("ALTER TABLE tasks ADD COLUMN recurrence TEXT");
   }
 
-  if (current < 2) {
-    // v2: notes table (already in CREATE TABLE IF NOT EXISTS above)
-  }
-
-  if (current < 3) {
-    // v3: sticky_notes table (already in CREATE TABLE IF NOT EXISTS above)
-    // Ensure the table exists in case we're running against an older DB that skipped the CREATE
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS sticky_notes (
-        id         TEXT PRIMARY KEY,
-        content    TEXT NOT NULL DEFAULT '',
-        colour     TEXT NOT NULL DEFAULT '#88C0D0',
-        createdAt  TEXT NOT NULL
-      );
-    `);
-  }
+  // v2: notes table was added via CREATE TABLE IF NOT EXISTS (no-op for existing).
+  // v3: sticky_notes was added here but is now dead — dropped in v6 below.
 
   if (current < 4) {
-    // v4: add category/uni_course to tasks; add items JSON + pinned to lists
     const tCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(tasks)");
     const tNames = tCols.map(c => c.name);
-    if (!tNames.includes("category"))  await db.execAsync("ALTER TABLE tasks ADD COLUMN category TEXT");
+    if (!tNames.includes("category"))   await db.execAsync("ALTER TABLE tasks ADD COLUMN category TEXT");
     if (!tNames.includes("uni_course")) await db.execAsync("ALTER TABLE tasks ADD COLUMN uni_course TEXT");
 
     const lCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(lists)");
@@ -128,11 +104,24 @@ export async function initDb(): Promise<void> {
   }
 
   if (current < 5) {
-    // v5: add archived + completed_at to tasks (were tracked in memory but never persisted)
     const tCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(tasks)");
     const tNames = tCols.map(c => c.name);
     if (!tNames.includes("archived"))     await db.execAsync("ALTER TABLE tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
     if (!tNames.includes("completed_at")) await db.execAsync("ALTER TABLE tasks ADD COLUMN completed_at TEXT");
+  }
+
+  if (current < 6) {
+    // v6: add type column to notes (was tracked in Supabase but never in SQLite,
+    // causing postits to lose their type on native after every restart).
+    const nCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(notes)");
+    const nNames = nCols.map(c => c.name);
+    if (!nNames.includes("type")) await db.execAsync("ALTER TABLE notes ADD COLUMN type TEXT NOT NULL DEFAULT 'note'");
+
+    // Drop dead tables that were never used in app code.
+    await db.execAsync(`
+      DROP TABLE IF EXISTS sticky_notes;
+      DROP TABLE IF EXISTS list_items;
+    `);
   }
 
   if (current < SCHEMA_VERSION) {
@@ -274,6 +263,7 @@ export async function dbLoadNotes(): Promise<any[]> {
     title: r.title,
     body: r.body,
     pinned: !!r.pinned,
+    type: (r.type ?? "note") as "note" | "postit",
     created_at: r.created_at,
     updated_at: r.updated_at,
   }));
@@ -287,9 +277,10 @@ export async function dbSaveNotes(notes: any[]): Promise<void> {
       for (const n of notes) {
         try {
           await db.runAsync(
-            `INSERT OR REPLACE INTO notes (id,title,body,pinned,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
+            `INSERT OR REPLACE INTO notes (id,title,body,pinned,type,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
             [
               n.id, n.title ?? "", n.body ?? "", n.pinned ? 1 : 0,
+              n.type ?? "note",
               n.created_at, n.updated_at ?? n.created_at,
             ]
           );

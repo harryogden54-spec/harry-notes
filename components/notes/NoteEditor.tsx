@@ -1,11 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useNotes, type Note } from "@/lib/NotesContext";
+import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
+import { getTodayStr } from "@/lib/utils";
 import { MarkdownView } from "./MarkdownView";
 import { MarkdownToolbar, type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions, getWikiQuery } from "./WikiLinkSuggestions";
@@ -14,29 +16,64 @@ import { timeAgo } from "./utils";
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
   const { colors } = useTheme();
   const title = note.title || "Untitled";
-  const pattern = `[[${title}]]`;
-  const linkedFrom = allNotes.filter(n => n.id !== note.id && n.body.includes(pattern));
-  if (linkedFrom.length === 0) return null;
+
+  // Incoming: notes that contain [[this note's title]]
+  const linkedFrom = allNotes.filter(n => n.id !== note.id && n.body.includes(`[[${title}]]`));
+
+  // Outgoing: notes this note references via [[Title]]
+  const wikiPattern = /\[\[([^\][\n]+)\]\]/g;
+  const referencedTitles = new Set<string>();
+  for (const m of note.body.matchAll(wikiPattern)) {
+    referencedTitles.add(m[1]);
+  }
+  const linkedTo = allNotes.filter(n => n.id !== note.id && referencedTitles.has(n.title || "Untitled"));
+
+  if (linkedFrom.length === 0 && linkedTo.length === 0) return null;
 
   return (
-    <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderTopWidth: 1, borderTopColor: colors.bgBorder }}>
-      <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[2] }}>
-        Linked from ({linkedFrom.length})
-      </Text>
-      <View style={{ gap: spacing[1.5] }}>
-        {linkedFrom.map(n => (
-          <Pressable
-            key={n.id}
-            onPress={() => onOpen(n.id)}
-            style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
-          >
-            <View style={{ width: 4, height: 4, borderRadius: 99, backgroundColor: colors.accent }} />
-            <Text size="xs" style={{ color: colors.accent, textDecorationLine: "underline" }}>
-              {n.title || "Untitled"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+    <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderTopWidth: 1, borderTopColor: colors.bgBorder, gap: spacing[2.5] }}>
+      {linkedTo.length > 0 && (
+        <View>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[1.5] }}>
+            Links to · {linkedTo.length}
+          </Text>
+          <View style={{ gap: spacing[1] }}>
+            {linkedTo.map(n => (
+              <Pressable
+                key={n.id}
+                onPress={() => onOpen(n.id)}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
+              >
+                <Text size="xs" style={{ color: colors.textTertiary }}>→</Text>
+                <Text size="xs" style={{ color: colors.accent, textDecorationLine: "underline" }}>
+                  {n.title || "Untitled"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+      {linkedFrom.length > 0 && (
+        <View>
+          <Text size="xs" weight="semibold" tertiary style={{ textTransform: "uppercase", letterSpacing: 1, marginBottom: spacing[1.5] }}>
+            Linked from · {linkedFrom.length}
+          </Text>
+          <View style={{ gap: spacing[1] }}>
+            {linkedFrom.map(n => (
+              <Pressable
+                key={n.id}
+                onPress={() => onOpen(n.id)}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
+              >
+                <Text size="xs" style={{ color: colors.textTertiary }}>←</Text>
+                <Text size="xs" style={{ color: colors.accent, textDecorationLine: "underline" }}>
+                  {n.title || "Untitled"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -51,7 +88,9 @@ type Props = {
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
   const { notes, updateNote, deleteNote, pinNote } = useNotes();
+  const { tasks } = useTasks();
   const { showToast } = useToast();
+  const today = getTodayStr();
   const titleRef = useRef<TextInput | null>(null);
   const bodyRef  = useRef<TextInput | null>(null);
   const selRef   = useRef<Sel>({ start: 0, end: 0 });
@@ -59,8 +98,31 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const [preview, setPreview]     = useState(false);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
 
+  // Track the title as it was when editing began so we can propagate renames.
+  const committedTitleRef = useRef(note.title);
+  useEffect(() => { committedTitleRef.current = note.title; }, [note.id]);
+
   useEffect(() => { if (!note.title) setTimeout(() => titleRef.current?.focus(), 50); }, [note.id]);
   useEffect(() => { setPreview(false); }, [note.id]);
+
+  // Propagate title renames to all notes that contain [[oldTitle]].
+  // Runs on blur/submit so we don't rewrite on every keystroke.
+  function handleTitleCommit() {
+    const oldTitle = committedTitleRef.current;
+    const newTitle = note.title;
+    committedTitleRef.current = newTitle;
+    if (!oldTitle || oldTitle === newTitle) return;
+    const pattern = `[[${oldTitle}]]`;
+    const replacement = `[[${newTitle || "Untitled"}]]`;
+    let count = 0;
+    for (const n of notes) {
+      if (n.id !== note.id && n.body.includes(pattern)) {
+        updateNote(n.id, { body: n.body.split(pattern).join(replacement) });
+        count++;
+      }
+    }
+    if (count > 0) showToast(`Updated ${count} link${count !== 1 ? "s" : ""}`);
+  }
 
   function handleBodyChange(body: string) {
     updateNote(note.id, { body });
@@ -83,6 +145,21 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
 
   const wordCount = note.body.trim() ? note.body.trim().split(/\s+/).length : 0;
   const allNotes = notes.filter(n => n.type === "note" || !n.type);
+
+  const openTasks = tasks.filter(t => !t.done && !t.archived);
+  const replCtx = useMemo(() => ({
+    tasksOverdue: openTasks.filter(t => !!t.due_date && t.due_date < today).length,
+    tasksToday:   openTasks.filter(t => t.due_date === today).length,
+    tasksOpen:    openTasks.length,
+    notesCount:   allNotes.length,
+    tasksDueIn:   (n: number) => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() + n);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+      return openTasks.filter(t => !!t.due_date && t.due_date >= today && t.due_date <= cutoffStr).length;
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [openTasks.length, today, allNotes.length]);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -137,12 +214,13 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             placeholder="Untitled"
             placeholderTextColor={colors.textTertiary}
             returnKeyType="next"
-            onSubmitEditing={() => { setPreview(false); bodyRef.current?.focus(); }}
+            onBlur={handleTitleCommit}
+            onSubmitEditing={() => { handleTitleCommit(); setPreview(false); bodyRef.current?.focus(); }}
             style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
           {preview ? (
             note.body.trim()
-              ? <MarkdownView body={note.body} colors={colors} />
+              ? <MarkdownView body={note.body} colors={colors} replCtx={replCtx} />
               : <Text size="sm" tertiary style={{ fontStyle: "italic" }}>Nothing to preview yet.</Text>
           ) : (
             <TextInput

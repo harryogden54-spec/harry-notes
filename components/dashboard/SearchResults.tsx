@@ -21,9 +21,17 @@ interface Props {
   notes: Note[];
   query: string;
   onTaskPress: (id: string) => void;
+  /** Called when the user presses Enter (or the "Add as task" button) on a no-results query. */
+  onAdd?: (title: string) => void;
 }
 
-export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props) {
+/** True when none of the matched fields contain the word "body". */
+function isTitleOnlyMatch(result: { matches?: Array<{ key?: string }> }): boolean {
+  if (!result.matches || result.matches.length === 0) return false;
+  return result.matches.every(m => m.key !== "body");
+}
+
+export function SearchResults({ tasks, lists, notes, query, onTaskPress, onAdd }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
 
@@ -33,10 +41,30 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
     return fuse.search(query).map((r: { item: Task }) => r.item).slice(0, 8);
   }, [tasks, query]);
 
+  /**
+   * Feature 16 — body-first search for notes.
+   * Body matches score higher (weight 0.7) than title matches (weight 0.3).
+   * Within the results, body-matched notes come first; title-only matches
+   * are visually demoted (secondary colour, italic "title match" chip).
+   */
   const matchNotes = useMemo(() => {
-    if (!query) return [];
-    const fuse = new Fuse(notes, { keys: ["title", "body"], threshold: 0.35, ignoreLocation: true });
-    return fuse.search(query).map((r: { item: Note }) => r.item).slice(0, 6);
+    if (!query) return [] as Array<{ note: Note; titleOnly: boolean }>;
+    const fuse = new Fuse(notes, {
+      keys: [
+        { name: "body",  weight: 0.7 },
+        { name: "title", weight: 0.3 },
+      ],
+      threshold: 0.4,
+      ignoreLocation: true,
+      includeMatches: true,
+    });
+    const raw = fuse.search(query) as Array<{ item: Note; matches?: Array<{ key?: string }> }>;
+    const annotated = raw.slice(0, 8).map(r => ({ note: r.item, titleOnly: isTitleOnlyMatch(r) }));
+    // Body matches first, then title-only
+    return [
+      ...annotated.filter(a => !a.titleOnly),
+      ...annotated.filter(a => a.titleOnly),
+    ];
   }, [notes, query]);
 
   const matchLists = useMemo(() => {
@@ -46,7 +74,26 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
   }, [lists, query]);
 
   if (matchTasks.length === 0 && matchLists.length === 0 && matchNotes.length === 0) {
-    return <EmptyState type="search" title="No results" subtitle={`Nothing found for "${query}".`} />;
+    return (
+      <View>
+        <EmptyState type="search" title="No results" subtitle={`Nothing found for "${query}".`} />
+        {onAdd && (
+          <Pressable
+            onPress={() => onAdd(query)}
+            style={{
+              alignSelf: "center", marginTop: spacing[2],
+              paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+              borderRadius: 99, borderWidth: 1, borderColor: colors.accent,
+              backgroundColor: `${colors.accent}14`,
+            }}
+          >
+            <Text size="sm" style={{ color: colors.accent }}>
+              + Add "{query}" as a task
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    );
   }
 
   return (
@@ -70,13 +117,31 @@ export function SearchResults({ tasks, lists, notes, query, onTaskPress }: Props
           <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
             Notes · {matchNotes.length}
           </Text>
-          {matchNotes.map((n: Note) => {
+          {matchNotes.map(({ note: n, titleOnly }) => {
+            // For body matches: show the first non-empty line of the body as a preview.
+            // For title-only matches: demote visually with secondary title colour + badge.
             const preview = stripMarkdown(n.body.split("\n").find((l: string) => l.trim()) ?? "");
             return (
               <Pressable key={n.id} onPress={() => router.push(`/(tabs)/notes?openId=${n.id}` as any)}>
-                <GlassCard style={{ padding: spacing[3], marginBottom: spacing[2] }}>
-                  <Text size="sm" weight="semibold" numberOfLines={1}>{n.title || "Untitled"}</Text>
-                  {preview ? <Text size="xs" secondary numberOfLines={1} style={{ marginTop: 2 }}>{preview}</Text> : null}
+                <GlassCard style={{ padding: spacing[3], marginBottom: spacing[2], opacity: titleOnly ? 0.72 : 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], marginBottom: preview ? 2 : 0 }}>
+                    <Text
+                      size="sm"
+                      weight="semibold"
+                      numberOfLines={1}
+                      style={{ flex: 1, color: titleOnly ? colors.textSecondary : colors.textPrimary }}
+                    >
+                      {n.title || "Untitled"}
+                    </Text>
+                    {titleOnly && (
+                      <View style={{ backgroundColor: `${colors.textTertiary}22`, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 9, color: colors.textTertiary, fontFamily: fontFamily.medium }}>title</Text>
+                      </View>
+                    )}
+                  </View>
+                  {!titleOnly && preview ? (
+                    <Text size="xs" secondary numberOfLines={1}>{preview}</Text>
+                  ) : null}
                 </GlassCard>
               </Pressable>
             );

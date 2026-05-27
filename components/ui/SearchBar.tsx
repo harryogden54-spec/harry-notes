@@ -10,9 +10,10 @@ interface SearchBarProps {
   placeholder?: string;
   inputRef?: React.RefObject<TextInput | null>;
   shortcutKey?: string;
+  onSubmitEditing?: () => void;
 }
 
-export function SearchBar({ value, onChange, placeholder = "Search…", inputRef, shortcutKey }: SearchBarProps) {
+export function SearchBar({ value, onChange, placeholder = "Search…", inputRef, shortcutKey, onSubmitEditing }: SearchBarProps) {
   const { colors } = useTheme();
   const localRef = useRef<TextInput>(null);
   const ref = inputRef ?? localRef;
@@ -35,6 +36,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
         ref={ref}
         value={value}
         onChangeText={onChange}
+        onSubmitEditing={onSubmitEditing}
         placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         style={[

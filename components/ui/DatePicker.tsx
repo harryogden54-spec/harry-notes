@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { getLocalDateStr } from "@/lib/utils";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
@@ -25,7 +26,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
     return { y: today.getFullYear(), m: today.getMonth() };
   });
 
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = getLocalDateStr(today);
 
   function toStr(y: number, m: number, d: number) {
     return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;

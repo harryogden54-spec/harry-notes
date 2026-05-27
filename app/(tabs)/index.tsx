@@ -16,13 +16,12 @@ import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown, PRIORITY_COLOR } from "@/lib/utils";
+import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
+import { useMounted } from "@/lib/useMounted";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
+import { YearInPixels }       from "@/components/dashboard/YearInPixels";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const DAY_NAMES   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function greeting() {
   const h = new Date().getHours();
@@ -31,12 +30,8 @@ function greeting() {
   return "Good evening";
 }
 
-function formatHeaderDate(d: Date): string {
-  return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
-}
-
 function getTodayKey() {
-  return `today_items_${new Date().toISOString().slice(0, 10)}`;
+  return `today_items_${getLocalDateStr()}`;
 }
 
 type TodayItem = { id: string; text: string; done: boolean };
@@ -106,6 +101,27 @@ function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
   );
 }
 
+// ─── History section (Year-in-Pixels) ────────────────────────────────────────
+
+function HistorySection() {
+  const { colors } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={{ marginBottom: spacing[6] }}>
+      <Pressable
+        onPress={() => setExpanded(v => !v)}
+        style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: expanded ? spacing[3] : 0 }}
+      >
+        <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textTertiary, fontFamily: fontFamily.semibold, textTransform: "uppercase" }}>
+          Year in Pixels
+        </Text>
+        <Text style={{ fontSize: 11, color: colors.textTertiary }}>{expanded ? "▲" : "▼"}</Text>
+      </Pressable>
+      {expanded && <YearInPixels />}
+    </View>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
@@ -116,16 +132,15 @@ function DashboardScreen() {
   const { notes, loaded: notesLoaded } = useNotes();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
-  const [search, setSearch]    = useState("");
+  const [search, setSearch]       = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const today                       = getTodayStr();
 
-  // Hydration guard
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useMounted();
   const now = mounted ? new Date() : null;
 
-  const openTasks = useMemo(() => tasks
+  const allOpenTasks = useMemo(() => tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
       const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
@@ -135,6 +150,18 @@ function DashboardScreen() {
       const bDate = b.due_date ?? "9999-99-99";
       return aDate.localeCompare(bDate);
     }), [tasks]);
+
+  // Unique categories that exist in open tasks, for the filter chips.
+  const availableCategories = useMemo(() =>
+    [...new Set(allOpenTasks.map(t => t.category).filter(Boolean))] as string[],
+    [allOpenTasks]
+  );
+
+  // Apply category filter if selected (auto-clear if that category disappears).
+  const openTasks = useMemo(() => {
+    if (!categoryFilter || !availableCategories.includes(categoryFilter)) return allOpenTasks;
+    return allOpenTasks.filter(t => t.category === categoryFilter);
+  }, [allOpenTasks, categoryFilter, availableCategories]);
 
   const overdueTasks = useMemo(() => openTasks.filter(t => !!t.due_date && t.due_date < today), [openTasks, today]);
   const overdueCount = overdueTasks.length;
@@ -207,6 +234,8 @@ function DashboardScreen() {
 
   // ─── Tasks card ───────────────────────────────────────────────────────────────
 
+  const CATEGORY_LABEL: Record<string, string> = { personal: "Personal", uni: "Uni" };
+
   const tasksCardItems = openTasks.slice(0, 5);
   const tasksOverflow  = openTasks.length - 5;
 
@@ -214,9 +243,33 @@ function DashboardScreen() {
     <View style={{ flex: 1 }}>
       <SectionHeader
         label="Tasks"
-        count={tasksLoaded ? openTasks.length : undefined}
+        count={tasksLoaded ? allOpenTasks.length : undefined}
         action={{ label: "All tasks", onPress: handleGoToTasks }}
       />
+      {/* Per-category filter chips — only shown when multiple categories exist */}
+      {tasksLoaded && availableCategories.length > 1 && (
+        <View style={{ flexDirection: "row", gap: spacing[1.5], marginBottom: spacing[2], flexWrap: "wrap" }}>
+          {availableCategories.map(cat => {
+            const active = categoryFilter === cat;
+            return (
+              <Pressable
+                key={cat}
+                onPress={() => setCategoryFilter(prev => prev === cat ? null : cat)}
+                style={{
+                  paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                  borderRadius: 99, borderWidth: 1,
+                  borderColor: active ? colors.accent : colors.bgBorder,
+                  backgroundColor: active ? `${colors.accent}18` : "transparent",
+                }}
+              >
+                <Text size="xs" style={{ color: active ? colors.accent : colors.textSecondary }}>
+                  {CATEGORY_LABEL[cat] ?? cat}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
       {!tasksLoaded ? (
         <GlassCard style={{ padding: spacing[4], gap: spacing[3] }}>
           <Skeleton height={16} borderRadius={6} />
@@ -423,6 +476,7 @@ function DashboardScreen() {
       {postItsRow}
       {listsShelf}
       {notesRow}
+      <HistorySection />
     </>
   );
 
@@ -446,12 +500,25 @@ function DashboardScreen() {
         >
           <View style={outerPadding as any}>
             {header}
-            <SearchBar value={search} onChange={setSearch} placeholder="Search tasks, lists, notes…" inputRef={searchRef} shortcutKey="/" />
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              placeholder="Search tasks, lists, notes…"
+              inputRef={searchRef}
+              shortcutKey="/"
+              onSubmitEditing={() => {
+                const q = search.trim();
+                if (q) { addTask(q); setSearch(""); showToast(`Added: ${q}`); }
+              }}
+            />
 
             {search.trim() ? (
               <View style={{ marginTop: spacing[3] }}>
-                <SearchResults tasks={tasks} lists={lists} notes={notes} query={search.trim()}
-                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)} />
+                <SearchResults
+                  tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)}
+                  onAdd={title => { addTask(title); setSearch(""); showToast(`Added: ${title}`); }}
+                />
               </View>
             ) : (
               <View style={{ marginTop: spacing[2] }}>{mainContent}</View>
