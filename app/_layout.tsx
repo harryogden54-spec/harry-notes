@@ -20,6 +20,8 @@ import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
 import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
 import { ToastContainer } from "@/components/ui";
+import { CommandPaletteProvider } from "@/lib/CommandPaletteContext";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -106,6 +108,7 @@ function AppShell() {
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
+      <CommandPalette />
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }, fadeStyle]} pointerEvents="none" />
     </NavThemeProvider>
   );
@@ -119,8 +122,10 @@ export default function RootLayout() {
           <ListsProvider>
             <NotesProvider>
               <ToastProvider>
-                <AppShell />
-                <ToastContainer />
+                <CommandPaletteProvider>
+                  <AppShell />
+                  <ToastContainer />
+                </CommandPaletteProvider>
               </ToastProvider>
             </NotesProvider>
           </ListsProvider>

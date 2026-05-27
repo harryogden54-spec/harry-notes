@@ -19,10 +19,26 @@ type TodayItem = {
   id: string;
   text: string;
   done: boolean;
+  time_block?: string; // "09:00" — used by timeline view
 };
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 
+// ── Timeline helpers ───────────────────────────────────────────────────────────
+
+const TIMELINE_HOURS = [
+  "06:00","07:00","08:00","09:00","10:00","11:00","12:00",
+  "13:00","14:00","15:00","16:00","17:00","18:00","19:00",
+  "20:00","21:00","22:00",
+];
+
+function formatHour(time: string) {
+  const h = parseInt(time.split(":")[0], 10);
+  if (h === 0)  return "12am";
+  if (h < 12)   return `${h}am`;
+  if (h === 12) return "12pm";
+  return `${h - 12}pm`;
+}
 
 function getTodayKey() {
   return `today_items_${getLocalDateStr()}`;
@@ -44,7 +60,9 @@ function TodayScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
   const mounted = useMounted();
-  const [showTimer, setShowTimer]     = useState(false);
+  const [showTimer, setShowTimer]       = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [timePickerFor, setTimePickerFor] = useState<string | null>(null);
   const inputRef = useRef<TextInput | null>(null);
 
   const dateLabel = mounted ? formatHeaderDate() : "";
@@ -138,6 +156,10 @@ function TodayScreen() {
     setItems(prev => prev.filter(i => i.id !== id));
   }, []);
 
+  const updateItemTime = (id: string, time: string | undefined) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, time_block: time } : i));
+  };
+
   function dismissCarryover() {
     storage.set(`carryover_seen_${yesterdayKey}`, true);
     setShowCarryover(false);
@@ -199,6 +221,52 @@ function TodayScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
+          {/* Time-picker modal */}
+          <Modal visible={timePickerFor !== null} transparent animationType="slide" onRequestClose={() => setTimePickerFor(null)}>
+            <Pressable
+              style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
+              onPress={() => setTimePickerFor(null)}
+            >
+              <Pressable onPress={() => {}}>
+                <View style={{ backgroundColor: colors.bgSecondary, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing[5], gap: spacing[4] }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text size="base" weight="semibold">Set time block</Text>
+                    <Pressable onPress={() => setTimePickerFor(null)} hitSlop={12}>
+                      <Text size="sm" style={{ color: colors.textTertiary }}>✕</Text>
+                    </Pressable>
+                  </View>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+                    {TIMELINE_HOURS.map(h => {
+                      const current = timePickerFor ? active.find(i => i.id === timePickerFor)?.time_block : undefined;
+                      const isActive = current === h;
+                      return (
+                        <Pressable
+                          key={h}
+                          onPress={() => { if (timePickerFor) updateItemTime(timePickerFor, h); setTimePickerFor(null); }}
+                          style={{
+                            paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+                            borderRadius: radius.sm, borderWidth: 1,
+                            borderColor: isActive ? colors.accent : colors.bgBorder,
+                            backgroundColor: isActive ? `${colors.accent}18` : colors.bgTertiary,
+                            minWidth: 60, alignItems: "center",
+                          }}
+                        >
+                          <Text size="sm" style={{ color: isActive ? colors.accent : colors.textPrimary }}>{formatHour(h)}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Pressable
+                    onPress={() => { if (timePickerFor) updateItemTime(timePickerFor, undefined); setTimePickerFor(null); }}
+                    style={{ alignSelf: "center", paddingVertical: spacing[2] }}
+                  >
+                    <Text size="sm" style={{ color: colors.danger }}>Clear time</Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+            </Pressable>
+          </Modal>
+
           {/* Carryover modal */}
           <Modal visible={showCarryover} transparent animationType="fade" onRequestClose={() => setShowCarryover(false)}>
             <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing[6] }}>
@@ -253,17 +321,30 @@ function TodayScreen() {
                 <Text size="2xl" weight="bold">Today</Text>
                 <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{dateLabel}</Text>
               </View>
-              <Pressable
-                onPress={() => setShowTimer(v => !v)}
-                style={{
-                  paddingHorizontal: spacing[2], paddingVertical: spacing[1],
-                  borderRadius: radius.sm, borderWidth: 1,
-                  borderColor: showTimer ? colors.accent : colors.bgBorder,
-                  backgroundColor: showTimer ? `${colors.accent}18` : "transparent",
-                }}
-              >
-                <Text size="xs" style={{ color: showTimer ? colors.accent : colors.textTertiary }}>⏱ Focus</Text>
-              </Pressable>
+              <View style={{ flexDirection: "row", gap: spacing[2] }}>
+                <Pressable
+                  onPress={() => setShowTimeline(v => !v)}
+                  style={{
+                    paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+                    borderRadius: radius.sm, borderWidth: 1,
+                    borderColor: showTimeline ? colors.accent : colors.bgBorder,
+                    backgroundColor: showTimeline ? `${colors.accent}18` : "transparent",
+                  }}
+                >
+                  <Text size="xs" style={{ color: showTimeline ? colors.accent : colors.textTertiary }}>⧗ Timeline</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowTimer(v => !v)}
+                  style={{
+                    paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+                    borderRadius: radius.sm, borderWidth: 1,
+                    borderColor: showTimer ? colors.accent : colors.bgBorder,
+                    backgroundColor: showTimer ? `${colors.accent}18` : "transparent",
+                  }}
+                >
+                  <Text size="xs" style={{ color: showTimer ? colors.accent : colors.textTertiary }}>⏱ Focus</Text>
+                </Pressable>
+              </View>
             </View>
 
             {/* Focus timer widget */}
@@ -384,8 +465,8 @@ function TodayScreen() {
               </View>
             )}
 
-            {/* Active items — draggable */}
-            {active.length > 0 && (
+            {/* Active items — list or timeline */}
+            {active.length > 0 && !showTimeline && (
               <View style={{ marginBottom: spacing[4] }}>
                 <Text size="xs" weight="semibold" style={{
                   textTransform: "uppercase", letterSpacing: 1.2,
@@ -399,9 +480,7 @@ function TodayScreen() {
                     data={active}
                     keyExtractor={i => i.id}
                     renderItem={renderActiveItem}
-                    onDragEnd={({ data }) => {
-                      setItems([...data, ...completed]);
-                    }}
+                    onDragEnd={({ data }) => setItems([...data, ...completed])}
                     scrollEnabled={false}
                     activationDistance={Platform.OS === "web" ? 999 : 12}
                     removeClippedSubviews={Platform.OS !== "web"}
@@ -409,6 +488,24 @@ function TodayScreen() {
                     windowSize={5}
                   />
                 </Surface>
+              </View>
+            )}
+
+            {/* Timeline view */}
+            {showTimeline && active.length > 0 && (
+              <TimelineSection
+                items={active}
+                colors={colors}
+                onToggle={toggleItem}
+                onDelete={deleteItem}
+                onPickTime={setTimePickerFor}
+                onClearTime={id => updateItemTime(id, undefined)}
+              />
+            )}
+
+            {showTimeline && active.length === 0 && (
+              <View style={{ alignItems: "center", paddingVertical: spacing[6] }}>
+                <Text size="sm" secondary>No active items to schedule.</Text>
               </View>
             )}
 
@@ -481,6 +578,137 @@ function CompletedRow({ item, onToggle, onDelete, isLast }: {
         {item.text}
       </Text>
       <Pressable onPress={onDelete} hitSlop={8}>
+        <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── TimelineSection ───────────────────────────────────────────────────────────
+
+type Colors = ReturnType<typeof useTheme>["colors"];
+
+type TimelineSectionProps = {
+  items: TodayItem[];
+  colors: Colors;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+  onPickTime: (id: string) => void;
+  onClearTime: (id: string) => void;
+};
+
+function TimelineSection({ items, colors, onToggle, onDelete, onPickTime, onClearTime }: TimelineSectionProps) {
+  const scheduled   = items.filter(i => i.time_block);
+  const unscheduled = items.filter(i => !i.time_block);
+
+  return (
+    <>
+      {/* Hour grid */}
+      <View style={{ marginBottom: spacing[4], borderRadius: radius.xl, borderWidth: 1, borderColor: colors.bgBorder, overflow: "hidden", backgroundColor: colors.bgSecondary }}>
+        {TIMELINE_HOURS.map((hour, idx) => {
+          const slotItems = scheduled.filter(i => i.time_block === hour);
+          const isLast = idx === TIMELINE_HOURS.length - 1;
+          return (
+            <View
+              key={hour}
+              style={{
+                flexDirection: "row",
+                borderBottomWidth: isLast ? 0 : 1,
+                borderBottomColor: colors.bgBorder,
+                minHeight: slotItems.length > 0 ? undefined : 36,
+              }}
+            >
+              {/* Time label */}
+              <View style={{ width: 44, paddingTop: spacing[2], paddingLeft: spacing[3], alignItems: "flex-start" }}>
+                <Text style={{ fontSize: 11, color: colors.textTertiary, fontFamily: fontFamily.medium }}>
+                  {formatHour(hour)}
+                </Text>
+              </View>
+              {/* Slot divider + items */}
+              <View style={{ flex: 1, borderLeftWidth: 1, borderLeftColor: colors.bgBorder, paddingHorizontal: spacing[3], paddingVertical: slotItems.length > 0 ? spacing[1.5] : 0, gap: spacing[1] }}>
+                {slotItems.map(item => (
+                  <TimelineItemRow
+                    key={item.id}
+                    item={item}
+                    colors={colors}
+                    onToggle={onToggle}
+                    onDelete={onDelete}
+                    onPickTime={onPickTime}
+                    onClearTime={onClearTime}
+                  />
+                ))}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Unscheduled items */}
+      {unscheduled.length > 0 && (
+        <View style={{ marginBottom: spacing[4] }}>
+          <Text size="xs" weight="semibold" style={{
+            textTransform: "uppercase", letterSpacing: 1.2,
+            color: colors.textSecondary, fontSize: 11, marginBottom: spacing[2],
+          }}>
+            UNSCHEDULED · {unscheduled.length}
+          </Text>
+          <View style={{ borderRadius: radius.xl, borderWidth: 1, borderColor: colors.bgBorder, overflow: "hidden", backgroundColor: colors.bgSecondary }}>
+            {unscheduled.map((item, i) => (
+              <View key={item.id} style={{ borderBottomWidth: i === unscheduled.length - 1 ? 0 : 1, borderBottomColor: colors.bgBorder }}>
+                <TimelineItemRow
+                  item={item}
+                  colors={colors}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                  onPickTime={onPickTime}
+                  onClearTime={onClearTime}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+    </>
+  );
+}
+
+type TimelineItemRowProps = {
+  item: TodayItem;
+  colors: Colors;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+  onPickTime: (id: string) => void;
+  onClearTime: (id: string) => void;
+};
+
+function TimelineItemRow({ item, colors, onToggle, onDelete, onPickTime, onClearTime }: TimelineItemRowProps) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], paddingVertical: spacing[1.5], paddingHorizontal: spacing[1] }}>
+      {/* Checkbox */}
+      <Pressable
+        onPress={() => onToggle(item.id)}
+        hitSlop={8}
+        style={{
+          width: 18, height: 18, borderRadius: 9,
+          borderWidth: 1.5, borderColor: colors.bgBorder,
+          backgroundColor: "transparent",
+          alignItems: "center", justifyContent: "center",
+        }}
+      />
+      {/* Text */}
+      <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={2}>{item.text}</Text>
+      {/* Clock button — assign / change time */}
+      <Pressable onPress={() => item.time_block ? onClearTime(item.id) : onPickTime(item.id)} hitSlop={8}>
+        <Text style={{ fontSize: 13, color: item.time_block ? colors.accent : colors.textTertiary }}>⏱</Text>
+      </Pressable>
+      {/* If has time, show change button */}
+      {item.time_block && (
+        <Pressable onPress={() => onPickTime(item.id)} hitSlop={8}>
+          <Text size="xs" style={{ color: colors.accent }}>{formatHour(item.time_block)}</Text>
+        </Pressable>
+      )}
+      {/* Delete */}
+      <Pressable onPress={() => onDelete(item.id)} hitSlop={8}>
         <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
       </Pressable>
     </View>

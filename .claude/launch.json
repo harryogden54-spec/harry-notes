@@ -6,6 +6,13 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "web"],
       "port": 8081
+    },
+    {
+      "name": "harry-notes-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "dist", "--listen", "8082", "--single"],
+      "cwd": "C:/Users/harry/Documents/Harry/harry-notes",
+      "port": 8082
     }
   ]
 }

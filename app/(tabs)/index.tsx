@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
+import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
@@ -126,6 +127,7 @@ function HistorySection() {
 
 function DashboardScreen() {
   const { colors }             = useTheme();
+  const { open: openPalette }  = useCommandPalette();
   const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
   const { showToast }          = useToast();
   const { lists, loaded: listsLoaded } = useLists();
@@ -204,9 +206,30 @@ function DashboardScreen() {
           {now ? formatHeaderDate(now) : ""}
         </Text>
       </View>
-      <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1], marginTop: spacing[1] }}>
-        <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
-      </Pressable>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
+        {Platform.OS === "web" ? (
+          <Pressable
+            onPress={openPalette}
+            hitSlop={8}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: spacing[1],
+              paddingHorizontal: spacing[2], paddingVertical: spacing[1],
+              borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
+              backgroundColor: colors.bgTertiary,
+            }}
+          >
+            <Ionicons name="search-outline" size={12} color={colors.textTertiary} />
+            <Text style={{ fontSize: 11, color: colors.textTertiary, fontFamily: fontFamily.medium }}>⌘K</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={openPalette} hitSlop={12} style={{ padding: spacing[1] }}>
+            <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
+          </Pressable>
+        )}
+        <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1] }}>
+          <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
+        </Pressable>
+      </View>
     </View>
   );
 

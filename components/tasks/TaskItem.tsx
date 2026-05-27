@@ -45,6 +45,12 @@ export const TaskItem = React.memo(function TaskItem({
 }: Props) {
   const { colors } = useTheme();
   const [hovered, setHovered] = useState(false);
+  const [inlineField, setInlineField] = useState<"priority" | "due_date" | null>(null);
+
+  // Close inline editor whenever the task expands to full detail
+  React.useEffect(() => {
+    if (isExpanded) setInlineField(null);
+  }, [isExpanded]);
   const today = getTodayStr();
   const { width } = useWindowDimensions();
   const desktopMode = Platform.OS === "web" && width > 1024;
@@ -123,13 +129,42 @@ export const TaskItem = React.memo(function TaskItem({
                 }}>{task.title}</Text>
                 {!compact && (
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
-                    {task.due_date && <Text size="xs" style={{ color: dueDateColor }}>{formatDate(task.due_date)}</Text>}
+                    {task.due_date ? (
+                      <Pressable
+                        onPress={e => { (e as any).stopPropagation?.(); if (!selectMode) setInlineField(f => f === "due_date" ? null : "due_date"); }}
+                        hitSlop={6}
+                      >
+                        <Text size="xs" style={{
+                          color: dueDateColor,
+                          textDecorationLine: inlineField === "due_date" ? "underline" : "none",
+                        }}>{formatDate(task.due_date)}</Text>
+                      </Pressable>
+                    ) : !selectMode && !task.done ? (
+                      <Pressable
+                        onPress={e => { (e as any).stopPropagation?.(); setInlineField(f => f === "due_date" ? null : "due_date"); }}
+                        hitSlop={6}
+                      >
+                        <Text size="xs" style={{ color: colors.textTertiary, opacity: 0.5 }}>+ date</Text>
+                      </Pressable>
+                    ) : null}
                     {subtasks.length > 0 && <Text size="xs" style={{ color: colors.textTertiary }}>{doneSubtasks}/{subtasks.length}</Text>}
                     {task.category && <CategoryBadge category={task.category} uniCourse={task.uniCourse} />}
                   </View>
                 )}
               </View>
-              {task.priority && <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: priorityColor }} />}
+              <Pressable
+                onPress={e => { (e as any).stopPropagation?.(); if (!selectMode && !task.done) setInlineField(f => f === "priority" ? null : "priority"); }}
+                hitSlop={8}
+                style={{ padding: 2 }}
+              >
+                <View style={{
+                  width: 7, height: 7, borderRadius: 99,
+                  backgroundColor: priorityColor ?? colors.bgBorder,
+                  borderWidth: priorityColor ? 0 : 1,
+                  borderColor: colors.bgBorder,
+                  opacity: inlineField === "priority" ? 1 : 0.85,
+                }} />
+              </Pressable>
               {hovered && !selectMode && !isExpanded && (
                 <View style={{ flexDirection: "row", gap: 2 }}>
                   <Pressable onPress={(e) => { e.stopPropagation?.(); onReorderUp(); }} hitSlop={6}
@@ -150,6 +185,27 @@ export const TaskItem = React.memo(function TaskItem({
               </Pressable>
             )}
           </View>
+
+          {/* Inline field editor — priority or due_date, no full expand needed */}
+          {inlineField && !selectMode && !task.done && (
+            <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(100)}>
+              <Divider />
+              <View style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+                {inlineField === "priority" && (
+                  <PrioritySelector
+                    value={task.priority}
+                    onChange={p => { onUpdate(task.id, { priority: p }); setInlineField(null); }}
+                  />
+                )}
+                {inlineField === "due_date" && (
+                  <DueDateSelector
+                    value={task.due_date}
+                    onChange={d => { onUpdate(task.id, { due_date: d }); setInlineField(null); }}
+                  />
+                )}
+              </View>
+            </Animated.View>
+          )}
 
           {isExpanded && !selectMode && !desktopMode && (
             <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)}>
