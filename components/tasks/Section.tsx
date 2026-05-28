@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Pressable, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Surface } from "@/components/ui";
@@ -27,6 +28,7 @@ type Props = {
   sortBy?: SortBy;
   onLongPress?: (id: string) => void;
   persistCollapse?: string;
+  defaultCollapsed?: boolean;
   onUpdate: (id: string, updates: Partial<Omit<Task, "id" | "created_at">>) => void;
   compact?: boolean;
 };
@@ -36,11 +38,11 @@ export const Section = React.memo(function Section({
   selectMode, selectedIds, onSelect, onDelete,
   onReorderUp, onReorderDown, onReorder,
   highlightId, onTaskMeasureY, sortBy = "priority",
-  onLongPress, persistCollapse, onUpdate,
+  onLongPress, persistCollapse, defaultCollapsed = false, onUpdate,
   compact = false,
 }: Props) {
   const { colors } = useTheme();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   useEffect(() => {
     if (!persistCollapse) return;
@@ -103,7 +105,7 @@ export const Section = React.memo(function Section({
             <Text size="xs" style={{ color: isOverdueSection ? colors.danger : colors.textTertiary }}>{tasks.length}</Text>
           </View>
         )}
-        <Text size="xs" style={{ color: colors.textTertiary, marginLeft: "auto" }}>{collapsed ? "▾" : "▴"}</Text>
+        <Ionicons name={collapsed ? "chevron-down" : "chevron-up"} size={12} color={colors.textTertiary} style={{ marginLeft: "auto" }} />
       </Pressable>
       {!collapsed && (
         tasks.length === 0 && emptyMessage ? (

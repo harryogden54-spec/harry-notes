@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
-import { syncFetch, syncUpsert } from "./supabase";
+import { syncFetch, syncUpsert, SYNC_ENABLED } from "./supabase";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -53,6 +53,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     storage.set(storageKey, items);
     saveLocal(items);
 
+    if (!SYNC_ENABLED) return;
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
     syncDebounce.current = setTimeout(async () => {
       const dirtyIds = dirtyIdsRef.current;
@@ -124,6 +125,9 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       loadedRef.current = true;
       setLoaded(true);
 
+      // Skip remote sync entirely when Supabase isn't configured.
+      if (!SYNC_ENABLED) return;
+
       setSyncStatus("syncing");
       const fetchResult = await syncFetch<T & { _updated_at: string }>(table);
       if (!fetchResult.ok) { setSyncStatus("error"); return; }
@@ -167,6 +171,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
 
   // ─── Manual sync ─────────────────────────────────────────────────────────────
   const syncNow = useCallback(async () => {
+    if (!SYNC_ENABLED) return;
     if (syncDebounce.current) clearTimeout(syncDebounce.current);
     setSyncStatus("syncing");
 

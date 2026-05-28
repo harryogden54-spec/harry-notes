@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
@@ -192,7 +193,7 @@ function TodayScreen() {
       }}>
         {/* Drag handle */}
         <Pressable onLongPress={drag} hitSlop={8} delayLongPress={150}>
-          <Text style={{ color: colors.textTertiary, fontSize: 16, lineHeight: 22 }}>⠿</Text>
+          <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
         </Pressable>
 
         <Pressable
@@ -210,7 +211,7 @@ function TodayScreen() {
         <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.text}</Text>
 
         <Pressable onPress={() => deleteItem(item.id)} hitSlop={8}>
-          <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+          <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
         </Pressable>
       </View>
     </ScaleDecorator>
@@ -232,7 +233,7 @@ function TodayScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                     <Text size="base" weight="semibold">Set time block</Text>
                     <Pressable onPress={() => setTimePickerFor(null)} hitSlop={12}>
-                      <Text size="sm" style={{ color: colors.textTertiary }}>✕</Text>
+                      <Ionicons name="close-outline" size={18} color={colors.textTertiary} />
                     </Pressable>
                   </View>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
@@ -331,7 +332,10 @@ function TodayScreen() {
                     backgroundColor: showTimeline ? `${colors.accent}18` : "transparent",
                   }}
                 >
-                  <Text size="xs" style={{ color: showTimeline ? colors.accent : colors.textTertiary }}>⧗ Timeline</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="time-outline" size={12} color={showTimeline ? colors.accent : colors.textTertiary} />
+                    <Text size="xs" style={{ color: showTimeline ? colors.accent : colors.textTertiary }}>Timeline</Text>
+                  </View>
                 </Pressable>
                 <Pressable
                   onPress={() => setShowTimer(v => !v)}
@@ -342,7 +346,10 @@ function TodayScreen() {
                     backgroundColor: showTimer ? `${colors.accent}18` : "transparent",
                   }}
                 >
-                  <Text size="xs" style={{ color: showTimer ? colors.accent : colors.textTertiary }}>⏱ Focus</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="timer-outline" size={12} color={showTimer ? colors.accent : colors.textTertiary} />
+                    <Text size="xs" style={{ color: showTimer ? colors.accent : colors.textTertiary }}>Focus</Text>
+                  </View>
                 </Pressable>
               </View>
             </View>
@@ -400,7 +407,7 @@ function TodayScreen() {
                   borderWidth: 2, borderColor: `${colors.accent}40`,
                   alignItems: "center", justifyContent: "center",
                 }}>
-                  <Text style={{ fontSize: 28, lineHeight: 36 }}>☀</Text>
+                  <Ionicons name="sunny-outline" size={28} color={colors.accent} />
                 </View>
                 <Text size="base" weight="semibold">Nothing yet</Text>
                 <Text size="sm" secondary style={{ textAlign: "center" }}>
@@ -424,9 +431,10 @@ function TodayScreen() {
                     }}>
                       SUGGESTED · {suggestions.length}
                     </Text>
-                    <Text size="xs" style={{ color: showSuggestions ? colors.accent : colors.textTertiary }}>
-                      {showSuggestions ? "▲" : "▼"}
-                    </Text>
+                    <Ionicons
+                      name={showSuggestions ? "chevron-up" : "chevron-down"}
+                      size={12} color={showSuggestions ? colors.accent : colors.textTertiary}
+                    />
                   </Pressable>
                 ) : (
                   <Text size="xs" weight="semibold" style={{
@@ -578,7 +586,7 @@ function CompletedRow({ item, onToggle, onDelete, isLast }: {
         {item.text}
       </Text>
       <Pressable onPress={onDelete} hitSlop={8}>
-        <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+        <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
       </Pressable>
     </View>
   );
@@ -699,7 +707,7 @@ function TimelineItemRow({ item, colors, onToggle, onDelete, onPickTime, onClear
       <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={2}>{item.text}</Text>
       {/* Clock button — assign / change time */}
       <Pressable onPress={() => item.time_block ? onClearTime(item.id) : onPickTime(item.id)} hitSlop={8}>
-        <Text style={{ fontSize: 13, color: item.time_block ? colors.accent : colors.textTertiary }}>⏱</Text>
+        <Ionicons name="timer-outline" size={14} color={item.time_block ? colors.accent : colors.textTertiary} />
       </Pressable>
       {/* If has time, show change button */}
       {item.time_block && (
@@ -709,7 +717,7 @@ function TimelineItemRow({ item, colors, onToggle, onDelete, onPickTime, onClear
       )}
       {/* Delete */}
       <Pressable onPress={() => onDelete(item.id)} hitSlop={8}>
-        <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+        <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
       </Pressable>
     </View>
   );

@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Pressable, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { useToast } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
@@ -57,7 +58,7 @@ export function ToastContainer() {
             </Pressable>
           )}
           <Pressable onPress={() => dismissToast(toast.id)} hitSlop={8}>
-            <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+            <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
           </Pressable>
         </View>
       ))}

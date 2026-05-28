@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -11,6 +12,7 @@ import { getTodayStr } from "@/lib/utils";
 import { MarkdownView } from "./MarkdownView";
 import { MarkdownToolbar, type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions, getWikiQuery } from "./WikiLinkSuggestions";
+import { BlockEditor } from "./BlockEditor";
 import { timeAgo } from "./utils";
 
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
@@ -87,7 +89,7 @@ type Props = {
 
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
-  const { notes, updateNote, deleteNote, pinNote } = useNotes();
+  const { notes, updateNote, deleteNote, pinNote, toggleBlockCheck } = useNotes();
   const { tasks } = useTasks();
   const { showToast } = useToast();
   const today = getTodayStr();
@@ -173,23 +175,28 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           )}
           <View style={{ flex: 1 }} />
           <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
-          <Pressable
-            onPress={() => setPreview(v => !v)}
-            hitSlop={12}
-            style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.sm, borderWidth: 1, borderColor: preview ? colors.accent : colors.bgBorder, backgroundColor: preview ? `${colors.accent}14` : "transparent" }}
-          >
-            <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
-              {preview ? "Edit" : "Preview"}
-            </Text>
-          </Pressable>
+          {/* Preview toggle only for legacy plain-text notes */}
+          {!note.blocks && (
+            <Pressable
+              onPress={() => setPreview(v => !v)}
+              hitSlop={12}
+              style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.sm, borderWidth: 1, borderColor: preview ? colors.accent : colors.bgBorder, backgroundColor: preview ? `${colors.accent}14` : "transparent" }}
+            >
+              <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
+                {preview ? "Edit" : "Preview"}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={() => { pinNote(note.id); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             hitSlop={12}
             style={{ padding: spacing[1] }}
           >
-            <Text size="sm" style={{ color: note.pinned ? colors.accent : colors.textTertiary }}>
-              {note.pinned ? "📌" : "📍"}
-            </Text>
+            <Ionicons
+              name={note.pinned ? "pin" : "pin-outline"}
+              size={16}
+              color={note.pinned ? colors.accent : colors.textTertiary}
+            />
           </Pressable>
           <Pressable
             onPress={() => {
@@ -218,7 +225,15 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             onSubmitEditing={() => { handleTitleCommit(); setPreview(false); bodyRef.current?.focus(); }}
             style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
-          {preview ? (
+          {/* Block-based editor (new notes) */}
+          {note.blocks ? (
+            <BlockEditor
+              blocks={note.blocks}
+              onChange={blocks => updateNote(note.id, { blocks })}
+              onToggleCheck={blockId => toggleBlockCheck(note.id, blockId)}
+              placeholder="Start writing…"
+            />
+          ) : preview ? (
             note.body.trim()
               ? <MarkdownView body={note.body} colors={colors} replCtx={replCtx} />
               : <Text size="sm" tertiary style={{ fontStyle: "italic" }}>Nothing to preview yet.</Text>
@@ -243,17 +258,22 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
 
         {/* Footer */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[6], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
-          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
+          {note.blocks ? (
+            <Text size="xs" tertiary>{note.blocks.length} block{note.blocks.length !== 1 ? "s" : ""}</Text>
+          ) : (
+            <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
+          )}
         </View>
 
-        {!preview && wikiQuery !== null && (
+        {/* Markdown-only features — hidden for block notes */}
+        {!note.blocks && !preview && wikiQuery !== null && (
           <WikiLinkSuggestions
             query={wikiQuery}
             notes={allNotes.filter(n => n.id !== note.id)}
             onSelect={handleWikiSelect}
           />
         )}
-        {!preview && (
+        {!note.blocks && !preview && (
           <View style={{ borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
             <MarkdownToolbar
               body={note.body}

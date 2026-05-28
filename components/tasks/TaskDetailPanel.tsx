@@ -61,7 +61,7 @@ export function TaskDetailPanel({ task, onClose }: Props) {
         {onClose && (
           <Pressable onPress={onClose} hitSlop={12}
             style={{ width: 26, height: 26, borderRadius: 99, backgroundColor: colors.bgTertiary, alignItems: "center", justifyContent: "center" }}>
-            <Text size="sm" style={{ color: colors.textTertiary }}>✕</Text>
+            <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
           </Pressable>
         )}
       </View>
@@ -97,20 +97,20 @@ export function TaskDetailPanel({ task, onClose }: Props) {
 
       <Divider />
 
-      <MetaRow icon="⬤">
+      <MetaRow icon="ellipse">
         <PrioritySelector value={task.priority} onChange={priority => updateTask(task.id, { priority })} />
       </MetaRow>
-      <MetaRow icon="◷">
+      <MetaRow icon="calendar-outline">
         <DueDateSelector value={task.due_date} onChange={due_date => updateTask(task.id, { due_date })} />
       </MetaRow>
-      <MetaRow icon="◈">
+      <MetaRow icon="folder-outline">
         <CategorySelector
           category={task.category}
           uniCourse={task.uniCourse}
           onChange={(category, uniCourse) => updateTask(task.id, { category, uniCourse })}
         />
       </MetaRow>
-      <MetaRow icon="↻">
+      <MetaRow icon="refresh-outline">
         <RecurrenceSelector
           value={task.recurrence}
           onChange={recurrence => updateTask(task.id, { recurrence })}

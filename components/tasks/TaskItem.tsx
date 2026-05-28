@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, TextInput, Pressable, Platform, useWindowDimensions } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
@@ -177,11 +178,11 @@ export const TaskItem = React.memo(function TaskItem({
                   </Pressable>
                 </View>
               )}
-              {!selectMode && <Text size="xs" style={{ color: colors.textTertiary }}>{isExpanded ? "▴" : "▾"}</Text>}
+              {!selectMode && <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={12} color={colors.textTertiary} />}
             </Pressable>
             {!selectMode && !isExpanded && Platform.OS !== "web" && onDragStart && (
               <Pressable onLongPress={onDragStart} hitSlop={8} style={{ paddingLeft: spacing[1] }}>
-                <Text style={{ color: colors.textTertiary, fontSize: 16, lineHeight: 22 }}>⠿</Text>
+                <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
               </Pressable>
             )}
           </View>
@@ -235,13 +236,13 @@ export const TaskItem = React.memo(function TaskItem({
                   ]}
                 />
                 <Divider />
-                <MetaRow icon="⬤">
+                <MetaRow icon="ellipse">
                   <PrioritySelector value={task.priority} onChange={priority => onUpdate(task.id, { priority })} />
                 </MetaRow>
-                <MetaRow icon="◷">
+                <MetaRow icon="calendar-outline">
                   <DueDateSelector value={task.due_date} onChange={due_date => onUpdate(task.id, { due_date })} />
                 </MetaRow>
-                <MetaRow icon="◈">
+                <MetaRow icon="folder-outline">
                   <CategorySelector
                     category={task.category}
                     uniCourse={task.uniCourse}
