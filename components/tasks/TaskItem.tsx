@@ -66,7 +66,7 @@ export const TaskItem = React.memo(function TaskItem({
     if (Platform.OS === "web" || task.done) return null;
     return (
       <View style={{ justifyContent: "center", alignItems: "flex-end", paddingHorizontal: spacing[4], backgroundColor: `${colors.accent}22`, borderRadius: radius.lg, marginBottom: spacing[1.5], marginRight: spacing[1] }}>
-        <Text size="xs" weight="semibold" style={{ color: colors.accent }}>✓ Done</Text>
+        <Text size="xs" weight="semibold" style={{ color: colors.accent }}>Done</Text>
       </View>
     );
   }
@@ -75,7 +75,7 @@ export const TaskItem = React.memo(function TaskItem({
     if (Platform.OS === "web") return null;
     return (
       <View style={{ justifyContent: "center", alignItems: "flex-start", paddingHorizontal: spacing[4], backgroundColor: `${colors.danger}22`, borderRadius: radius.lg, marginBottom: spacing[1.5], marginLeft: spacing[1] }}>
-        <Text size="xs" weight="semibold" style={{ color: colors.danger }}>✕ Delete</Text>
+        <Text size="xs" weight="semibold" style={{ color: colors.danger }}>Delete</Text>
       </View>
     );
   }

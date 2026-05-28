@@ -97,7 +97,6 @@ export function BlockEditor({ blocks, onChange, onToggleCheck, placeholder }: Pr
         <BlockRow
           key={block.id}
           block={block}
-          index={index}
           inputRef={(el) => { inputRefs.current[index] = el; }}
           colors={colors}
           placeholder={index === 0 && blocks.length === 1 ? (placeholder ?? "Start writing…") : undefined}
@@ -115,7 +114,6 @@ export function BlockEditor({ blocks, onChange, onToggleCheck, placeholder }: Pr
 
 type RowProps = {
   block: Block;
-  index: number;
   inputRef: (el: TextInput | null) => void;
   colors: ReturnType<typeof useTheme>["colors"];
   placeholder?: string;

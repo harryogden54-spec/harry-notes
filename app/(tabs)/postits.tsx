@@ -7,7 +7,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, GradientBackground } from "@/components/ui";
+import { Text, GradientBackground, EmptyState } from "@/components/ui";
 import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
@@ -175,7 +175,8 @@ function PostItsScreen() {
   }
 
   const numCols = width >= 1200 ? 5 : width >= 900 ? 4 : width >= 600 ? 3 : 2;
-  const colWidth = `${Math.floor(100 / numCols)}%` as any;
+  const gapTotal = spacing[3] * (numCols - 1);
+  const colWidth = `${Math.floor((100 - (gapTotal / (width || 375)) * 100) / numCols)}%` as any;
 
   const editingNote = editingId ? notes.find(n => n.id === editingId) : null;
 
@@ -219,10 +220,7 @@ function PostItsScreen() {
           </View>
 
           {postits.length === 0 ? (
-            <View style={{ alignItems: "center", paddingTop: spacing[12], gap: spacing[3] }}>
-              <Ionicons name="layers-outline" size={40} color={colors.textTertiary} />
-              <Text size="sm" secondary>Tap + to add a post-it</Text>
-            </View>
+            <EmptyState type="sticky" title="No post-its yet" subtitle="Tap + to capture a quick thought." />
           ) : (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3] }}>
               {postits.map(n => (
