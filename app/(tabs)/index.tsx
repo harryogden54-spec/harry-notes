@@ -17,7 +17,7 @@ import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
+import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
 import { YearInPixels }       from "@/components/dashboard/YearInPixels";
@@ -169,9 +169,7 @@ function DashboardScreen() {
   const overdueCount = overdueTasks.length;
 
   const { sortedNotes, sortedPostIts } = useMemo(() => {
-    const allSorted = [...notes].sort((a, b) =>
-      (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
-    );
+    const allSorted = [...notes].sort(cmpRecentDesc);
     return {
       sortedNotes:   allSorted.filter(n => n.type !== "postit"),
       sortedPostIts: allSorted.filter(n => n.type === "postit"),

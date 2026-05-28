@@ -9,13 +9,24 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  message?: string;
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false };
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true };
+  static getDerivedStateFromError(error: unknown): State {
+    return {
+      hasError: true,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  componentDidCatch(error: unknown, info: { componentStack?: string }) {
+    // Surface the real error instead of swallowing it — a silent boundary makes
+    // crashes like this impossible to diagnose from a screenshot. Logged in all
+    // environments; the message is also shown in the fallback UI below.
+    console.error("[ErrorBoundary]", error, info?.componentStack);
   }
 
   render() {
@@ -26,8 +37,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <Text size="sm" secondary style={{ textAlign: "center" }}>
             An unexpected error occurred in this section.
           </Text>
+          {!!this.state.message && (
+            <Text size="xs" secondary style={{ textAlign: "center", opacity: 0.7 }}>
+              {this.state.message}
+            </Text>
+          )}
           <Pressable
-            onPress={() => this.setState({ hasError: false })}
+            onPress={() => this.setState({ hasError: false, message: undefined })}
             accessibilityRole="button"
             accessibilityLabel="Retry"
             style={({ pressed }) => ({

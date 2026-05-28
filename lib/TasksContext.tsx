@@ -67,6 +67,28 @@ function stamp(task: Task): Task {
   return { ...task, updated_at: new Date().toISOString() };
 }
 
+const EPOCH = new Date(0).toISOString();
+
+/**
+ * Coerce a possibly-malformed task into a well-formed one. Rows synced from
+ * another client, partially-written records, or older schema versions may be
+ * missing `title`/`created_at` (or have them as null), which crashes every
+ * screen that calls `task.title.toLowerCase()` / `.localeCompare()` or sorts by
+ * date. Normalising once on load and on every remote merge guarantees those
+ * fields are always the right type.
+ */
+function normalizeTask(t: Task): Task {
+  const created = typeof t.created_at === "string" && t.created_at ? t.created_at : EPOCH;
+  return {
+    ...t,
+    title:      typeof t.title === "string" ? t.title : "",
+    done:       !!t.done,
+    created_at: created,
+    subtasks:   Array.isArray(t.subtasks) ? t.subtasks : [],
+    tags:       Array.isArray(t.tags) ? t.tags : [],
+  };
+}
+
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -86,13 +108,13 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         // to AsyncStorage on a DB throw would overwrite real data with a
         // potentially-stale mirror and is extremely hard to debug.
         const dbTasks = await dbLoadTasks() as Task[];
-        if (dbTasks.length > 0) return dbTasks;
+        if (dbTasks.length > 0) return dbTasks.map(normalizeTask);
         // DB returned 0 rows — migrate from AsyncStorage on first install.
         const stored = await storage.get<Task[]>("tasks") ?? [];
         if (stored.length > 0) await dbSaveTasks(stored);
-        return stored;
+        return stored.map(normalizeTask);
       }
-      return await storage.get<Task[]>("tasks") ?? [];
+      return (await storage.get<Task[]>("tasks") ?? []).map(normalizeTask);
     },
     saveLocal: (items) => {
       if (Platform.OS !== "web") dbSaveTasks(items).catch(console.error);
@@ -116,6 +138,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       });
       return { items: updated, dirty };
     },
+    // Coerce remote rows — older rows may be missing title/created_at/arrays.
+    normalizeRemote: (row) => normalizeTask(row),
     // Never un-archive a locally-archived task when remote wins.
     mergeRow: (local, remote) => ({ ...remote, archived: remote.archived ?? local.archived }),
   });

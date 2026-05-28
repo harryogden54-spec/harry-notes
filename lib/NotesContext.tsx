@@ -40,13 +40,20 @@ function stamp(note: Note): Note {
  * `note.body.trim()` / `.split()` / `.toLowerCase()`. Normalising once on load
  * and on every remote merge guarantees those fields are always strings.
  */
+const EPOCH = new Date(0).toISOString();
+
 function normalizeNote(n: Note): Note {
+  // `created_at`/`updated_at` are relied on by date sorts (`.localeCompare`) on
+  // every screen. A row missing both crashes the sort, so guarantee a string.
+  const created = typeof n.created_at === "string" && n.created_at ? n.created_at : EPOCH;
   return {
     ...n,
     title:  typeof n.title === "string" ? n.title : "",
     body:   typeof n.body  === "string" ? n.body  : "",
     pinned: !!n.pinned,
-    type:   (n.type ?? "note") as "note" | "postit",
+    type:   n.type === "postit" ? "postit" : "note",
+    created_at: created,
+    updated_at: typeof n.updated_at === "string" && n.updated_at ? n.updated_at : created,
   };
 }
 

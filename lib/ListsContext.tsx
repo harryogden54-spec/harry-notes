@@ -53,6 +53,27 @@ function stamp(obj: NoteList): NoteList {
   return { ...obj, updated_at: new Date().toISOString() };
 }
 
+const EPOCH = new Date(0).toISOString();
+
+/**
+ * Coerce a possibly-malformed list into a well-formed one. Rows synced from
+ * another client or older schema versions may be missing `name`/`created_at` or
+ * have a non-array `items`, which crashes screens that call `list.name
+ * .toLowerCase()`, sort by date, or map over `items`. Normalising on load and on
+ * every remote merge guarantees the shapes the UI relies on.
+ */
+function normalizeList(l: NoteList): NoteList {
+  const created = typeof l.created_at === "string" && l.created_at ? l.created_at : EPOCH;
+  return {
+    ...l,
+    name:  typeof l.name === "string" ? l.name : "",
+    items: Array.isArray(l.items)
+      ? l.items.filter(Boolean).map(i => ({ ...i, content: typeof i.content === "string" ? i.content : "", done: !!i.done }))
+      : [],
+    created_at: created,
+  };
+}
+
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -69,16 +90,18 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS !== "web") {
         // Re-throw on DB error — see TasksContext for rationale.
         const dbLists = await dbLoadLists() as NoteList[];
-        if (dbLists.length > 0) return dbLists;
+        if (dbLists.length > 0) return dbLists.map(normalizeList);
         const stored = await storage.get<NoteList[]>("lists") ?? [];
         if (stored.length > 0) await dbSaveLists(stored);
-        return stored;
+        return stored.map(normalizeList);
       }
-      return await storage.get<NoteList[]>("lists") ?? [];
+      return (await storage.get<NoteList[]>("lists") ?? []).map(normalizeList);
     },
     saveLocal: (items) => {
       if (Platform.OS !== "web") dbSaveLists(items).catch(console.error);
     },
+    // Coerce remote rows — older rows may be missing name/created_at/items.
+    normalizeRemote: (row) => normalizeList(row),
   });
 
   const addList = useCallback((name: string, color: string, initialItems?: string[]): string => {

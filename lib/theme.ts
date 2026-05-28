@@ -366,10 +366,12 @@ export const notePastels = {
   text:    "#1A1A2E",
 } as const;
 
-/** Stable index from any string id — same id always picks the same pastel. */
+/** Stable index from any string id — same id always picks the same pastel.
+ *  Tolerates a non-string/undefined id (malformed row) rather than throwing. */
 export function getNotePastelIndex(id: string): number {
+  const s = typeof id === "string" ? id : String(id ?? "");
   let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return h % notePastels.bg.length;
 }
 

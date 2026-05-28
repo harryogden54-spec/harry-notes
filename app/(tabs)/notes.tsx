@@ -9,6 +9,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing } from "@/lib/theme";
+import { cmpRecentDesc } from "@/lib/utils";
 import { useNotes } from "@/lib/NotesContext";
 import { useLists } from "@/lib/ListsContext";
 import { CreateListModal, ListCard, ListDetailPane, ListIndexRow } from "./lists";
@@ -81,7 +82,7 @@ function NotesScreen() {
   const prevListsLen = useRef(0);
   useEffect(() => {
     if (isDesktop && lists.length > prevListsLen.current && prevListsLen.current > 0) {
-      const sorted = [...lists].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      const sorted = [...lists].sort(cmpRecentDesc);
       if (sorted[0]) { setSelectedList(sorted[0].id); setSelectedNote(null); }
     }
     prevListsLen.current = lists.length;
@@ -120,7 +121,7 @@ function NotesScreen() {
   const prevNotesLen = useRef(0);
   useEffect(() => {
     if (isDesktop && filteredNotes.length > prevNotesLen.current && prevNotesLen.current > 0) {
-      const newest = [...filteredNotes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
+      const newest = [...filteredNotes].sort(cmpRecentDesc)[0];
       if (newest) { setSelectedNote(newest.id); setSelectedList(null); }
     }
     prevNotesLen.current = filteredNotes.length;
@@ -249,7 +250,7 @@ function NotesScreen() {
   const sortedNotes = [...filteredNotes].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    return (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at);
+    return cmpRecentDesc(a, b);
   });
 
   return (
