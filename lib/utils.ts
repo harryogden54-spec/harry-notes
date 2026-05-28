@@ -42,6 +42,7 @@ export function formatDueDate(
 }
 
 export function stripMarkdown(text: string): string {
+  if (typeof text !== "string") return "";
   return text
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")

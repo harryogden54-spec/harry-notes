@@ -33,6 +33,23 @@ function stamp(note: Note): Note {
   return { ...note, updated_at: new Date().toISOString() };
 }
 
+/**
+ * Coerce a possibly-malformed note into a well-formed one. Older rows, rows
+ * synced from another client, or partially-written records may be missing
+ * `body`/`title` (or have them as null), which crashes every screen that calls
+ * `note.body.trim()` / `.split()` / `.toLowerCase()`. Normalising once on load
+ * and on every remote merge guarantees those fields are always strings.
+ */
+function normalizeNote(n: Note): Note {
+  return {
+    ...n,
+    title:  typeof n.title === "string" ? n.title : "",
+    body:   typeof n.body  === "string" ? n.body  : "",
+    pinned: !!n.pinned,
+    type:   (n.type ?? "note") as "note" | "postit",
+  };
+}
+
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -49,21 +66,18 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS !== "web") {
         // Re-throw on DB error — see TasksContext for rationale.
         const dbNotes = await dbLoadNotes() as Note[];
-        if (dbNotes.length > 0) return dbNotes;
+        if (dbNotes.length > 0) return dbNotes.map(normalizeNote);
         const stored = await storage.get<Note[]>("notes") ?? [];
         if (stored.length > 0) await dbSaveNotes(stored);
-        return stored;
+        return stored.map(normalizeNote);
       }
-      return await storage.get<Note[]>("notes") ?? [];
+      return (await storage.get<Note[]>("notes") ?? []).map(normalizeNote);
     },
     saveLocal: (items) => {
       if (Platform.OS !== "web") dbSaveNotes(items).catch(console.error);
     },
-    // Coerce the type field coming from remote — older rows may be missing it.
-    normalizeRemote: (row) => ({
-      ...row,
-      type: (row.type ?? "note") as "note" | "postit",
-    }),
+    // Coerce remote rows — older rows may be missing type/body/title.
+    normalizeRemote: (row) => normalizeNote(row),
   });
 
   const addNote = useCallback((type: "note" | "postit" = "note"): string => {
