@@ -4,11 +4,6 @@ import { storage } from "./storage";
 import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
 
 type Scheme = "dark" | "light";
-export type BgStyle = "solid" | "gradient" | "blur";
-
-type ThemeConfig = {
-  bgStyle: BgStyle;
-};
 
 type ThemeContextValue = {
   scheme: Scheme;
@@ -18,8 +13,6 @@ type ThemeContextValue = {
   setAccentId: (id: AccentId) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
-  bgStyle: BgStyle;
-  setBgStyle: (s: BgStyle) => void;
   themeReady: boolean;
 };
 
@@ -27,25 +20,23 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const device = (useColorScheme() ?? "dark") as Scheme;
-  const [override, setOverride]        = useState<Scheme | null>(null);
-  const [accentId, setAccentIdState]   = useState<AccentId>("frost");
-  const [themeId, setThemeIdState]     = useState<ThemeId>("nord");
-  const [bgStyle, setBgStyleState]  = useState<BgStyle>("gradient");
-  const [themeReady, setThemeReady] = useState(false);
+  const [override, setOverride]      = useState<Scheme | null>(null);
+  const [accentId, setAccentIdState] = useState<AccentId>("indigo");
+  const [themeId, setThemeIdState]   = useState<ThemeId>("obsidian");
+  const [themeReady, setThemeReady]  = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => setThemeReady(true), 2000);
 
     Promise.all([
       storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); }),
-      storage.get<AccentId>("accent_id").then(v => {
+      // accent_id_v2 — bumped from v1 so stale frost/deep/etc ids reset to "indigo"
+      storage.get<AccentId>("accent_id_v2").then(v => {
         if (v && ACCENT_OPTIONS.some(a => a.id === v)) setAccentIdState(v);
       }),
-      storage.get<ThemeId>("theme-v2").then(v => {
+      // theme-v3 — bumped from v2 so stale 16-theme ids reset to "obsidian"
+      storage.get<ThemeId>("theme-v3").then(v => {
         if (v && (v in THEMES)) setThemeIdState(v);
-      }),
-      storage.get<ThemeConfig>("theme_config").then(v => {
-        if (v?.bgStyle) setBgStyleState(v.bgStyle);
       }),
     ]).finally(() => {
       clearTimeout(timeout);
@@ -65,17 +56,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   function setAccentId(id: AccentId) {
     setAccentIdState(id);
-    storage.set("accent_id", id);
+    storage.set("accent_id_v2", id);
   }
 
   function setThemeId(id: ThemeId) {
     setThemeIdState(id);
-    storage.set("theme-v2", id);
-  }
-
-  function setBgStyle(s: BgStyle) {
-    setBgStyleState(s);
-    storage.set("theme_config", { bgStyle: s });
+    storage.set("theme-v3", id);
   }
 
   return (
@@ -83,7 +69,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       scheme, toggle, isManual: !!override,
       accentId, setAccentId,
       themeId, setThemeId,
-      bgStyle, setBgStyle,
       themeReady,
     }}>
       {children}

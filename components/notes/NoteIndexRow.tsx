@@ -3,14 +3,14 @@ import { View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
+import { spacing, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import type { Note } from "@/lib/NotesContext";
 import { timeAgo, notePreview } from "./utils";
 
 type Props = { note: Note; isSelected: boolean; onSelect: () => void };
 
 export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect }: Props) {
-  const { colors } = useTheme();
+  const { colors, notePastels } = useTheme();
   const accentColor = notePastels.bg[getNotePastelIndex(note.id)];
   const preview = notePreview(note);
   return (

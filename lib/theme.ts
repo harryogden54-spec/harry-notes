@@ -7,9 +7,8 @@
 // ─── Theme types ──────────────────────────────────────────────────────────────
 
 export type ThemeId =
-  | "default" | "nord" | "warmEarth" | "slate" | "rose" | "forest"
-  | "dusk" | "steel" | "sand" | "midnight"
-  | "twilight" | "mocha" | "retro" | "paper" | "solar" | "neon";
+  | "obsidian" | "nord" | "graphite" | "rose" | "evergreen"
+  | "mocha" | "midnight" | "dune" | "solar" | "ember";
 
 export type ThemeTokens = {
   bgPrimary: string;
@@ -31,33 +30,26 @@ export type ThemeTokens = {
 const SEMANTIC_DARK  = { success: "#3DD68C", warning: "#F5A623", danger: "#F26464" } as const;
 const SEMANTIC_LIGHT = { success: "#1E8A5A", warning: "#B86E00", danger: "#C0392B" } as const;
 
-// ─── Named themes ──────────────────────────────────────────────────────────────
+// ─── Named themes (10) ────────────────────────────────────────────────────────
 
-export type ThemeBackground = {
-  type: "solid" | "gradient" | "noise" | "geometric";
-  value: string;
-};
-
-export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: ThemeTokens; background?: ThemeBackground }> = {
-  default: {
-    label: "Linear",
-    background: { type: "gradient", value: "linear" },
+export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: ThemeTokens }> = {
+  obsidian: {
+    label: "Obsidian",
     dark: {
       bgPrimary: "#0D0D0D", bgSecondary: "#141414", bgTertiary: "#1A1A1A", bgBorder: "#262626",
       textPrimary: "#F0F0F0", textSecondary: "#9A9A9A", textTertiary: "#5A5A5A", textInverse: "#0D0D0D",
-      accent: "#88C0D0", accentHover: "#9DCFDF", accentSubtle: "#17323A",
+      accent: "#6B77D9", accentHover: "#7B87E9", accentSubtle: "#1A1D3A",
       ...SEMANTIC_DARK,
     },
     light: {
       bgPrimary: "#FFFFFF", bgSecondary: "#F5F5F5", bgTertiary: "#EBEBEB", bgBorder: "#E0E0E0",
       textPrimary: "#0D0D0D", textSecondary: "#4A4A4A", textTertiary: "#8A8A8A", textInverse: "#F0F0F0",
-      accent: "#88C0D0", accentHover: "#9DCFDF", accentSubtle: "#DFF0F5",
+      accent: "#5B6AD0", accentHover: "#6B7AE0", accentSubtle: "#ECEFFE",
       ...SEMANTIC_LIGHT,
     },
   },
   nord: {
     label: "Nord",
-    background: { type: "gradient", value: "nord" },
     dark: {
       bgPrimary: "#2E3440", bgSecondary: "#3B4252", bgTertiary: "#434C5E", bgBorder: "#4C566A",
       textPrimary: "#ECEFF4", textSecondary: "#D8DEE9", textTertiary: "#81A1C1", textInverse: "#2E3440",
@@ -71,41 +63,23 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
-  warmEarth: {
-    label: "Warm Earth",
-    background: { type: "gradient", value: "warmEarth" },
+  graphite: {
+    label: "Graphite",
     dark: {
-      bgPrimary: "#1C2B1E", bgSecondary: "#231A0F", bgTertiary: "#2D1B1B", bgBorder: "#3A2C2C",
-      textPrimary: "#F0EAE0", textSecondary: "#C4A882", textTertiary: "#7A6050", textInverse: "#1C2B1E",
-      accent: "#D2B48C", accentHover: "#E2C49C", accentSubtle: "#2C1C10",
+      bgPrimary: "#1C1C1E", bgSecondary: "#2C2C2E", bgTertiary: "#3A3A3C", bgBorder: "#48484A",
+      textPrimary: "#F2F2F7", textSecondary: "#AEAEB2", textTertiary: "#636366", textInverse: "#1C1C1E",
+      accent: "#98989D", accentHover: "#AEAEB2", accentSubtle: "#2C2C2E",
       ...SEMANTIC_DARK,
     },
     light: {
-      bgPrimary: "#F5F0E8", bgSecondary: "#EDE4D6", bgTertiary: "#E8E0D4", bgBorder: "#D4C8B8",
-      textPrimary: "#2A1C14", textSecondary: "#5A3E2A", textTertiary: "#8A6050", textInverse: "#F5F0E8",
-      accent: "#BF616A", accentHover: "#CF717A", accentSubtle: "#F5E5E0",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  slate: {
-    label: "Slate",
-    background: { type: "solid", value: "slate" },
-    dark: {
-      bgPrimary: "#1E2329", bgSecondary: "#252D36", bgTertiary: "#2D3748", bgBorder: "#3A4A5A",
-      textPrimary: "#E8EDF2", textSecondary: "#9AAAB8", textTertiary: "#5A6A7A", textInverse: "#1E2329",
-      accent: "#4A90D9", accentHover: "#5A9FE9", accentSubtle: "#1A2C42",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F7F9FC", bgSecondary: "#EDF2F7", bgTertiary: "#E2E8F0", bgBorder: "#CBD5E0",
-      textPrimary: "#1A202C", textSecondary: "#4A5568", textTertiary: "#718096", textInverse: "#F7F9FC",
-      accent: "#4A90D9", accentHover: "#5A9FE9", accentSubtle: "#EBF4FF",
+      bgPrimary: "#F2F2F7", bgSecondary: "#E5E5EA", bgTertiary: "#D1D1D6", bgBorder: "#C7C7CC",
+      textPrimary: "#1C1C1E", textSecondary: "#3A3A3C", textTertiary: "#6D6D72", textInverse: "#F2F2F7",
+      accent: "#636366", accentHover: "#48484A", accentSubtle: "#E5E5EA",
       ...SEMANTIC_LIGHT,
     },
   },
   rose: {
     label: "Rosé",
-    background: { type: "noise", value: "rose" },
     dark: {
       bgPrimary: "#1E1518", bgSecondary: "#251B1F", bgTertiary: "#2E2228", bgBorder: "#3D2D34",
       textPrimary: "#F2E8EC", textSecondary: "#C4A0B0", textTertiary: "#7A5A68", textInverse: "#1E1518",
@@ -119,9 +93,8 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
-  forest: {
-    label: "Forest",
-    background: { type: "geometric", value: "hexagons" },
+  evergreen: {
+    label: "Evergreen",
     dark: {
       bgPrimary: "#0D1810", bgSecondary: "#142018", bgTertiary: "#1A2A1E", bgBorder: "#253A2A",
       textPrimary: "#E4EFE6", textSecondary: "#8DB898", textTertiary: "#4A7A54", textInverse: "#0D1810",
@@ -135,89 +108,8 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
-  dusk: {
-    label: "Dusk",
-    background: { type: "gradient", value: "dusk" },
-    dark: {
-      bgPrimary: "#100B1E", bgSecondary: "#180F2A", bgTertiary: "#221636", bgBorder: "#342050",
-      textPrimary: "#EDE8F8", textSecondary: "#B8A8E0", textTertiary: "#6A5A90", textInverse: "#100B1E",
-      accent: "#C8A870", accentHover: "#D8B880", accentSubtle: "#2C1E10",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F8F5FF", bgSecondary: "#EEE8FA", bgTertiary: "#E4D8F5", bgBorder: "#CCC0E8",
-      textPrimary: "#1A1030", textSecondary: "#4A3870", textTertiary: "#8070A8", textInverse: "#F8F5FF",
-      accent: "#9B78D4", accentHover: "#AB88E4", accentSubtle: "#EDE5FA",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  steel: {
-    label: "Steel",
-    background: { type: "solid", value: "steel" },
-    dark: {
-      bgPrimary: "#141A22", bgSecondary: "#1C2430", bgTertiary: "#242E3C", bgBorder: "#303C4E",
-      textPrimary: "#D8E4F0", textSecondary: "#8899B0", textTertiary: "#4A5A6E", textInverse: "#141A22",
-      accent: "#7A9AB8", accentHover: "#8AAAC8", accentSubtle: "#1A2A3A",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F2F5F8", bgSecondary: "#E8EDF4", bgTertiary: "#DCE4EE", bgBorder: "#C8D4E0",
-      textPrimary: "#1A2A3A", textSecondary: "#3A5070", textTertiary: "#6A80A0", textInverse: "#F2F5F8",
-      accent: "#4A6E8A", accentHover: "#5A7E9A", accentSubtle: "#E0EAF4",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  sand: {
-    label: "Sand",
-    background: { type: "noise", value: "sand" },
-    dark: {
-      bgPrimary: "#1C1810", bgSecondary: "#242016", bgTertiary: "#2C281C", bgBorder: "#3C3428",
-      textPrimary: "#F0EAD8", textSecondary: "#C8B890", textTertiary: "#7A6848", textInverse: "#1C1810",
-      accent: "#C8A86A", accentHover: "#D8B87A", accentSubtle: "#2C2010",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#FAF6EE", bgSecondary: "#F2ECD8", bgTertiary: "#EAE2C8", bgBorder: "#D8CEB0",
-      textPrimary: "#2A2010", textSecondary: "#5A4A28", textTertiary: "#8A7A58", textInverse: "#FAF6EE",
-      accent: "#9A7A40", accentHover: "#AA8A50", accentSubtle: "#F5EDD8",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  midnight: {
-    label: "Midnight",
-    background: { type: "geometric", value: "grid" },
-    dark: {
-      bgPrimary: "#050810", bgSecondary: "#080C18", bgTertiary: "#0C1220", bgBorder: "#141C30",
-      textPrimary: "#E8F0FF", textSecondary: "#6080B8", textTertiary: "#2A3A5A", textInverse: "#050810",
-      accent: "#3A7AFF", accentHover: "#4A8AFF", accentSubtle: "#0A1428",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F0F4FF", bgSecondary: "#E4ECFF", bgTertiary: "#D4E0FF", bgBorder: "#B8CCFF",
-      textPrimary: "#080C28", textSecondary: "#1A2A60", textTertiary: "#4A60A0", textInverse: "#F0F4FF",
-      accent: "#1A54FF", accentHover: "#2A64FF", accentSubtle: "#E0E8FF",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  twilight: {
-    label: "Twilight",
-    background: { type: "gradient", value: "twilight" },
-    dark: {
-      bgPrimary: "#1A1B26", bgSecondary: "#1F2030", bgTertiary: "#24263A", bgBorder: "#2E3145",
-      textPrimary: "#C0CAF5", textSecondary: "#7D8AB8", textTertiary: "#4A5478", textInverse: "#1A1B26",
-      accent: "#7AA2F7", accentHover: "#8AB2FF", accentSubtle: "#1A2238",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#E6E7EE", bgSecondary: "#D8DAE8", bgTertiary: "#C8CCDE", bgBorder: "#B0B5CC",
-      textPrimary: "#1A1B26", textSecondary: "#40435C", textTertiary: "#6A6F8C", textInverse: "#E6E7EE",
-      accent: "#3D5AFE", accentHover: "#4D6AFE", accentSubtle: "#D8E0FF",
-      ...SEMANTIC_LIGHT,
-    },
-  },
   mocha: {
     label: "Mocha",
-    background: { type: "gradient", value: "mocha" },
     dark: {
       bgPrimary: "#1E1E2E", bgSecondary: "#252537", bgTertiary: "#2D2D44", bgBorder: "#3A3A55",
       textPrimary: "#CDD6F4", textSecondary: "#A6ADC8", textTertiary: "#6C7086", textInverse: "#1E1E2E",
@@ -231,41 +123,38 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
-  retro: {
-    label: "Retro",
-    background: { type: "noise", value: "retro" },
+  midnight: {
+    label: "Midnight",
     dark: {
-      bgPrimary: "#282828", bgSecondary: "#32302F", bgTertiary: "#3C3836", bgBorder: "#504945",
-      textPrimary: "#EBDBB2", textSecondary: "#BDAE93", textTertiary: "#7C6F64", textInverse: "#282828",
-      accent: "#FE8019", accentHover: "#FF9029", accentSubtle: "#3A2418",
+      bgPrimary: "#050810", bgSecondary: "#080C18", bgTertiary: "#0C1220", bgBorder: "#141C30",
+      textPrimary: "#E8F0FF", textSecondary: "#6080B8", textTertiary: "#2A3A5A", textInverse: "#050810",
+      accent: "#3A7AFF", accentHover: "#4A8AFF", accentSubtle: "#0A1428",
       ...SEMANTIC_DARK,
     },
     light: {
-      bgPrimary: "#FBF1C7", bgSecondary: "#F2E5BC", bgTertiary: "#EBDBB2", bgBorder: "#D5C4A1",
-      textPrimary: "#3C3836", textSecondary: "#665C54", textTertiary: "#928374", textInverse: "#FBF1C7",
-      accent: "#D65D0E", accentHover: "#E66D1E", accentSubtle: "#F5E0C8",
+      bgPrimary: "#F0F4FF", bgSecondary: "#E4ECFF", bgTertiary: "#D4E0FF", bgBorder: "#B8CCFF",
+      textPrimary: "#080C28", textSecondary: "#1A2A60", textTertiary: "#4A60A0", textInverse: "#F0F4FF",
+      accent: "#1A54FF", accentHover: "#2A64FF", accentSubtle: "#E0E8FF",
       ...SEMANTIC_LIGHT,
     },
   },
-  paper: {
-    label: "Paper",
-    background: { type: "solid", value: "paper" },
+  dune: {
+    label: "Dune",
     dark: {
-      bgPrimary: "#1A1A1A", bgSecondary: "#222222", bgTertiary: "#2A2A2A", bgBorder: "#3A3A3A",
-      textPrimary: "#FAFAFA", textSecondary: "#A8A8A8", textTertiary: "#6A6A6A", textInverse: "#1A1A1A",
-      accent: "#FAFAFA", accentHover: "#FFFFFF", accentSubtle: "#2E2E2E",
+      bgPrimary: "#1C1810", bgSecondary: "#242016", bgTertiary: "#2C281C", bgBorder: "#3C3428",
+      textPrimary: "#F0EAD8", textSecondary: "#C8B890", textTertiary: "#7A6848", textInverse: "#1C1810",
+      accent: "#C8A86A", accentHover: "#D8B87A", accentSubtle: "#2C2010",
       ...SEMANTIC_DARK,
     },
     light: {
-      bgPrimary: "#FAFAFA", bgSecondary: "#F0F0F0", bgTertiary: "#E5E5E5", bgBorder: "#D0D0D0",
-      textPrimary: "#0A0A0A", textSecondary: "#404040", textTertiary: "#808080", textInverse: "#FAFAFA",
-      accent: "#0A0A0A", accentHover: "#1A1A1A", accentSubtle: "#E0E0E0",
+      bgPrimary: "#FAF6EE", bgSecondary: "#F2ECD8", bgTertiary: "#EAE2C8", bgBorder: "#D8CEB0",
+      textPrimary: "#2A2010", textSecondary: "#5A4A28", textTertiary: "#8A7A58", textInverse: "#FAF6EE",
+      accent: "#9A7A40", accentHover: "#AA8A50", accentSubtle: "#F5EDD8",
       ...SEMANTIC_LIGHT,
     },
   },
   solar: {
     label: "Solar",
-    background: { type: "gradient", value: "solar" },
     dark: {
       bgPrimary: "#002B36", bgSecondary: "#073642", bgTertiary: "#0E4654", bgBorder: "#205060",
       textPrimary: "#FDF6E3", textSecondary: "#93A1A1", textTertiary: "#586E75", textInverse: "#002B36",
@@ -279,19 +168,18 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
-  neon: {
-    label: "Neon",
-    background: { type: "geometric", value: "neon" },
+  ember: {
+    label: "Ember",
     dark: {
-      bgPrimary: "#0A0014", bgSecondary: "#10001E", bgTertiary: "#1A0030", bgBorder: "#2E0050",
-      textPrimary: "#F0E0FF", textSecondary: "#B080E0", textTertiary: "#604080", textInverse: "#0A0014",
-      accent: "#FF00FF", accentHover: "#FF30FF", accentSubtle: "#2E0030",
+      bgPrimary: "#1A1210", bgSecondary: "#221816", bgTertiary: "#2C1E1C", bgBorder: "#3C2A28",
+      textPrimary: "#F5EDE8", textSecondary: "#C4947A", textTertiary: "#7A5040", textInverse: "#1A1210",
+      accent: "#E85D4A", accentHover: "#F06D5A", accentSubtle: "#301A18",
       ...SEMANTIC_DARK,
     },
     light: {
-      bgPrimary: "#FFF0FA", bgSecondary: "#FFE5F5", bgTertiary: "#FFD8EE", bgBorder: "#FFB8E0",
-      textPrimary: "#3A0028", textSecondary: "#7A1858", textTertiary: "#A05080", textInverse: "#FFF0FA",
-      accent: "#D500A6", accentHover: "#E510B6", accentSubtle: "#FFD8EE",
+      bgPrimary: "#FDF4F2", bgSecondary: "#F5E8E5", bgTertiary: "#EDD8D4", bgBorder: "#DFC8C2",
+      textPrimary: "#2A1510", textSecondary: "#6B3020", textTertiary: "#9A6050", textInverse: "#FDF4F2",
+      accent: "#C0392B", accentHover: "#D04030", accentSubtle: "#FAE8E5",
       ...SEMANTIC_LIGHT,
     },
   },
@@ -338,11 +226,12 @@ export type ColorScheme = "dark" | "light";
 // ─── Accent options (override accent within any theme) ────────────────────────
 
 export const ACCENT_OPTIONS = [
-  { id: "frost",  label: "Frost",          color: "#88C0D0", hover: "#9DCFDF", subtle: "#17323A", lightSubtle: "#DFF0F5" },
-  { id: "deep",   label: "Deep Blue",      color: "#5E81AC", hover: "#6E91BC", subtle: "#1A2737", lightSubtle: "#DDE5F0" },
-  { id: "green",  label: "Aurora Green",   color: "#A3BE8C", hover: "#B3CE9C", subtle: "#1E2B1A", lightSubtle: "#E8F0E2" },
-  { id: "purple", label: "Aurora Purple",  color: "#B48EAD", hover: "#C49EBD", subtle: "#271C27", lightSubtle: "#EDE3EC" },
-  { id: "orange", label: "Aurora Orange",  color: "#D08770", hover: "#E09780", subtle: "#301A12", lightSubtle: "#F5E5DF" },
+  { id: "indigo",  label: "Indigo",  color: "#6B77D9", hover: "#7B87E9", subtle: "#1A1D3A", lightSubtle: "#ECEFFE" },
+  { id: "sky",     label: "Sky",     color: "#88C0D0", hover: "#9DCFDF", subtle: "#17323A", lightSubtle: "#DFF0F5" },
+  { id: "ocean",   label: "Ocean",   color: "#5E81AC", hover: "#6E91BC", subtle: "#1A2737", lightSubtle: "#DDE5F0" },
+  { id: "moss",    label: "Moss",    color: "#A3BE8C", hover: "#B3CE9C", subtle: "#1E2B1A", lightSubtle: "#E8F0E2" },
+  { id: "orchid",  label: "Orchid",  color: "#B48EAD", hover: "#C49EBD", subtle: "#271C27", lightSubtle: "#EDE3EC" },
+  { id: "amber",   label: "Amber",   color: "#D08770", hover: "#E09780", subtle: "#301A12", lightSubtle: "#F5E5DF" },
 ] as const;
 
 export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
@@ -357,14 +246,30 @@ export const fontFamily = {
 } as const;
 
 // ─── Note pastels (sticky-note backgrounds) ───────────────────────────────────
-// Intentionally fixed across themes — pastel notes don't recolour with the
-// app theme (they'd lose their "paper note" feel).
+// Theme-aware: dark mode uses low-luminance tinted surfaces so notes read
+// correctly on dark backgrounds; light mode keeps the classic bright paper feel.
 
-export const notePastels = {
-  bg:      ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"] as const,
-  border:  ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"] as const,
-  text:    "#1A1A2E",
-} as const;
+type NotePaletteSet = {
+  bg:     readonly string[];
+  border: readonly string[];
+  text:   string;
+};
+
+const PASTELS_LIGHT: NotePaletteSet = {
+  bg:     ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"],
+  border: ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"],
+  text:   "#1A1A2E",
+};
+
+const PASTELS_DARK: NotePaletteSet = {
+  bg:     ["#2A2418", "#2A1A20", "#1A2A1A", "#1A2030", "#22182A", "#2A2018"],
+  border: ["#3A3020", "#3A2030", "#253525", "#253040", "#302038", "#3A3028"],
+  text:   "#E8E0D4",
+};
+
+export function getNotePastels(scheme: ColorScheme): NotePaletteSet {
+  return scheme === "dark" ? PASTELS_DARK : PASTELS_LIGHT;
+}
 
 /** Stable index from any string id — same id always picks the same pastel.
  *  Tolerates a non-string/undefined id (malformed row) rather than throwing. */
@@ -372,11 +277,11 @@ export function getNotePastelIndex(id: string): number {
   const s = typeof id === "string" ? id : String(id ?? "");
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h % notePastels.bg.length;
+  return h % PASTELS_LIGHT.bg.length;
 }
 
 // ─── Category colours ─────────────────────────────────────────────────────────
-// Personal vs Uni — also fixed across themes so they're recognisable.
+// Fixed across themes so they're recognisable regardless of palette.
 
 export const categoryColors = {
   personal: "#88C0D0",
@@ -384,10 +289,12 @@ export const categoryColors = {
 } as const;
 
 // ─── List default colours ─────────────────────────────────────────────────────
-// Picker palette for user-created lists.
 
 export const listColors: readonly string[] = [
   "#4A90D9", "#9B59B6", "#27AE60", "#E67E22",
   "#E74C3C", "#E8C84A", "#E91E8C", "#1ABC9C",
 ];
 
+// ─── Legacy exports (kept so old imports don't break during migration) ─────────
+// TODO: remove notePastels after all consumers are updated to getNotePastels()
+export const notePastels = PASTELS_LIGHT;

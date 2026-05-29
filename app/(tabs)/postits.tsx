@@ -8,7 +8,7 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, GradientBackground, EmptyState } from "@/components/ui";
-import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
+import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 
@@ -20,7 +20,7 @@ function PostItEditModal({
   id: string; text: string; onClose: () => void; onDelete: () => void;
 }) {
   const { updateNote } = useNotes();
-  const { colors } = useTheme();
+  const { colors, notePastels } = useTheme();
   const [val, setVal] = useState(text);
   const inputRef = useRef<TextInput | null>(null);
   const idx = getNotePastelIndex(id);
@@ -108,6 +108,7 @@ function PostItEditModal({
 // ─── Post-it Card (display only) ──────────────────────────────────────────────
 
 function PostItCard({ id, text, onPress }: { id: string; text: string; onPress: () => void }) {
+  const { notePastels } = useTheme();
   const idx = getNotePastelIndex(id);
 
   return (
