@@ -9,6 +9,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing } from "@/lib/theme";
+import { cmpRecentDesc } from "@/lib/utils";
 import { useNotes } from "@/lib/NotesContext";
 import {
   NoteEditor, NoteIndexRow, NoteCard, animate,
@@ -70,14 +71,14 @@ function NotesScreen() {
   const sortedNotes = [...filteredNotes].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    return (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at);
+    return cmpRecentDesc(a, b);
   });
 
   // Desktop: auto-select newest note when created
   const prevNotesLen = useRef(0);
   useEffect(() => {
     if (isDesktop && allNotes.length > prevNotesLen.current && prevNotesLen.current > 0) {
-      const newest = [...allNotes].sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
+      const newest = [...allNotes].sort(cmpRecentDesc)[0];
       if (newest) setSelectedNote(newest.id);
     }
     prevNotesLen.current = allNotes.length;

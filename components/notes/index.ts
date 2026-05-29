@@ -6,4 +6,4 @@ export { BlockEditor } from "./BlockEditor";
 export { NoteIndexRow } from "./NoteIndexRow";
 export { NoteCard } from "./NoteCard";
 export { NotesSectionHeader } from "./NotesSectionHeader";
-export { timeAgo, animate } from "./utils";
+export { timeAgo, animate, notePreview } from "./utils";

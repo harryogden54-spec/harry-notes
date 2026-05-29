@@ -4,19 +4,16 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui";
 import { spacing, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
-import { stripMarkdown } from "@/lib/utils";
 import { useNotes } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
-import { timeAgo } from "./utils";
+import { timeAgo, notePreview } from "./utils";
 
 type Props = { note: Note; onOpen: () => void };
 
 export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
   const { pinNote } = useNotes();
   const idx = getNotePastelIndex(note.id);
-  const preview = note.blocks
-    ? note.blocks.map(b => b.content).filter(Boolean).join(" · ")
-    : stripMarkdown(note.body.trim());
+  const preview = notePreview(note, 240);
   return (
     <Pressable
       onPress={onOpen}

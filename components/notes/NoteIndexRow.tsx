@@ -4,18 +4,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
-import { stripMarkdown } from "@/lib/utils";
 import type { Note } from "@/lib/NotesContext";
-import { timeAgo } from "./utils";
+import { timeAgo, notePreview } from "./utils";
 
 type Props = { note: Note; isSelected: boolean; onSelect: () => void };
 
 export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect }: Props) {
   const { colors } = useTheme();
   const accentColor = notePastels.bg[getNotePastelIndex(note.id)];
-  const preview = note.blocks
-    ? note.blocks.map(b => b.content).filter(Boolean).join(" · ").slice(0, 120)
-    : stripMarkdown(note.body.trim()).slice(0, 120);
+  const preview = notePreview(note);
   return (
     <Pressable onPress={onSelect} style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: isSelected ? colors.bgTertiary : "transparent", borderLeftWidth: 2, borderLeftColor: isSelected ? accentColor : "transparent", gap: spacing[0.5] }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>

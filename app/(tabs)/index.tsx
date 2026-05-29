@@ -17,8 +17,9 @@ import { useToast } from "@/lib/ToastContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
+import { getTodayStr, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
+import { notePreview } from "@/components/notes/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ function DashboardScreen() {
   const { open: openPalette }  = useCommandPalette();
   const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
   const { showToast }          = useToast();
-  const { lists, loaded: listsLoaded } = useLists();
+  const { lists } = useLists();
   const { notes, loaded: notesLoaded } = useNotes();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
@@ -294,6 +295,7 @@ function DashboardScreen() {
           const pi = getNotePastelIndex(note.id);
           const bg = notePastels.bg[pi];
           const border = notePastels.border[pi];
+          const preview = notePreview(note, 80);
           return (
             <Pressable
               key={note.id}
@@ -314,16 +316,11 @@ function DashboardScreen() {
                 <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
                   {note.title || "Untitled"}
                 </Text>
-                {(note.blocks
-                    ? note.blocks.map(b => b.content).filter(Boolean)[0]
-                    : note.body.split("\n").find(l => l.trim())
-                  ) && (
+                {preview ? (
                   <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
-                    {note.blocks
-                      ? note.blocks.map(b => b.content).filter(Boolean).join(" · ").slice(0, 80)
-                      : stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
+                    {preview}
                   </Text>
-                )}
+                ) : null}
                 {mounted && (
                   <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
                     {(() => {
