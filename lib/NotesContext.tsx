@@ -5,10 +5,20 @@ import { syncDelete } from "./supabase";
 import { dbLoadNotes, dbSaveNotes } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 
+export type BlockType = "heading" | "text" | "bullet" | "checkbox";
+
+export type Block = {
+  id: string;
+  type: BlockType;
+  content: string;
+  checked?: boolean;
+};
+
 export type Note = {
   id: string;
   title: string;
   body: string;
+  blocks?: Block[];        // structured block content — takes priority over body when present
   pinned: boolean;
   type: "note" | "postit";
   created_at: string;
@@ -21,9 +31,11 @@ type NotesContextValue = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
   addNote: (type?: "note" | "postit") => string;
+  bulkAddNotes: (notes: Note[]) => void;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => void;
   deleteNote: (id: string) => () => void;
   pinNote: (id: string) => void;
+  toggleBlockCheck: (noteId: string, blockId: string) => void;
   syncNow: () => Promise<void>;
 };
 
@@ -90,7 +102,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const addNote = useCallback((type: "note" | "postit" = "note"): string => {
     const id  = newId();
     const now = new Date().toISOString();
-    const note: Note = { id, title: "", body: "", pinned: false, type, created_at: now, updated_at: now };
+    // Notes get an initial empty text block; post-its stay plain text.
+    const blocks: Block[] | undefined = type === "note"
+      ? [{ id: newId(), type: "text", content: "" }]
+      : undefined;
+    const note: Note = { id, title: "", body: "", blocks, pinned: false, type, created_at: now, updated_at: now };
     markDirty(id);
     setNotes(prev => [note, ...prev]);
     return id;
@@ -120,13 +136,34 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     };
   }, [notesRef, pendingDeletesRef, dirtyIdsRef, markDirty, setNotes]);
 
+  const bulkAddNotes = useCallback((newNotes: Note[]) => {
+    if (newNotes.length === 0) return;
+    for (const n of newNotes) markDirty(n.id);
+    setNotes(prev => {
+      const existingIds = new Set(prev.map(n => n.id));
+      const toAdd = newNotes.filter(n => !existingIds.has(n.id));
+      return [...toAdd, ...prev];
+    });
+  }, [markDirty, setNotes]);
+
+  const toggleBlockCheck = useCallback((noteId: string, blockId: string) => {
+    markDirty(noteId);
+    setNotes(prev => prev.map(n => {
+      if (n.id !== noteId || !n.blocks) return n;
+      return stamp({
+        ...n,
+        blocks: n.blocks.map(b => b.id === blockId ? { ...b, checked: !b.checked } : b),
+      });
+    }));
+  }, [markDirty, setNotes]);
+
   const pinNote = useCallback((id: string) => {
     markDirty(id);
     setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, pinned: !n.pinned }) : n));
   }, [markDirty, setNotes]);
 
   return (
-    <NotesContext.Provider value={{ notes, loaded, syncStatus, lastSynced, addNote, updateNote, deleteNote, pinNote, syncNow }}>
+    <NotesContext.Provider value={{ notes, loaded, syncStatus, lastSynced, addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck, syncNow }}>
       {children}
     </NotesContext.Provider>
   );

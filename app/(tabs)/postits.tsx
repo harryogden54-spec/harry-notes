@@ -1,35 +1,35 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, ScrollView, SafeAreaView, TextInput,
+  View, ScrollView, SafeAreaView, TextInput, Modal,
   Pressable, Platform, RefreshControl, useWindowDimensions,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { Text, GradientBackground } from "@/components/ui";
+import { Ionicons } from "@expo/vector-icons";
+import { Text, GradientBackground, EmptyState } from "@/components/ui";
 import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
 import { useNotes } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 
-// ─── Post-it Card ─────────────────────────────────────────────────────────────
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
 
-function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete: () => void }) {
+function PostItEditModal({
+  id, text, onClose, onDelete,
+}: {
+  id: string; text: string; onClose: () => void; onDelete: () => void;
+}) {
   const { updateNote } = useNotes();
-  const [editing, setEditing] = useState(false);
+  const { colors } = useTheme();
   const [val, setVal] = useState(text);
   const inputRef = useRef<TextInput | null>(null);
   const idx = getNotePastelIndex(id);
+  const bg = notePastels.bg[idx];
+  const border = notePastels.border[idx];
 
-  // Start editing immediately for brand-new empty cards
   useEffect(() => {
-    if (!text) {
-      setEditing(true);
-      setTimeout(() => inputRef.current?.focus(), 80);
-    }
+    setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
-
-  // Keep val in sync if text changes externally
-  useEffect(() => { setVal(text); }, [text]);
 
   function save() {
     const v = val.trim();
@@ -38,19 +38,87 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
     } else {
       updateNote(id, { title: v });
     }
-    setEditing(false);
+    onClose();
   }
 
   return (
+    <Modal visible transparent animationType="fade" onRequestClose={save}>
+      <Pressable
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: spacing[6] }}
+        onPress={save}
+      >
+        <Pressable
+          onPress={() => {}}
+          style={{
+            width: 320, maxWidth: "90%" as any,
+            backgroundColor: bg,
+            borderRadius: radius["2xl"],
+            borderWidth: 1, borderColor: border,
+            borderTopColor: "rgba(255,255,255,0.55)",
+            padding: spacing[5],
+            shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.25, shadowRadius: 16, elevation: 8,
+          }}
+        >
+          <TextInput
+            ref={inputRef}
+            value={val}
+            onChangeText={setVal}
+            onSubmitEditing={save}
+            placeholder="Write something…"
+            placeholderTextColor={`${notePastels.text}55`}
+            maxLength={200}
+            multiline
+            returnKeyType="done"
+            blurOnSubmit
+            style={[
+              {
+                color: notePastels.text, fontSize: 15,
+                fontFamily: fontFamily.medium, lineHeight: 22,
+                minHeight: 100, textAlignVertical: "top",
+              },
+              { outlineStyle: "none" } as any,
+            ]}
+          />
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing[4] }}>
+            <Pressable
+              onPress={() => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); onClose(); }}
+              hitSlop={12}
+              style={{ padding: spacing[1] }}
+            >
+              <Ionicons name="trash-outline" size={18} color={`${notePastels.text}99`} />
+            </Pressable>
+            <Pressable
+              onPress={save}
+              style={{
+                paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+                borderRadius: radius.lg,
+                backgroundColor: "rgba(0,0,0,0.12)",
+              }}
+            >
+              <Text size="sm" weight="semibold" style={{ color: notePastels.text }}>Done</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Post-it Card (display only) ──────────────────────────────────────────────
+
+function PostItCard({ id, text, onPress }: { id: string; text: string; onPress: () => void }) {
+  const idx = getNotePastelIndex(id);
+
+  return (
     <Pressable
-      onPress={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 50); }}
-      onLongPress={() => { if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onDelete(); }}
+      onPress={onPress}
       style={{
         backgroundColor: notePastels.bg[idx],
         borderRadius: radius["2xl"],
         borderWidth: 1,
         borderColor: notePastels.border[idx],
-        borderTopColor: `rgba(255,255,255,0.55)`,
+        borderTopColor: "rgba(255,255,255,0.55)",
         padding: spacing[4],
         minHeight: 96,
         justifyContent: "center",
@@ -61,32 +129,17 @@ function PostItCard({ id, text, onDelete }: { id: string; text: string; onDelete
         elevation: 3,
       }}
     >
-      {editing ? (
-        <TextInput
-          ref={inputRef}
-          value={val}
-          onChangeText={setVal}
-          onBlur={save}
-          onSubmitEditing={save}
-          placeholder="Write something…"
-          placeholderTextColor={`${notePastels.text}55`}
-          maxLength={100}
-          multiline={false}
-          returnKeyType="done"
-          style={[
-            { color: notePastels.text, fontSize: 13, fontFamily: fontFamily.medium, lineHeight: 18 },
-            { outlineStyle: "none" } as any,
-          ]}
-        />
-      ) : (
-        <Text
-          size="xs"
-          numberOfLines={3}
-          style={{ color: val ? notePastels.text : `${notePastels.text}55`, fontFamily: fontFamily.medium, lineHeight: 18 }}
-        >
-          {val || "Write something…"}
-        </Text>
-      )}
+      <Text
+        size="xs"
+        numberOfLines={4}
+        style={{
+          color: text ? notePastels.text : `${notePastels.text}55`,
+          fontFamily: fontFamily.medium,
+          lineHeight: 18,
+        }}
+      >
+        {text || "Write something…"}
+      </Text>
     </Pressable>
   );
 }
@@ -99,7 +152,9 @@ function PostItsScreen() {
   const { notes, addNote, deleteNote, loaded, syncNow } = useNotes();
   const { showToast } = useToast();
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await syncNow().catch(() => {});
@@ -109,8 +164,9 @@ function PostItsScreen() {
   const postits = notes.filter(n => n.type === "postit");
 
   function handleAdd() {
-    addNote("postit");
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const id = addNote("postit");
+    setEditingId(id);
   }
 
   function handleDelete(id: string) {
@@ -118,9 +174,11 @@ function PostItsScreen() {
     showToast("Post-it deleted", { label: "Undo", onPress: undo });
   }
 
-  // Determine number of columns from screen width
   const numCols = width >= 1200 ? 5 : width >= 900 ? 4 : width >= 600 ? 3 : 2;
-  const colWidth = `${Math.floor(100 / numCols)}%` as any;
+  const gapTotal = spacing[3] * (numCols - 1);
+  const colWidth = `${Math.floor((100 - (gapTotal / (width || 375)) * 100) / numCols)}%` as any;
+
+  const editingNote = editingId ? notes.find(n => n.id === editingId) : null;
 
   if (!loaded) {
     return (
@@ -162,11 +220,7 @@ function PostItsScreen() {
           </View>
 
           {postits.length === 0 ? (
-            <View style={{ alignItems: "center", paddingTop: spacing[12], gap: spacing[3] }}>
-              <Text style={{ fontSize: 40 }}>🗒️</Text>
-              <Text size="sm" secondary>Tap + to add a post-it</Text>
-              <Text size="xs" tertiary>Long-press a card to delete it</Text>
-            </View>
+            <EmptyState type="sticky" title="No post-its yet" subtitle="Tap + to capture a quick thought." />
           ) : (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[3] }}>
               {postits.map(n => (
@@ -174,13 +228,22 @@ function PostItsScreen() {
                   <PostItCard
                     id={n.id}
                     text={n.title}
-                    onDelete={() => handleDelete(n.id)}
+                    onPress={() => setEditingId(n.id)}
                   />
                 </View>
               ))}
             </View>
           )}
         </ScrollView>
+
+        {editingId && editingNote !== undefined && (
+          <PostItEditModal
+            id={editingId}
+            text={editingNote?.title ?? ""}
+            onClose={() => setEditingId(null)}
+            onDelete={() => handleDelete(editingId)}
+          />
+        )}
       </SafeAreaView>
     </GradientBackground>
   );
@@ -189,4 +252,3 @@ function PostItsScreen() {
 export default function PostItsScreenBounded() {
   return <ErrorBoundary><PostItsScreen /></ErrorBoundary>;
 }
-

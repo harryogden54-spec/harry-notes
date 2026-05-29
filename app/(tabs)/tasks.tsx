@@ -6,6 +6,7 @@ import {
   type ScrollView as RNScrollView, useWindowDimensions,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/lib/useTheme";
@@ -224,7 +225,7 @@ function TasksScreen() {
     if (syncStatus === "syncing") {
       setPillText("Syncing…");
     } else if (syncStatus === "synced") {
-      setPillText("Synced ✓");
+      setPillText("Synced");
       const t = setTimeout(() => setPillText(null), 2000);
       return () => clearTimeout(t);
     } else {
@@ -289,7 +290,7 @@ function TasksScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <Text size="2xl" weight="bold">Tasks</Text>
                   <View style={{ flexDirection: "row", gap: spacing[2] }}>
-                    {([ ["focus", focusMode, () => setFocusMode(v => !v), focusMode ? "⚡ Focus" : "Focus"],
+                    {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
                         ["select", selectMode, () => { setSelectMode(v => !v); setSelectedIds(new Set()); }, selectMode ? "Cancel" : "Select"],
                     ] as [string, boolean, () => void, string][]).map(([key, active, onPress, label]) => (
                       <Pressable key={key} onPress={onPress} style={{
@@ -375,7 +376,7 @@ function TasksScreen() {
               ) : !grouped ? (
                 <>
                   <Section label="All tasks" tasks={applySort(visible.filter(t => !t.done), sortBy)} {...sectionProps} />
-                  {done.length > 0 && <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" />}
+                  {done.length > 0 && <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" defaultCollapsed={true} />}
                 </>
               ) : (
                 <>
@@ -383,7 +384,7 @@ function TasksScreen() {
                   {todayTasks.length > 0 && <Section label="Today"      tasks={todayTasks} {...sectionProps} />}
                   <Section label="Scheduled" tasks={scheduled} {...sectionProps} />
                   <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
-                  {done.length > 0       && <Section label="Completed"  tasks={done}       {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" />}
+                  {done.length > 0       && <Section label="Completed"  tasks={done}       {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" defaultCollapsed={true} />}
                 </>
               )}
 
@@ -410,7 +411,7 @@ function TasksScreen() {
                           <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
                         </Pressable>
                         <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
-                          <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+                          <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
                         </Pressable>
                       </View>
                     ))}

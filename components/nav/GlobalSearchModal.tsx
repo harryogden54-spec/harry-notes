@@ -78,7 +78,7 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <Text style={{ fontSize: 12, color: colors.textTertiary }}>✕</Text>
+              <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
             </Pressable>
           )}
           <View style={{ backgroundColor: colors.bgTertiary, borderRadius: radius.sm, paddingHorizontal: spacing[1.5], paddingVertical: 2, borderWidth: 1, borderColor: colors.bgBorder }}>

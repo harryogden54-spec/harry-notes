@@ -6,10 +6,13 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+// True only when real credentials are present — guards all sync helpers below.
+export const SYNC_ENABLED = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+if (!SYNC_ENABLED) {
   console.warn(
     "[supabase] EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are not set. " +
-    "Sync will be disabled. Copy .env.example to .env and fill in your project credentials."
+    "Running in offline mode. Copy .env.example to .env and fill in your project credentials."
   );
 }
 
@@ -28,6 +31,7 @@ export type FetchResult<T> =
 export async function syncFetch<T extends { id: string }>(
   table: string
 ): Promise<FetchResult<T>> {
+  if (!SYNC_ENABLED) return { ok: true, rows: [] };
   try {
     const { data, error } = await supabase
       .from(table)
@@ -48,6 +52,7 @@ export async function syncUpsert<T extends { id: string }>(
   table: string,
   items: T[]
 ): Promise<boolean> {
+  if (!SYNC_ENABLED) return true;
   if (items.length === 0) return true;
   // CLOCK-SKEW TODO: we currently stamp updated_at from the client clock.
   // If two devices have skewed clocks, LWW can silently drop edits.
@@ -66,6 +71,7 @@ export async function syncUpsert<T extends { id: string }>(
 }
 
 export async function syncDelete(table: string, id: string): Promise<boolean> {
+  if (!SYNC_ENABLED) return true;
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) { console.warn(`syncDelete ${table}:`, error.message); return false; }
   return true;

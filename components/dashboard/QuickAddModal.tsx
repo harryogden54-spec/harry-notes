@@ -86,7 +86,7 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
         <Text size="base" weight="semibold" style={{ flex: 1 }}>New task</Text>
         <Pressable onPress={onClose} hitSlop={12}
           style={{ width: 24, height: 24, borderRadius: 99, backgroundColor: colors.bgTertiary, alignItems: "center", justifyContent: "center" }}>
-          <Text size="sm" style={{ color: colors.textTertiary }}>✕</Text>
+          <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
         </Pressable>
       </View>
 
@@ -112,7 +112,7 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
           backgroundColor: `${colors.accent}14`, borderRadius: radius.lg,
           borderWidth: 1, borderColor: `${colors.accent}30`, alignSelf: "flex-start",
         }}>
-          <Text size="xs" style={{ color: colors.accent }}>📅</Text>
+          <Ionicons name="calendar-outline" size={12} color={colors.accent} />
           <Text size="xs" weight="medium" style={{ color: colors.accent }}>
             {new Date(nlpDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
           </Text>
@@ -140,7 +140,7 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
       </View>
 
       <Pressable onPress={() => setShowMore(v => !v)} style={{ flexDirection: "row", alignItems: "center", gap: spacing[1] }}>
-        <Text size="xs" style={{ color: colors.textTertiary }}>{showMore ? "▴" : "▾"}</Text>
+        <Ionicons name={showMore ? "chevron-up" : "chevron-down"} size={12} color={colors.textTertiary} />
         <Text size="xs" style={{ color: colors.textTertiary }}>More options</Text>
         {category && <Text size="xs" style={{ color: colors.accent }}> · {category}</Text>}
       </Pressable>

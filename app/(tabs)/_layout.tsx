@@ -58,11 +58,6 @@ export default function TabLayout() {
       const tag = (e.target as HTMLElement)?.tagName;
       const isInput = tag === "INPUT" || tag === "TEXTAREA";
 
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setShowQuickAdd(v => !v);
-        return;
-      }
       if (e.key === "Escape") {
         setShowQuickAdd(false);
         setShowShortcuts(false);
@@ -140,9 +135,8 @@ export default function TabLayout() {
         <Pressable
           onPress={() => {
             if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (pathname?.includes("/postits")) addNote("postit");
-            else if (pathname?.includes("/notes")) router.push("/(tabs)/notes?create=list" as any);
-            else router.push("/(tabs)/notes?create=note" as any);
+            addNote("postit");
+            if (!pathname?.includes("/postits")) router.push("/(tabs)/postits" as any);
           }}
           style={{
             width: 44, height: 44, borderRadius: 99,
@@ -151,11 +145,7 @@ export default function TabLayout() {
             shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 4,
           }}
         >
-          <Ionicons
-            name={pathname?.includes("/postits") ? "layers-outline" : pathname?.includes("/notes") ? "list-outline" : "document-text-outline"}
-            size={19}
-            color={colors.textSecondary}
-          />
+          <Ionicons name="layers-outline" size={19} color={colors.textSecondary} />
         </Pressable>
         <Pressable
           onPress={() => {

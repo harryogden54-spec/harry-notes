@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { View, TextInput, Pressable, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -31,7 +32,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
       height: 40,
       marginBottom: spacing[3],
     }}>
-      <Text style={{ color: colors.textTertiary, fontSize: 14 }}>⌕</Text>
+      <Ionicons name="search-outline" size={16} color={colors.textTertiary} />
       <TextInput
         ref={ref}
         value={value}
@@ -47,7 +48,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
       />
       {value.length > 0 ? (
         <Pressable onPress={() => onChange("")} hitSlop={8}>
-          <Text style={{ color: colors.textTertiary, fontSize: 13 }}>✕</Text>
+          <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
         </Pressable>
       ) : shortcutKey && Platform.OS === "web" ? (
         <View style={{
