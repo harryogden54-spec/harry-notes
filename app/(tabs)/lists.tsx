@@ -21,6 +21,7 @@ const ScaleDecorator = Platform.OS !== "web"
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { cmpRecentDesc } from "@/lib/utils";
 import { useLists, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
 import { SearchBar } from "@/components/ui/SearchBar";
@@ -690,7 +691,7 @@ function ListsScreen() {
   const prevListsLength = useRef(0);
   useEffect(() => {
     if (isDesktop && lists.length > prevListsLength.current && prevListsLength.current > 0) {
-      const sorted = [...lists].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      const sorted = [...lists].sort(cmpRecentDesc);
       if (sorted[0]) setSelectedId(sorted[0].id);
     }
     prevListsLength.current = lists.length;

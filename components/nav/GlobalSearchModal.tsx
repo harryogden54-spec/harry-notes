@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
-import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { SearchResults } from "@/components/dashboard/SearchResults";
 
@@ -13,7 +12,6 @@ type Props = { visible: boolean; onClose: () => void };
 export function GlobalSearchModal({ visible, onClose }: Props) {
   const { colors } = useTheme();
   const { tasks } = useTasks();
-  const { lists } = useLists();
   const { notes } = useNotes();
   const [query, setQuery] = useState("");
   const inputRef = useRef<TextInput | null>(null);
@@ -78,7 +76,7 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <Text style={{ fontSize: 12, color: colors.textTertiary }}>✕</Text>
+              <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
             </Pressable>
           )}
           <View style={{ backgroundColor: colors.bgTertiary, borderRadius: radius.sm, paddingHorizontal: spacing[1.5], paddingVertical: 2, borderWidth: 1, borderColor: colors.bgBorder }}>
@@ -93,7 +91,6 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
           >
             <SearchResults
               tasks={tasks.filter(t => !t.done && !t.archived)}
-              lists={lists}
               notes={notes}
               query={query.trim()}
               onTaskPress={() => onClose()}

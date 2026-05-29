@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getSyncKey } from "./syncKey";
 
 // Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
 // Fail loudly if missing so a misconfigured build surfaces immediately rather
@@ -6,10 +7,13 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+// True only when real credentials are present — guards all sync helpers below.
+export const SYNC_ENABLED = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+if (!SYNC_ENABLED) {
   console.warn(
     "[supabase] EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are not set. " +
-    "Sync will be disabled. Copy .env.example to .env and fill in your project credentials."
+    "Running in offline mode. Copy .env.example to .env and fill in your project credentials."
   );
 }
 
@@ -28,10 +32,17 @@ export type FetchResult<T> =
 export async function syncFetch<T extends { id: string }>(
   table: string
 ): Promise<FetchResult<T>> {
+  if (!SYNC_ENABLED) return { ok: true, rows: [] };
+
+  // No sync key = device hasn't been set up for sync yet → offline mode.
+  const syncKey = await getSyncKey();
+  if (!syncKey) return { ok: true, rows: [] };
+
   try {
     const { data, error } = await supabase
       .from(table)
-      .select("id, data, updated_at");
+      .select("id, data, updated_at")
+      .eq("sync_key", syncKey);
     if (error) {
       console.warn(`syncFetch ${table}:`, error.message);
       return { ok: false, error: error.message };
@@ -48,17 +59,21 @@ export async function syncUpsert<T extends { id: string }>(
   table: string,
   items: T[]
 ): Promise<boolean> {
+  if (!SYNC_ENABLED) return true;
   if (items.length === 0) return true;
-  // CLOCK-SKEW TODO: we currently stamp updated_at from the client clock.
-  // If two devices have skewed clocks, LWW can silently drop edits.
-  // Fix: remove updated_at from rows below and add a Postgres trigger on each
-  // table that sets updated_at = now() on INSERT/UPDATE. Then syncFetch's
-  // _updated_at will always be a server timestamp and ordering will be correct.
-  // Requires a Supabase migration before the client change lands.
+
+  // No sync key → offline mode.
+  const syncKey = await getSyncKey();
+  if (!syncKey) return true;
+
+  // Note: updated_at is intentionally NOT set here. A Postgres trigger on each
+  // table sets updated_at = now() server-side on INSERT/UPDATE, so all devices
+  // compare against a common server clock rather than skewed client clocks.
+  // See migrations/001_sync_key_and_server_timestamps.sql
   const rows = items.map(item => ({
     id: item.id,
     data: item,
-    updated_at: new Date().toISOString(),
+    sync_key: syncKey,
   }));
   const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
   if (error) { console.warn(`syncUpsert ${table}:`, error.message); return false; }
@@ -66,7 +81,16 @@ export async function syncUpsert<T extends { id: string }>(
 }
 
 export async function syncDelete(table: string, id: string): Promise<boolean> {
-  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (!SYNC_ENABLED) return true;
+
+  const syncKey = await getSyncKey();
+  if (!syncKey) return true;
+
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq("id", id)
+    .eq("sync_key", syncKey);
   if (error) { console.warn(`syncDelete ${table}:`, error.message); return false; }
   return true;
 }

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
-  Platform, Alert, Switch, Modal,
+  Platform, Alert, Switch, Modal, TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +16,7 @@ import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { getLocalDateStr } from "@/lib/utils";
+import { getSyncKey, setSyncKey, generateSyncKey } from "@/lib/syncKey";
 
 // ─── Shared row primitives ────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function RowGroup({ children }: { children: React.ReactNode }) {
 function Row({
   icon, label, subtitle, right, onPress, chevron = false, danger = false, isLast = false,
 }: {
-  icon?: string;
+  icon?: React.ComponentProps<typeof Ionicons>["name"];
   label: string;
   subtitle?: string;
   right?: React.ReactNode;
@@ -75,7 +76,7 @@ function Row({
           backgroundColor: `${colors.accent}18`,
           alignItems: "center", justifyContent: "center",
         }}>
-          <Text style={{ fontSize: 15 }}>{icon}</Text>
+          <Ionicons name={icon} size={16} color={colors.accent} />
         </View>
       )}
       <View style={{ flex: 1, gap: 2 }}>
@@ -138,13 +139,50 @@ export default function SettingsScreen() {
   const { colors }     = useTheme();
   const { scheme, toggle, themeId } = useThemeContext();
   const { syncStatus: taskSync, syncNow: syncTasks, tasks, clearCompleted, lastSynced: taskLastSynced } = useTasks();
-  const { syncStatus: listSync, syncNow: syncLists, lists, lastSynced: listLastSynced } = useLists();
+  const { syncStatus: listSync, lastSynced: listLastSynced } = useLists();
   const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
   const { showToast } = useToast();
   const router = useRouter();
   const { unarchiveTask, deleteTask } = useTasks();
   const [clearing, setClearing]   = useState(false);
   const [showTrash, setShowTrash] = useState(false);
+
+  // ── Sync key state ────────────────────────────────────────────────────────
+  const [currentKey, setCurrentKey] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState(false);
+  const [keyInput, setKeyInput]     = useState("");
+  const [keyVisible, setKeyVisible] = useState(false);
+
+  useEffect(() => {
+    getSyncKey().then(k => setCurrentKey(k));
+  }, []);
+
+  async function handleSaveKey() {
+    const trimmed = keyInput.trim().toUpperCase();
+    await setSyncKey(trimmed);
+    setCurrentKey(trimmed || null);
+    setEditingKey(false);
+    setKeyInput("");
+    showToast(trimmed ? "Sync key saved — enter the same key on your other devices" : "Sync key cleared");
+  }
+
+  async function handleGenerateKey() {
+    const key = generateSyncKey();
+    setKeyInput(key);
+    await setSyncKey(key);
+    setCurrentKey(key);
+    setEditingKey(false);
+    showToast("New sync key generated — enter this key on your other devices");
+  }
+
+  function handleCopyKey() {
+    if (!currentKey) return;
+    if (Platform.OS === "web" && typeof navigator !== "undefined") {
+      navigator.clipboard?.writeText(currentKey).then(() => showToast("Sync key copied"));
+    } else {
+      showToast("Copy the key shown above");
+    }
+  }
 
   const overallSync = taskSync === "error" || listSync === "error" || noteSync === "error" ? "error"
     : taskSync === "syncing" || listSync === "syncing" || noteSync === "syncing" ? "syncing"
@@ -160,7 +198,7 @@ export default function SettingsScreen() {
   const currentTheme   = THEMES[themeId];
 
   async function handleSyncNow() {
-    await Promise.all([syncTasks(), syncLists(), syncNotes()]);
+    await Promise.all([syncTasks(), syncNotes()]);
     showToast("Synced successfully");
   }
 
@@ -196,7 +234,7 @@ export default function SettingsScreen() {
 
   function handleExportJSON() {
     if (Platform.OS !== "web") { showToast("Export is only available on web"); return; }
-    const data = { exportedAt: new Date().toISOString(), tasks, lists, notes };
+    const data = { exportedAt: new Date().toISOString(), tasks, notes };
     downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), `harry-notes-${getLocalDateStr()}.json`);
     showToast("JSON export downloaded");
   }
@@ -214,16 +252,18 @@ export default function SettingsScreen() {
     });
     md += `\n## Notes\n\n`;
     notes.filter(n => n.type === "note" || !n.type).forEach(n => {
-      md += `### ${n.title || "Untitled"}\n\n${n.body}\n\n---\n\n`;
-    });
-    md += `## Lists\n\n`;
-    lists.forEach(l => {
-      md += `### ${l.name}\n\n`;
-      (l.items ?? []).forEach(i => {
-        if (i.type === "checkbox") md += `- [${i.done ? "x" : " "}] ${i.content}\n`;
-        else md += `${i.content}\n`;
-      });
-      md += "\n";
+      md += `### ${n.title || "Untitled"}\n\n`;
+      if (n.blocks && n.blocks.length > 0) {
+        n.blocks.forEach(b => {
+          if (b.type === "heading")  md += `## ${b.content}\n`;
+          else if (b.type === "bullet") md += `- ${b.content}\n`;
+          else if (b.type === "checkbox") md += `- [${b.checked ? "x" : " "}] ${b.content}\n`;
+          else md += `${b.content}\n`;
+        });
+      } else {
+        md += `${n.body}`;
+      }
+      md += `\n\n---\n\n`;
     });
     downloadBlob(new Blob([md], { type: "text/markdown" }), `harry-notes-${date}.md`);
     showToast("Markdown export downloaded");
@@ -250,14 +290,14 @@ export default function SettingsScreen() {
           <SectionLabel>Appearance</SectionLabel>
           <RowGroup>
             <Row
-              icon="🎨"
+              icon="color-palette-outline"
               label="Theme & Colours"
               subtitle={`${currentTheme.label} · ${scheme === "dark" ? "Dark" : "Light"}`}
               onPress={() => router.push("/settings/appearance" as any)}
               chevron
             />
             <Row
-              icon={scheme === "dark" ? "🌙" : "☀️"}
+              icon={scheme === "dark" ? "moon-outline" : "sunny-outline"}
               label="Dark mode"
               isLast
               right={
@@ -271,13 +311,113 @@ export default function SettingsScreen() {
             />
           </RowGroup>
 
+          {/* ── Sync key ─────────────────────────────────────────────────── */}
+          <SectionLabel>Sync Key</SectionLabel>
+          <RowGroup>
+            <Row
+              icon="key-outline"
+              label="Sync key"
+              subtitle={
+                currentKey
+                  ? (keyVisible ? currentKey : `${currentKey.slice(0, 4)}-••••-••••`)
+                  : "Not set — this device is offline-only"
+              }
+              right={
+                currentKey ? (
+                  <Pressable onPress={() => setKeyVisible(v => !v)} hitSlop={8}>
+                    <Ionicons name={keyVisible ? "eye-off-outline" : "eye-outline"} size={16} color={colors.textTertiary} />
+                  </Pressable>
+                ) : undefined
+              }
+            />
+            {currentKey && (
+              <Row
+                icon="copy-outline"
+                label="Copy key"
+                subtitle="Paste this on your other devices"
+                onPress={handleCopyKey}
+                chevron={Platform.OS === "web"}
+              />
+            )}
+            <Row
+              icon="create-outline"
+              label={currentKey ? "Change key" : "Set sync key"}
+              subtitle="Enter the same key on every device you own"
+              onPress={() => { setKeyInput(currentKey ?? ""); setEditingKey(true); }}
+              chevron
+            />
+            <Row
+              icon="shuffle-outline"
+              label="Generate new key"
+              subtitle="Creates a random key and sets it here"
+              onPress={handleGenerateKey}
+              isLast
+            />
+          </RowGroup>
+
+          {/* Inline key editor */}
+          {editingKey && (
+            <View style={{
+              backgroundColor: colors.bgSecondary,
+              borderRadius: radius.xl,
+              borderWidth: 1, borderColor: colors.accent,
+              padding: spacing[4],
+              marginTop: -spacing[4],
+              marginBottom: spacing[5],
+              gap: spacing[3],
+            }}>
+              <Text size="xs" style={{ color: colors.textTertiary }}>
+                Enter your sync key — use the same key on every device. Leave blank to disable sync.
+              </Text>
+              <TextInput
+                value={keyInput}
+                onChangeText={t => setKeyInput(t.toUpperCase())}
+                placeholder="e.g. ABCD-EFGH-IJKL"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                style={{
+                  backgroundColor: colors.bgTertiary,
+                  borderRadius: radius.md,
+                  borderWidth: 1,
+                  borderColor: colors.bgBorder,
+                  paddingHorizontal: spacing[3],
+                  paddingVertical: spacing[2.5],
+                  color: colors.textPrimary,
+                  fontFamily: fontFamily.medium,
+                  fontSize: 15,
+                  letterSpacing: 1,
+                }}
+              />
+              <View style={{ flexDirection: "row", gap: spacing[2] }}>
+                <Pressable
+                  onPress={() => { setEditingKey(false); setKeyInput(""); }}
+                  style={{
+                    flex: 1, paddingVertical: spacing[2.5], borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.bgBorder, alignItems: "center",
+                  }}
+                >
+                  <Text size="sm" style={{ color: colors.textSecondary }}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveKey}
+                  style={{
+                    flex: 2, paddingVertical: spacing[2.5], borderRadius: radius.md,
+                    backgroundColor: colors.accent, alignItems: "center",
+                  }}
+                >
+                  <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Save key</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {/* ── Sync ─────────────────────────────────────────────────────── */}
           <SectionLabel>Sync — Supabase</SectionLabel>
           <RowGroup>
             <Row label="Status"      right={<SyncDot status={overallSync} />} />
             <Row label="Last synced" right={<Text size="xs" style={{ color: colors.textSecondary }}>{formatRelativeTime(lastSynced)}</Text>} />
             <Row label="Tasks"       right={<SyncDot status={taskSync} />} />
-            <Row label="Lists"       right={<SyncDot status={listSync} />} />
             <Row label="Notes"       right={<SyncDot status={noteSync} />} />
             <Row
               label="Project"
@@ -303,11 +443,10 @@ export default function SettingsScreen() {
           <SectionLabel>Data</SectionLabel>
           <RowGroup>
             <Row label="Tasks" right={<Text size="sm" style={{ color: colors.textSecondary }}>{tasks.filter(t => !t.archived).length} active · {completedCount} done</Text>} />
-            <Row label="Lists" right={<Text size="sm" style={{ color: colors.textSecondary }}>{lists.length} total</Text>} />
             <Row label="Notes" right={<Text size="sm" style={{ color: colors.textSecondary }}>{notes.length} total</Text>} />
-            <Row icon="📦" label="Trash / Archive" subtitle={archivedTasks.length > 0 ? `${archivedTasks.length} archived task${archivedTasks.length !== 1 ? "s" : ""}` : "Empty"} onPress={() => setShowTrash(true)} chevron />
-            <Row icon="📄" label="Export as JSON"     subtitle="Download all data as JSON"     onPress={handleExportJSON}     chevron />
-            <Row icon="📝" label="Export as Markdown" subtitle="Download notes + tasks as .md" onPress={handleExportMarkdown} chevron />
+            <Row icon="archive-outline" label="Trash / Archive" subtitle={archivedTasks.length > 0 ? `${archivedTasks.length} archived task${archivedTasks.length !== 1 ? "s" : ""}` : "Empty"} onPress={() => setShowTrash(true)} chevron />
+            <Row icon="document-outline"      label="Export as JSON"     subtitle="Download all data as JSON"     onPress={handleExportJSON}     chevron />
+            <Row icon="document-text-outline" label="Export as Markdown" subtitle="Download notes + tasks as .md" onPress={handleExportMarkdown} chevron />
             <Row
               label="Archive completed tasks"
               subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be archived` : "No completed tasks"}
@@ -330,7 +469,7 @@ export default function SettingsScreen() {
                 <ScrollView contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[8] }}>
                   {archivedTasks.length === 0 ? (
                     <View style={{ alignItems: "center", paddingVertical: spacing[12] }}>
-                      <Text size="2xl" style={{ marginBottom: spacing[2] }}>🗑</Text>
+                      <Ionicons name="trash-outline" size={36} color={colors.textTertiary} style={{ marginBottom: spacing[2] }} />
                       <Text size="sm" secondary>No archived tasks</Text>
                     </View>
                   ) : (

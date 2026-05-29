@@ -10,17 +10,16 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
-import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
+import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow, SyncStatusBadge } from "@/components/ui";
+import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
-import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, stripMarkdown, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
+import { getTodayStr, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
+import { notePreview } from "@/components/notes/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
-import { YearInPixels }       from "@/components/dashboard/YearInPixels";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,57 +79,14 @@ function TodayPanel() {
   );
 }
 
-// ─── Lists shelf row item ─────────────────────────────────────────────────────
-
-function ListShelfCard({ list, onPress }: { list: any; onPress: () => void }) {
-  const { colors } = useTheme();
-  const items = list.items ?? [];
-  const listColor  = list.color ?? colors.accent;
-
-  return (
-    <Pressable onPress={onPress} style={{ width: 220, marginRight: spacing[3] }}>
-      <Surface style={{ padding: spacing[3], gap: spacing[2] }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
-          <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: listColor }} />
-          <Text size="sm" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>{list.name}</Text>
-          <Text size="xs" style={{ color: colors.textTertiary }}>
-            {items.length}
-          </Text>
-        </View>
-      </Surface>
-    </Pressable>
-  );
-}
-
-// ─── History section (Year-in-Pixels) ────────────────────────────────────────
-
-function HistorySection() {
-  const { colors } = useTheme();
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <View style={{ marginBottom: spacing[6] }}>
-      <Pressable
-        onPress={() => setExpanded(v => !v)}
-        style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: expanded ? spacing[3] : 0 }}
-      >
-        <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textTertiary, fontFamily: fontFamily.semibold, textTransform: "uppercase" }}>
-          Year in Pixels
-        </Text>
-        <Text style={{ fontSize: 11, color: colors.textTertiary }}>{expanded ? "▲" : "▼"}</Text>
-      </Pressable>
-      {expanded && <YearInPixels />}
-    </View>
-  );
-}
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { colors }             = useTheme();
+  const { colors, notePastels } = useTheme();
   const { open: openPalette }  = useCommandPalette();
   const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
   const { showToast }          = useToast();
-  const { lists, loaded: listsLoaded } = useLists();
   const { notes, loaded: notesLoaded } = useNotes();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
@@ -169,16 +125,13 @@ function DashboardScreen() {
   const overdueCount = overdueTasks.length;
 
   const { sortedNotes, sortedPostIts } = useMemo(() => {
-    const allSorted = [...notes].sort((a, b) =>
-      (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at)
-    );
+    const allSorted = [...notes].sort(cmpRecentDesc);
     return {
       sortedNotes:   allSorted.filter(n => n.type !== "postit"),
       sortedPostIts: allSorted.filter(n => n.type === "postit"),
     };
   }, [notes]);
 
-  const handleGoToLists   = useCallback(() => router.push("/(tabs)/lists"), [router]);
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
   const handleGoToNotes   = useCallback(() => router.push("/(tabs)/notes"), [router]);
   const handleGoToPostIts = useCallback(() => router.push("/(tabs)/postits"), [router]);
@@ -207,25 +160,10 @@ function DashboardScreen() {
         </Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
-        {Platform.OS === "web" ? (
-          <Pressable
-            onPress={openPalette}
-            hitSlop={8}
-            style={{
-              flexDirection: "row", alignItems: "center", gap: spacing[1],
-              paddingHorizontal: spacing[2], paddingVertical: spacing[1],
-              borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
-              backgroundColor: colors.bgTertiary,
-            }}
-          >
-            <Ionicons name="search-outline" size={12} color={colors.textTertiary} />
-            <Text style={{ fontSize: 11, color: colors.textTertiary, fontFamily: fontFamily.medium }}>⌘K</Text>
-          </Pressable>
-        ) : (
-          <Pressable onPress={openPalette} hitSlop={12} style={{ padding: spacing[1] }}>
-            <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
-          </Pressable>
-        )}
+        <SyncStatusBadge />
+        <Pressable onPress={openPalette} hitSlop={12} style={{ padding: spacing[1] }}>
+          <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
+        </Pressable>
         <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1] }}>
           <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
         </Pressable>
@@ -356,6 +294,7 @@ function DashboardScreen() {
           const pi = getNotePastelIndex(note.id);
           const bg = notePastels.bg[pi];
           const border = notePastels.border[pi];
+          const preview = notePreview(note, 80);
           return (
             <Pressable
               key={note.id}
@@ -376,11 +315,11 @@ function DashboardScreen() {
                 <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
                   {note.title || "Untitled"}
                 </Text>
-                {note.body.trim() && (
+                {preview ? (
                   <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
-                    {stripMarkdown(note.body.split("\n").find(l => l.trim()) ?? "")}
+                    {preview}
                   </Text>
-                )}
+                ) : null}
                 {mounted && (
                   <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
                     {(() => {
@@ -455,31 +394,6 @@ function DashboardScreen() {
     </View>
   ) : null;
 
-  // ─── Lists shelf ──────────────────────────────────────────────────────────────
-
-  const listsShelf = listsLoaded && lists.length > 0 ? (
-    <View style={{ marginBottom: spacing[5] }}>
-      <SectionHeader label="Lists" count={lists.length} action={{ label: "See all", onPress: handleGoToLists }} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: spacing[3] }}
-      >
-        {lists.map(l => (
-          <ListShelfCard key={l.id} list={l} onPress={handleGoToLists} />
-        ))}
-      </ScrollView>
-    </View>
-  ) : !listsLoaded ? (
-    <View style={{ marginBottom: spacing[5] }}>
-      <SectionHeader label="Lists" />
-      <View style={{ flexDirection: "row", gap: spacing[2] }}>
-        <Skeleton width={220} height={62} borderRadius={12} />
-        <Skeleton width={220} height={62} borderRadius={12} />
-      </View>
-    </View>
-  ) : null;
-
   // ─── Main content ─────────────────────────────────────────────────────────────
 
   const mainContent = (
@@ -497,9 +411,7 @@ function DashboardScreen() {
         </>
       )}
       {postItsRow}
-      {listsShelf}
       {notesRow}
-      <HistorySection />
     </>
   );
 
@@ -538,7 +450,7 @@ function DashboardScreen() {
             {search.trim() ? (
               <View style={{ marginTop: spacing[3] }}>
                 <SearchResults
-                  tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  tasks={tasks} notes={notes} query={search.trim()}
                   onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)}
                   onAdd={title => { addTask(title); setSearch(""); showToast(`Added: ${title}`); }}
                 />

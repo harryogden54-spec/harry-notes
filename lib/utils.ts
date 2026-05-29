@@ -41,6 +41,23 @@ export function formatDueDate(
   };
 }
 
+/**
+ * Descending recency comparator (newest first) by `updated_at`, falling back to
+ * `created_at`. Uses plain string comparison rather than `.localeCompare` so a
+ * row with missing/undefined timestamps sorts to the end instead of throwing
+ * "Cannot read properties of undefined (reading 'localeCompare')" — which would
+ * otherwise crash an entire screen via the ErrorBoundary.
+ */
+export function cmpRecentDesc(
+  a: { updated_at?: string; created_at?: string },
+  b: { updated_at?: string; created_at?: string },
+): number {
+  const at = a?.updated_at ?? a?.created_at ?? "";
+  const bt = b?.updated_at ?? b?.created_at ?? "";
+  if (at === bt) return 0;
+  return at > bt ? -1 : 1;
+}
+
 export function stripMarkdown(text: string): string {
   if (typeof text !== "string") return "";
   return text

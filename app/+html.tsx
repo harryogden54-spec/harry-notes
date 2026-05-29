@@ -1,3 +1,13 @@
+/**
+ * ⚠️  DEAD CODE — app.json uses web.output: "single" (SPA mode), which means
+ * Expo Router IGNORES this file entirely during `expo export`.
+ *
+ * PWA head tags (apple-touch-icon, manifest, theme-color, etc.) are injected
+ * into dist/index.html by scripts/inject-pwa-head.js as a post-build step.
+ * The service-worker registration is also handled there.
+ *
+ * Do NOT add head logic here expecting it to ship — it won't.
+ */
 import { ScrollViewStyleReset } from 'expo-router/html';
 
 export default function Root({ children }: { children: React.ReactNode }) {

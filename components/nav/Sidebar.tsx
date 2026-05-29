@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useLists } from "@/lib/ListsContext";
 import type { NavItem } from "./navConfig";
 import { NAV_ITEMS } from "./navConfig";
 
@@ -33,23 +32,6 @@ function ActiveBar({ active, accent }: { active: boolean; accent: string }) {
   );
 }
 
-function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
-  const { colors } = useTheme();
-  if (collapsed) return <View style={{ height: 1, backgroundColor: colors.bgBorder, marginVertical: spacing[2], marginHorizontal: spacing[1] }} />;
-  return (
-    <Text style={{
-      fontSize: 11, letterSpacing: 1.2,
-      color: colors.textSecondary,
-      fontFamily: fontFamily.semibold,
-      textTransform: "uppercase",
-      paddingHorizontal: spacing[3],
-      paddingTop: spacing[4],
-      paddingBottom: spacing[1],
-    }}>
-      {label}
-    </Text>
-  );
-}
 
 type Props = { collapsed: boolean; onToggleCollapse: () => void };
 
@@ -57,7 +39,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { lists } = useLists();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
 
@@ -187,48 +168,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
             );
           })}
         </View>
-
-        {/* Lists section */}
-        {lists.length > 0 && (
-          <View style={{ marginTop: spacing[2] }}>
-            <SectionLabel label="Lists" collapsed={collapsed} />
-            <View style={{ gap: 1, paddingHorizontal: collapsed ? 0 : spacing[2] }}>
-              {lists.slice(0, 8).map(list => {
-                const hovered = hoveredItem === `list_${list.id}`;
-                return (
-                  <Pressable
-                    key={list.id}
-                    onPress={() => router.replace(`/(tabs)/notes?listId=${list.id}&_t=${Date.now()}` as any)}
-                    // @ts-ignore
-                    onHoverIn={() => setHoveredItem(`list_${list.id}`)}
-                    onHoverOut={() => setHoveredItem(null)}
-                    style={{
-                      flexDirection: "row", alignItems: "center",
-                      gap: collapsed ? 0 : spacing[2],
-                      paddingHorizontal: collapsed ? 0 : spacing[3],
-                      paddingVertical: spacing[1.5],
-                      borderRadius: radius.sm,
-                      justifyContent: collapsed ? "center" : "flex-start",
-                      backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
-                    }}
-                  >
-                    <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: list.color, flexShrink: 0 }} />
-                    {!collapsed && (
-                      <>
-                        <Text style={{ flex: 1, fontSize: 12, fontFamily: fontFamily.regular, color: colors.textSecondary }} numberOfLines={1}>
-                          {list.name}
-                        </Text>
-                        <Text style={{ fontSize: 11, color: colors.textTertiary, fontFamily: fontFamily.regular }}>
-                          {list.items?.length ?? 0}
-                        </Text>
-                      </>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        )}
 
       </ScrollView>
 

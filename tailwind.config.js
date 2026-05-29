@@ -8,7 +8,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // ── Default (Linear-inspired) dark surfaces ──────────────────────────
+        // ── Default (Obsidian) dark surfaces ─────────────────────────────────
+        // NativeWind static defaults — runtime theme is applied via useTheme()
         bg: {
           primary:   "#0D0D0D",
           secondary: "#141414",
@@ -29,18 +30,18 @@ module.exports = {
           tertiary:  "#5A5A5A",
           inverse:   "#0D0D0D",
         },
-        // Accent (frost default — runtime-overridden via useTheme)
+        // Accent (indigo default — runtime-overridden via useTheme)
         accent: {
-          DEFAULT: "#88C0D0",
-          hover:   "#9DCFDF",
-          subtle:  "#17323A",
+          DEFAULT: "#6B77D9",
+          hover:   "#7B87E9",
+          subtle:  "#1A1D3A",
         },
         // Semantic
         success: "#3DD68C",
         warning: "#F5A623",
         danger:  "#F26464",
 
-        // ── Nord theme surfaces ───────────────────────────────────────────────
+        // ── Per-theme surface tokens (static fallbacks; runtime wins) ─────────
         nord: {
           "bg-primary":   "#2E3440",
           "bg-secondary": "#3B4252",
@@ -48,22 +49,26 @@ module.exports = {
           "bg-border":    "#4C566A",
           accent:         "#88C0D0",
         },
-        // ── Warm Earth theme surfaces ─────────────────────────────────────────
-        earth: {
-          "bg-primary":   "#1C2B1E",
-          "bg-secondary": "#1A2235",
-          "bg-tertiary":  "#2D1B1B",
-          accent:         "#D2B48C",
+        graphite: {
+          "bg-primary":   "#1C1C1E",
+          "bg-secondary": "#2C2C2E",
+          "bg-tertiary":  "#3A3A3C",
+          accent:         "#98989D",
         },
-        // ── Slate theme surfaces ──────────────────────────────────────────────
-        slate: {
-          "bg-primary":   "#1E2329",
-          "bg-secondary": "#252D36",
-          "bg-tertiary":  "#2D3748",
-          accent:         "#4A90D9",
+        mocha: {
+          "bg-primary":   "#1E1E2E",
+          "bg-secondary": "#252537",
+          "bg-tertiary":  "#2D2D44",
+          accent:         "#CBA6F7",
+        },
+        midnight: {
+          "bg-primary":   "#050810",
+          "bg-secondary": "#080C18",
+          "bg-tertiary":  "#0C1220",
+          accent:         "#3A7AFF",
         },
 
-        // List colors
+        // List picker colours
         list: {
           blue:   "#4A90D9",
           purple: "#9B59B6",

@@ -16,3 +16,5 @@ export { SectionHeader }       from "./SectionHeader";
 export { TaskRow }             from "./TaskRow";
 export { Surface }             from "./Surface";
 export { FocusTimer }          from "./FocusTimer";
+export { SyncStatusBadge }     from "./SyncStatusBadge";
+export { RouteFade }           from "./RouteFade";

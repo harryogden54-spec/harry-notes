@@ -7,6 +7,7 @@ const path  = require("path");
 const fs    = require("fs");
 
 const OUT = path.join(__dirname, "../assets/images");
+const PUB = path.join(__dirname, "../public");
 
 // Five-pointed star SVG path centred at (512,512), radius 380
 function starPath(cx, cy, r, size) {
@@ -47,7 +48,13 @@ async function main() {
   await generate(makeSVG(1024), path.join(OUT, "adaptive-icon.png"), 1024);
   await generate(makeSVG(512),  path.join(OUT, "splash-icon.png"),   512);
   await generate(makeSVG(196),  path.join(OUT, "favicon.png"),       196);
-  // Also update public/favicon.ico equivalent (Expo uses favicon.png on web)
+
+  // PWA / iOS home-screen icons. These live in public/ and are copied to the
+  // web root at build time. iOS "Add to Home Screen" uses apple-touch-icon.png;
+  // the icon-NNN.png files are referenced by public/manifest.json.
+  await generate(makeSVG(180),  path.join(PUB, "apple-touch-icon.png"), 180);
+  await generate(makeSVG(192),  path.join(PUB, "icon-192.png"),         192);
+  await generate(makeSVG(512),  path.join(PUB, "icon-512.png"),         512);
   console.log("Done.");
 }
 

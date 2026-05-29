@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Pressable, ScrollView, Modal, Platform, SafeAreaView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
@@ -100,7 +101,7 @@ function RecurrenceModal({
                   {preset.label}
                 </Text>
                 {preset.value === current && (
-                  <Text size="sm" style={{ color: colors.accent }}>✓</Text>
+                  <Ionicons name="checkmark" size={14} color={colors.accent} />
                 )}
               </Pressable>
             ))}

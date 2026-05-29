@@ -35,7 +35,7 @@ export function sortByPriority(tasks: Task[]) {
 export function applySort(tasks: Task[], by: SortBy): Task[] {
   if (by === "priority")  return sortByPriority(tasks);
   if (by === "due_date")  return [...tasks].sort((a, b) => (a.due_date ?? "9999") < (b.due_date ?? "9999") ? -1 : 1);
-  if (by === "title")     return [...tasks].sort((a, b) => a.title.localeCompare(b.title));
+  if (by === "title")     return [...tasks].sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
   if (by === "completed") return [...tasks].sort((a, b) => (b.completed_at ?? b.updated_at ?? "") > (a.completed_at ?? a.updated_at ?? "") ? 1 : -1);
   return [...tasks];
 }
@@ -44,7 +44,7 @@ export function matchesSearch(task: Task, q: string) {
   if (!q) return true;
   const lower = q.toLowerCase();
   return (
-    task.title.toLowerCase().includes(lower) ||
+    (task.title ?? "").toLowerCase().includes(lower) ||
     (task.description?.toLowerCase().includes(lower) ?? false)
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, TextInput, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
@@ -39,7 +40,7 @@ export function SubtasksList({ subtasks, onChange }: Props) {
             {sub.title}
           </Text>
           <Pressable onPress={() => onChange(list.filter(s => s.id !== sub.id))} hitSlop={8}>
-            <Text size="xs" style={{ color: colors.textTertiary }}>✕</Text>
+            <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
           </Pressable>
         </View>
       ))}

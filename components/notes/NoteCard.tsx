@@ -1,19 +1,21 @@
 import React from "react";
 import { View, Pressable, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui";
-import { spacing, fontFamily, notePastels, getNotePastelIndex } from "@/lib/theme";
-import { stripMarkdown } from "@/lib/utils";
+import { spacing, fontFamily, getNotePastelIndex } from "@/lib/theme";
+import { useTheme } from "@/lib/useTheme";
 import { useNotes } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
-import { timeAgo } from "./utils";
+import { timeAgo, notePreview } from "./utils";
 
 type Props = { note: Note; onOpen: () => void };
 
 export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
   const { pinNote } = useNotes();
+  const { notePastels } = useTheme();
   const idx = getNotePastelIndex(note.id);
-  const preview = stripMarkdown(note.body.trim());
+  const preview = notePreview(note, 240);
   return (
     <Pressable
       onPress={onOpen}
@@ -22,7 +24,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
     >
       <View style={{ backgroundColor: notePastels.bg[idx], borderRadius: 12, borderWidth: 1, borderColor: notePastels.border[idx], padding: spacing[3], gap: spacing[1], minHeight: 90 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-          {note.pinned && <Text size="xs" style={{ color: notePastels.text }}>📌</Text>}
+          {note.pinned && <Ionicons name="pin" size={10} color={notePastels.text} />}
           <Text size="xs" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? notePastels.text : `${notePastels.text}80` }}>
             {note.title || "Untitled"}
           </Text>
