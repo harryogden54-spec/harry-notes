@@ -11,7 +11,6 @@ import { spacing, radius, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr, parseNaturalDate } from "@/lib/utils";
 import { type TaskCategory, type UniCourse, UNI_COURSES, useTasks } from "@/lib/TasksContext";
 import { useNotes } from "@/lib/NotesContext";
-import { useLists } from "@/lib/ListsContext";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { DatePicker } from "@/components/ui/DatePicker";
 
@@ -183,7 +182,6 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
   const router = useRouter();
   const { tasks } = useTasks();
   const { notes, addNote, updateNote } = useNotes();
-  const { lists } = useLists();
   const { themeId, setThemeId } = useThemeContext();
 
   const [query, setQuery]       = useState("");
@@ -209,14 +207,11 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     // ── Actions ──────────────────────────────────────────────────────────────
     if (matches("New note", q))
       result.push({ kind: "action", id: "new-note", icon: "document-text-outline", label: "New note", run: () => { onClose(); setTimeout(() => router.push("/(tabs)/notes?create=1" as any), 50); } });
-    if (matches("New list", q))
-      result.push({ kind: "action", id: "new-list", icon: "list-outline", label: "New list", run: () => { onClose(); setTimeout(() => router.push("/(tabs)/lists?create=1" as any), 50); } });
 
     // ── Navigation ────────────────────────────────────────────────────────────
     const navItems = [
       { label: "Go to Today",  icon: "today-outline" as IoniconName, path: "/(tabs)/today" },
       { label: "Go to Tasks",  icon: "checkbox-outline" as IoniconName, path: "/(tabs)/tasks" },
-      { label: "Go to Lists",  icon: "list-outline" as IoniconName, path: "/(tabs)/lists" },
       { label: "Go to Notes",  icon: "document-text-outline" as IoniconName, path: "/(tabs)/notes" },
     ];
     for (const n of navItems) {
@@ -228,7 +223,6 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     const recent = [
       ...tasks.filter(t => !t.archived).map(t => ({ label: t.title, sub: "Task", stamp: t.updated_at ?? t.created_at ?? "", run: () => { onClose(); router.push(`/(tabs)/tasks?taskId=${t.id}` as any); } })),
       ...notes.map(n => ({ label: n.title || "Untitled", sub: "Note", stamp: n.updated_at ?? n.created_at, run: () => { onClose(); router.push(`/(tabs)/notes?openId=${n.id}` as any); } })),
-      ...lists.map(l => ({ label: l.name, sub: "List", stamp: l.updated_at ?? l.created_at ?? "", run: () => { onClose(); router.push("/(tabs)/lists" as any); } })),
     ]
       .sort((a, b) => (b.stamp ?? "").localeCompare(a.stamp ?? ""))
       .filter(r => matches(r.label, q))
@@ -245,7 +239,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     }
 
     return result;
-  }, [query, tasks, notes, lists, themeId, setThemeId, router, onClose]);
+  }, [query, tasks, notes, themeId, setThemeId, router, onClose]);
 
   // Keyboard navigation
   useEffect(() => {

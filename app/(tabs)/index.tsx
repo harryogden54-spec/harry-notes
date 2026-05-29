@@ -10,11 +10,10 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
-import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
+import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow, SyncStatusBadge } from "@/components/ui";
 import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
-import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
 import { getTodayStr, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
@@ -88,7 +87,6 @@ function DashboardScreen() {
   const { open: openPalette }  = useCommandPalette();
   const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
   const { showToast }          = useToast();
-  const { lists } = useLists();
   const { notes, loaded: notesLoaded } = useNotes();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
@@ -162,6 +160,7 @@ function DashboardScreen() {
         </Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
+        <SyncStatusBadge />
         <Pressable onPress={openPalette} hitSlop={12} style={{ padding: spacing[1] }}>
           <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
         </Pressable>
@@ -451,7 +450,7 @@ function DashboardScreen() {
             {search.trim() ? (
               <View style={{ marginTop: spacing[3] }}>
                 <SearchResults
-                  tasks={tasks} lists={lists} notes={notes} query={search.trim()}
+                  tasks={tasks} notes={notes} query={search.trim()}
                   onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)}
                   onAdd={title => { addTask(title); setSearch(""); showToast(`Added: ${title}`); }}
                 />

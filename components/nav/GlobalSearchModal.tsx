@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasks } from "@/lib/TasksContext";
-import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { SearchResults } from "@/components/dashboard/SearchResults";
 
@@ -13,7 +12,6 @@ type Props = { visible: boolean; onClose: () => void };
 export function GlobalSearchModal({ visible, onClose }: Props) {
   const { colors } = useTheme();
   const { tasks } = useTasks();
-  const { lists } = useLists();
   const { notes } = useNotes();
   const [query, setQuery] = useState("");
   const inputRef = useRef<TextInput | null>(null);
@@ -93,7 +91,6 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
           >
             <SearchResults
               tasks={tasks.filter(t => !t.done && !t.archived)}
-              lists={lists}
               notes={notes}
               query={query.trim()}
               onTaskPress={() => onClose()}

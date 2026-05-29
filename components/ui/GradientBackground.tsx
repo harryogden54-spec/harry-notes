@@ -1,18 +1,21 @@
 import React from "react";
 import { Platform, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { usePathname } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
 
 /**
- * Full-screen background that always renders a per-theme radial gradient on web
- * and a flat bgPrimary on native (adding expo-linear-gradient is a future option).
- *
- * Every theme gets a gradient accent glow — the old solid/noise/geometric branches
- * have been removed in favour of a unified look.
+ * Full-screen background that:
+ *   - Renders a per-theme radial accent gradient on web
+ *   - Flat bgPrimary on native
+ *   - On web: fades in (~180ms) whenever the route path changes, giving
+ *     smooth tab/route transitions without touching individual screen files.
  */
 export function GradientBackground({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
   const { scheme } = useThemeContext();
+  const pathname = usePathname();
 
   if (Platform.OS !== "web") {
     return (
@@ -42,9 +45,14 @@ export function GradientBackground({ children }: { children: React.ReactNode }) 
     ].join(", "),
   };
 
+  // Key on pathname so the Animated.View remounts and FadeIn replays on route change.
   return (
-    <View style={[{ flex: 1 }, webStyle as any]}>
+    <Animated.View
+      key={pathname}
+      entering={FadeIn.duration(180)}
+      style={[{ flex: 1 }, webStyle as any]}
+    >
       {children}
-    </View>
+    </Animated.View>
   );
 }
