@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View, ScrollView, SafeAreaView, Pressable,
-  Platform, Alert, Switch, Modal,
+  Platform, Alert, Switch, Modal, TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +16,7 @@ import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { getLocalDateStr } from "@/lib/utils";
+import { getSyncKey, setSyncKey, generateSyncKey } from "@/lib/syncKey";
 
 // ─── Shared row primitives ────────────────────────────────────────────────────
 
@@ -146,6 +147,43 @@ export default function SettingsScreen() {
   const [clearing, setClearing]   = useState(false);
   const [showTrash, setShowTrash] = useState(false);
 
+  // ── Sync key state ────────────────────────────────────────────────────────
+  const [currentKey, setCurrentKey] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState(false);
+  const [keyInput, setKeyInput]     = useState("");
+  const [keyVisible, setKeyVisible] = useState(false);
+
+  useEffect(() => {
+    getSyncKey().then(k => setCurrentKey(k));
+  }, []);
+
+  async function handleSaveKey() {
+    const trimmed = keyInput.trim().toUpperCase();
+    await setSyncKey(trimmed);
+    setCurrentKey(trimmed || null);
+    setEditingKey(false);
+    setKeyInput("");
+    showToast(trimmed ? "Sync key saved — enter the same key on your other devices" : "Sync key cleared");
+  }
+
+  async function handleGenerateKey() {
+    const key = generateSyncKey();
+    setKeyInput(key);
+    await setSyncKey(key);
+    setCurrentKey(key);
+    setEditingKey(false);
+    showToast("New sync key generated — enter this key on your other devices");
+  }
+
+  function handleCopyKey() {
+    if (!currentKey) return;
+    if (Platform.OS === "web" && typeof navigator !== "undefined") {
+      navigator.clipboard?.writeText(currentKey).then(() => showToast("Sync key copied"));
+    } else {
+      showToast("Copy the key shown above");
+    }
+  }
+
   const overallSync = taskSync === "error" || listSync === "error" || noteSync === "error" ? "error"
     : taskSync === "syncing" || listSync === "syncing" || noteSync === "syncing" ? "syncing"
     : taskSync === "synced" && listSync === "synced" && noteSync === "synced" ? "synced"
@@ -272,6 +310,107 @@ export default function SettingsScreen() {
               }
             />
           </RowGroup>
+
+          {/* ── Sync key ─────────────────────────────────────────────────── */}
+          <SectionLabel>Sync Key</SectionLabel>
+          <RowGroup>
+            <Row
+              icon="key-outline"
+              label="Sync key"
+              subtitle={
+                currentKey
+                  ? (keyVisible ? currentKey : `${currentKey.slice(0, 4)}-••••-••••`)
+                  : "Not set — this device is offline-only"
+              }
+              right={
+                currentKey ? (
+                  <Pressable onPress={() => setKeyVisible(v => !v)} hitSlop={8}>
+                    <Ionicons name={keyVisible ? "eye-off-outline" : "eye-outline"} size={16} color={colors.textTertiary} />
+                  </Pressable>
+                ) : undefined
+              }
+            />
+            {currentKey && (
+              <Row
+                icon="copy-outline"
+                label="Copy key"
+                subtitle="Paste this on your other devices"
+                onPress={handleCopyKey}
+                chevron={Platform.OS === "web"}
+              />
+            )}
+            <Row
+              icon="create-outline"
+              label={currentKey ? "Change key" : "Set sync key"}
+              subtitle="Enter the same key on every device you own"
+              onPress={() => { setKeyInput(currentKey ?? ""); setEditingKey(true); }}
+              chevron
+            />
+            <Row
+              icon="shuffle-outline"
+              label="Generate new key"
+              subtitle="Creates a random key and sets it here"
+              onPress={handleGenerateKey}
+              isLast
+            />
+          </RowGroup>
+
+          {/* Inline key editor */}
+          {editingKey && (
+            <View style={{
+              backgroundColor: colors.bgSecondary,
+              borderRadius: radius.xl,
+              borderWidth: 1, borderColor: colors.accent,
+              padding: spacing[4],
+              marginTop: -spacing[4],
+              marginBottom: spacing[5],
+              gap: spacing[3],
+            }}>
+              <Text size="xs" style={{ color: colors.textTertiary }}>
+                Enter your sync key — use the same key on every device. Leave blank to disable sync.
+              </Text>
+              <TextInput
+                value={keyInput}
+                onChangeText={t => setKeyInput(t.toUpperCase())}
+                placeholder="e.g. ABCD-EFGH-IJKL"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                style={{
+                  backgroundColor: colors.bgTertiary,
+                  borderRadius: radius.md,
+                  borderWidth: 1,
+                  borderColor: colors.bgBorder,
+                  paddingHorizontal: spacing[3],
+                  paddingVertical: spacing[2.5],
+                  color: colors.textPrimary,
+                  fontFamily: fontFamily.medium,
+                  fontSize: 15,
+                  letterSpacing: 1,
+                }}
+              />
+              <View style={{ flexDirection: "row", gap: spacing[2] }}>
+                <Pressable
+                  onPress={() => { setEditingKey(false); setKeyInput(""); }}
+                  style={{
+                    flex: 1, paddingVertical: spacing[2.5], borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.bgBorder, alignItems: "center",
+                  }}
+                >
+                  <Text size="sm" style={{ color: colors.textSecondary }}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveKey}
+                  style={{
+                    flex: 2, paddingVertical: spacing[2.5], borderRadius: radius.md,
+                    backgroundColor: colors.accent, alignItems: "center",
+                  }}
+                >
+                  <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Save key</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           {/* ── Sync ─────────────────────────────────────────────────────── */}
           <SectionLabel>Sync — Supabase</SectionLabel>
