@@ -61,13 +61,15 @@ export function cmpRecentDesc(
 export function stripMarkdown(text: string): string {
   if (typeof text !== "string") return "";
   return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")   // images → drop entirely
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
     .replace(/__(.+?)__/g, "$1")
     .replace(/_(.+?)_/g, "$1")
     .replace(/`(.+?)`/g, "$1")
-    .replace(/^[-*]\s+/gm, "")
+    .replace(/^[-*]\s+\[[ xX]\]\s*/gm, "") // checkbox items → text
+    .replace(/^[-*]\s+/gm, "")             // bullets
     .replace(/^---+$/gm, "")
     .trim();
 }

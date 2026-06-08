@@ -14,6 +14,7 @@ import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
 import { useTasks } from "@/lib/TasksContext";
 import { getTodayStr, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
+import { carryForwardToday } from "@/lib/todayCarry";
 import { useMounted } from "@/lib/useMounted";
 
 type TodayItem = {
@@ -45,19 +46,11 @@ function getTodayKey() {
   return `today_items_${getLocalDateStr()}`;
 }
 
-function getYesterdayKey() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `today_items_${getLocalDateStr(d)}`;
-}
-
 function TodayScreen() {
   const { colors } = useTheme();
   const { tasks } = useTasks();
   const [items, setItems]             = useState<TodayItem[]>([]);
   const [input, setInput]             = useState("");
-  const [carryover, setCarryover]     = useState<TodayItem[]>([]);
-  const [showCarryover, setShowCarryover] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
   const mounted = useMounted();
@@ -68,39 +61,16 @@ function TodayScreen() {
 
   const dateLabel = mounted ? formatHeaderDate() : "";
 
-  const todayKey     = getTodayKey();
-  const yesterdayKey = getYesterdayKey();
+  const todayKey = getTodayKey();
 
-  // Load persisted items + check carryover (only show once per day)
+  // Carry incomplete items forward across any day boundary, then load today's
+  // list (which now includes carried items). The carry + 7-day stale-key GC
+  // live in lib/todayCarry.ts and are idempotent.
   useEffect(() => {
     (async () => {
+      await carryForwardToday();
       const saved = await storage.get<TodayItem[]>(todayKey);
       if (saved) setItems(saved);
-
-      const alreadySeen = await storage.get<boolean>(`carryover_seen_${yesterdayKey}`);
-      if (alreadySeen) return;
-
-      const yesterday = await storage.get<TodayItem[]>(yesterdayKey);
-      const incomplete = (yesterday ?? []).filter(i => !i.done);
-      if (incomplete.length > 0) {
-        setCarryover(incomplete);
-        setShowCarryover(true);
-      }
-
-      // Garbage-collect today_items_* keys older than 7 days. AsyncStorage on
-      // web (localStorage) has a ~5 MB quota — year-old keys add up quietly.
-      try {
-        const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 7);
-        const allKeys = await AsyncStorage.getAllKeys();
-        const staleKeys = allKeys.filter(k => {
-          if (!k.startsWith("today_items_")) return false;
-          const dateStr = k.replace("today_items_", "");
-          return dateStr < getLocalDateStr(cutoff);
-        });
-        if (staleKeys.length > 0) await AsyncStorage.multiRemove(staleKeys);
-      } catch { /* non-critical */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -161,19 +131,6 @@ function TodayScreen() {
     setItems(prev => prev.map(i => i.id === id ? { ...i, time_block: time } : i));
   };
 
-  function dismissCarryover() {
-    storage.set(`carryover_seen_${yesterdayKey}`, true);
-    setShowCarryover(false);
-  }
-
-  function acceptCarryover() {
-    const fresh = carryover.map(i => ({ ...i, id: `co_${Date.now()}_${i.id}`, done: false }));
-    setItems(prev => [...fresh, ...prev]);
-    storage.set(`carryover_seen_${yesterdayKey}`, true);
-    setShowCarryover(false);
-    setCarryover([]);
-  }
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 600);
@@ -191,10 +148,13 @@ function TodayScreen() {
         borderBottomColor: colors.bgBorder,
         opacity: isActive ? 0.8 : 1,
       }}>
-        {/* Drag handle */}
-        <Pressable onLongPress={drag} hitSlop={8} delayLongPress={150}>
-          <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
-        </Pressable>
+        {/* Drag handle — drag is disabled on web (activationDistance 999), so
+            don't render an affordance that does nothing there. */}
+        {Platform.OS !== "web" && (
+          <Pressable onLongPress={drag} hitSlop={8} delayLongPress={150}>
+            <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
+          </Pressable>
+        )}
 
         <Pressable
           onPress={() => toggleItem(item.id)}
@@ -266,41 +226,6 @@ function TodayScreen() {
                 </View>
               </Pressable>
             </Pressable>
-          </Modal>
-
-          {/* Carryover modal */}
-          <Modal visible={showCarryover} transparent animationType="fade" onRequestClose={() => setShowCarryover(false)}>
-            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing[6] }}>
-              <Surface style={{ padding: spacing[5], gap: spacing[4] }}>
-                <Text size="lg" weight="bold">Yesterday's unfinished items</Text>
-                <Text size="sm" secondary>
-                  You had {carryover.length} unfinished item{carryover.length !== 1 ? "s" : ""} yesterday. Bring them forward?
-                </Text>
-                {carryover.slice(0, 4).map(i => (
-                  <View key={i.id} style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
-                    <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: colors.accent }} />
-                    <Text size="sm" numberOfLines={1} style={{ flex: 1 }}>{i.text}</Text>
-                  </View>
-                ))}
-                {carryover.length > 4 && (
-                  <Text size="xs" secondary>…and {carryover.length - 4} more</Text>
-                )}
-                <View style={{ flexDirection: "row", gap: spacing[2] }}>
-                  <Pressable
-                    onPress={dismissCarryover}
-                    style={{ flex: 1, paddingVertical: spacing[3], borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder, alignItems: "center" }}
-                  >
-                    <Text size="sm" secondary weight="medium">Dismiss</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={acceptCarryover}
-                    style={{ flex: 2, paddingVertical: spacing[3], borderRadius: radius.lg, backgroundColor: colors.accent, alignItems: "center" }}
-                  >
-                    <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Yes, bring forward</Text>
-                  </Pressable>
-                </View>
-              </Surface>
-            </View>
           </Modal>
 
           <ScrollView

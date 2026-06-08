@@ -102,11 +102,10 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const addNote = useCallback((type: "note" | "postit" = "note"): string => {
     const id  = newId();
     const now = new Date().toISOString();
-    // Notes get an initial empty text block; post-its stay plain text.
-    const blocks: Block[] | undefined = type === "note"
-      ? [{ id: newId(), type: "text", content: "" }]
-      : undefined;
-    const note: Note = { id, title: "", body: "", blocks, pinned: false, type, created_at: now, updated_at: now };
+    // Both notes and post-its are plain markdown `body` strings — one editable
+    // TextInput, so text is fully selectable/copyable. (Legacy block notes are
+    // converted to markdown by migrateBlocksToBody.)
+    const note: Note = { id, title: "", body: "", pinned: false, type, created_at: now, updated_at: now };
     markDirty(id);
     setNotes(prev => [note, ...prev]);
     return id;

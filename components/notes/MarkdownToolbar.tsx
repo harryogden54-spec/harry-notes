@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, Pressable } from "react-native";
+import { ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, fontFamily } from "@/lib/theme";
@@ -34,9 +35,13 @@ type Props = {
   body: string;
   selRef: React.MutableRefObject<Sel>;
   onApply: (text: string, cursor: Sel) => void;
+  /** Optional photo button — picks an image and inserts it at the cursor. */
+  onPickImage?: () => void;
+  /** Shows a spinner on the photo button while an upload is in flight. */
+  uploading?: boolean;
 };
 
-export function MarkdownToolbar({ body, selRef, onApply }: Props) {
+export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading }: Props) {
   const { colors } = useTheme();
   const tools = [
     { label: "B", bold: true,   fn: () => { const r = insertInline(body, selRef.current, "**"); onApply(r.text, r.cursor); } },
@@ -44,6 +49,7 @@ export function MarkdownToolbar({ body, selRef, onApply }: Props) {
     { label: "H",               fn: () => { const r = insertLinePrefix(body, selRef.current, "# ");  onApply(r.text, r.cursor); } },
     { label: "H2",              fn: () => { const r = insertLinePrefix(body, selRef.current, "## "); onApply(r.text, r.cursor); } },
     { label: "•",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- ");  onApply(r.text, r.cursor); } },
+    { label: "☑",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- [ ] "); onApply(r.text, r.cursor); } },
     { label: "`",               fn: () => { const r = insertInline(body, selRef.current, "`");  onApply(r.text, r.cursor); } },
     { label: "—",               fn: () => { const r = insertBlock(body, selRef.current, "---"); onApply(r.text, r.cursor); } },
   ];
@@ -51,7 +57,7 @@ export function MarkdownToolbar({ body, selRef, onApply }: Props) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always"
       style={{ borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}
-      contentContainerStyle={{ flexDirection: "row", paddingHorizontal: spacing[2] }}
+      contentContainerStyle={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[2] }}
     >
       {tools.map(t => (
         <Pressable key={t.label} onPress={t.fn} style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
@@ -60,6 +66,13 @@ export function MarkdownToolbar({ body, selRef, onApply }: Props) {
           </Text>
         </Pressable>
       ))}
+      {onPickImage && (
+        <Pressable onPress={onPickImage} disabled={uploading} style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+          {uploading
+            ? <ActivityIndicator size="small" color={colors.textSecondary} />
+            : <Ionicons name="image-outline" size={17} color={colors.textSecondary} />}
+        </Pressable>
+      )}
     </ScrollView>
   );
 }

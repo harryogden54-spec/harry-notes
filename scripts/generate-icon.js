@@ -55,6 +55,12 @@ async function main() {
   await generate(makeSVG(180),  path.join(PUB, "apple-touch-icon.png"), 180);
   await generate(makeSVG(192),  path.join(PUB, "icon-192.png"),         192);
   await generate(makeSVG(512),  path.join(PUB, "icon-512.png"),         512);
+
+  // public/assets/images/icon.png is copied to the web root at /assets/images/icon.png,
+  // shadowing the bundler's favicon output at the same path. It MUST be the star —
+  // a stale tick here was the source of the wrong desktop favicon/PWA icon.
+  fs.mkdirSync(path.join(PUB, "assets", "images"), { recursive: true });
+  await generate(makeSVG(1024), path.join(PUB, "assets", "images", "icon.png"), 1024);
   console.log("Done.");
 }
 

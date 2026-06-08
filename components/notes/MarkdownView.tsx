@@ -1,8 +1,8 @@
 import React from "react";
-import { View } from "react-native";
+import { View, Image } from "react-native";
 import { useTheme } from "@/lib/useTheme";
-import { Text } from "@/components/ui";
-import { spacing, fontFamily } from "@/lib/theme";
+import { Text, Checkbox } from "@/components/ui";
+import { spacing, fontFamily, radius } from "@/lib/theme";
 import { evalREPL, type REPLContext } from "./replEval";
 
 type Colors = ReturnType<typeof useTheme>["colors"];
@@ -40,12 +40,49 @@ export function renderInline(text: string, colors: Colors): React.ReactNode {
   return parts;
 }
 
-export function MarkdownView({ body, colors, replCtx }: { body: string; colors: Colors; replCtx?: REPLContext }) {
+export function MarkdownView({ body, colors, replCtx, onToggleCheckbox }: {
+  body: string;
+  colors: Colors;
+  replCtx?: REPLContext;
+  /** Tap handler for a `- [ ]` / `- [x]` line; receives the line index. */
+  onToggleCheckbox?: (lineIndex: number) => void;
+}) {
   const lines = body.split("\n");
   const nodes: React.ReactNode[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const key = `md-${i}`;
+
+    // ── Image lines: "![alt](url)" ──────────────────────────────────────────
+    const imgMatch = line.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/);
+    if (imgMatch) {
+      nodes.push(
+        <Image
+          key={key}
+          source={{ uri: imgMatch[1] }}
+          resizeMode="contain"
+          style={{ width: "100%", height: 240, borderRadius: radius.md, marginVertical: spacing[2], backgroundColor: colors.bgTertiary }}
+        />
+      );
+      continue;
+    }
+
+    // ── Checkbox lines: "- [ ] " / "- [x] " ─────────────────────────────────
+    const cbMatch = line.match(/^[-*] \[([ xX])\]\s?(.*)$/);
+    if (cbMatch) {
+      const checked = cbMatch[1].toLowerCase() === "x";
+      nodes.push(
+        <View key={key} style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[2], marginVertical: 2 }}>
+          <View style={{ marginTop: 3 }}>
+            <Checkbox checked={checked} onToggle={() => onToggleCheckbox?.(i)} size={16} />
+          </View>
+          <Text style={{ flex: 1, color: checked ? colors.textTertiary : colors.textSecondary, fontSize: 15, lineHeight: 24, textDecorationLine: checked ? "line-through" : "none" }}>
+            {renderInline(cbMatch[2], colors)}
+          </Text>
+        </View>
+      );
+      continue;
+    }
 
     // ── REPL lines: "> expression" ──────────────────────────────────────────
     if (line.startsWith("> ") && replCtx) {

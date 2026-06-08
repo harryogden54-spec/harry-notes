@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
@@ -9,10 +10,11 @@ import { useNotes, type Note } from "@/lib/NotesContext";
 import { useTasks } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr } from "@/lib/utils";
+import { blocksToMarkdown } from "@/lib/migrateBlocksToBody";
+import { pickAndUploadNoteImage } from "@/lib/storageImages";
 import { MarkdownView } from "./MarkdownView";
-import { MarkdownToolbar, type Sel } from "./MarkdownToolbar";
+import { MarkdownToolbar, insertBlock, type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions, getWikiQuery } from "./WikiLinkSuggestions";
-import { BlockEditor } from "./BlockEditor";
 import { timeAgo } from "./utils";
 
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
@@ -89,7 +91,7 @@ type Props = {
 
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
-  const { notes, updateNote, deleteNote, pinNote, toggleBlockCheck } = useNotes();
+  const { notes, updateNote, deleteNote, pinNote } = useNotes();
   const { tasks } = useTasks();
   const { showToast } = useToast();
   const today = getTodayStr();
@@ -99,6 +101,50 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const [cursor, setCursor]       = useState<Sel | undefined>(undefined);
   const [preview, setPreview]     = useState(false);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Defensive convert-on-open: a block note synced from a not-yet-migrated
+  // device still needs to become a markdown body so the single-TextInput editor
+  // can render it. The bulk migration (migrateBlocksToBody) handles existing ones.
+  useEffect(() => {
+    if (note.blocks && note.blocks.length > 0) {
+      updateNote(note.id, { body: blocksToMarkdown(note.blocks), blocks: undefined });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id]);
+
+  async function handleCopy() {
+    await Clipboard.setStringAsync(note.body ?? "");
+    showToast("Note copied");
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  async function handlePickImage() {
+    if (uploading) return;
+    setUploading(true);
+    showToast("Uploading photo…");
+    const result = await pickAndUploadNoteImage(note.id);
+    setUploading(false);
+    if (!result.ok) {
+      if (result.reason === "cancelled") return;
+      showToast(result.message ?? "Couldn't add photo");
+      return;
+    }
+    const r = insertBlock(note.body, selRef.current, `![](${result.url})`);
+    updateNote(note.id, { body: r.text });
+    setCursor(r.cursor);
+  }
+
+  // Toggle a `- [ ]` / `- [x]` line from the rendered preview.
+  function toggleCheckboxLine(lineIndex: number) {
+    const lines = note.body.split("\n");
+    const line = lines[lineIndex];
+    if (line === undefined) return;
+    lines[lineIndex] = line.replace(/^([-*] \[)([ xX])(\])/, (_m, p1, state, p3) =>
+      `${p1}${state.toLowerCase() === "x" ? " " : "x"}${p3}`);
+    updateNote(note.id, { body: lines.join("\n") });
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
 
   // Track the title as it was when editing began so we can propagate renames.
   const committedTitleRef = useRef(note.title);
@@ -175,18 +221,18 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           )}
           <View style={{ flex: 1 }} />
           <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
-          {/* Preview toggle only for legacy plain-text notes */}
-          {!note.blocks && (
-            <Pressable
-              onPress={() => setPreview(v => !v)}
-              hitSlop={12}
-              style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.sm, borderWidth: 1, borderColor: preview ? colors.accent : colors.bgBorder, backgroundColor: preview ? `${colors.accent}14` : "transparent" }}
-            >
-              <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
-                {preview ? "Edit" : "Preview"}
-              </Text>
-            </Pressable>
-          )}
+          <Pressable
+            onPress={() => setPreview(v => !v)}
+            hitSlop={12}
+            style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.sm, borderWidth: 1, borderColor: preview ? colors.accent : colors.bgBorder, backgroundColor: preview ? `${colors.accent}14` : "transparent" }}
+          >
+            <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
+              {preview ? "Edit" : "Preview"}
+            </Text>
+          </Pressable>
+          <Pressable onPress={handleCopy} hitSlop={12} style={{ padding: spacing[1] }}>
+            <Ionicons name="copy-outline" size={15} color={colors.textTertiary} />
+          </Pressable>
           <Pressable
             onPress={() => { pinNote(note.id); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             hitSlop={12}
@@ -212,6 +258,19 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           </Pressable>
         </View>
 
+        {/* Formatting bar — pinned at the top (iOS Notes style), edit mode only */}
+        {!preview && (
+          <View style={{ borderBottomWidth: 1, borderBottomColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
+            <MarkdownToolbar
+              body={note.body}
+              selRef={selRef}
+              onApply={(text, cur) => { updateNote(note.id, { body: text }); setCursor(cur); setWikiQuery(null); }}
+              onPickImage={handlePickImage}
+              uploading={uploading}
+            />
+          </View>
+        )}
+
         {/* Body */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[6], paddingTop: spacing[6], paddingBottom: spacing[16], gap: spacing[3] }} keyboardShouldPersistTaps="handled">
           <TextInput
@@ -225,17 +284,9 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             onSubmitEditing={() => { handleTitleCommit(); setPreview(false); bodyRef.current?.focus(); }}
             style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
-          {/* Block-based editor (new notes) */}
-          {note.blocks ? (
-            <BlockEditor
-              blocks={note.blocks}
-              onChange={blocks => updateNote(note.id, { blocks })}
-              onToggleCheck={blockId => toggleBlockCheck(note.id, blockId)}
-              placeholder="Start writing…"
-            />
-          ) : preview ? (
+          {preview ? (
             note.body.trim()
-              ? <MarkdownView body={note.body} colors={colors} replCtx={replCtx} />
+              ? <MarkdownView body={note.body} colors={colors} replCtx={replCtx} onToggleCheckbox={toggleCheckboxLine} />
               : <Text size="sm" tertiary style={{ fontStyle: "italic" }}>Nothing to preview yet.</Text>
           ) : (
             <TextInput
@@ -258,29 +309,16 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
 
         {/* Footer */}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[6], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
-          {note.blocks ? (
-            <Text size="xs" tertiary>{note.blocks.length} block{note.blocks.length !== 1 ? "s" : ""}</Text>
-          ) : (
-            <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
-          )}
+          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
         </View>
 
-        {/* Markdown-only features — hidden for block notes */}
-        {!note.blocks && !preview && wikiQuery !== null && (
+        {/* Wiki-link autocomplete (edit mode) */}
+        {!preview && wikiQuery !== null && (
           <WikiLinkSuggestions
             query={wikiQuery}
             notes={allNotes.filter(n => n.id !== note.id)}
             onSelect={handleWikiSelect}
           />
-        )}
-        {!note.blocks && !preview && (
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
-            <MarkdownToolbar
-              body={note.body}
-              selRef={selRef}
-              onApply={(text, cur) => { updateNote(note.id, { body: text }); setCursor(cur); setWikiQuery(null); }}
-            />
-          </View>
         )}
       </View>
     </KeyboardAvoidingView>

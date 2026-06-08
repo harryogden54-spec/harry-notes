@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, Platform } from "react-native";
+import { View, Text, Pressable, Platform, Image } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
@@ -46,9 +46,12 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
       minHeight: 40,
     }}>
       {showTitle ? (
-        <Text style={{ fontFamily: fontFamily.bold, fontSize: 15, color: colors.textPrimary, letterSpacing: -0.5 }}>
-          harry.
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
+          <Image source={require("@/assets/images/icon.png")} style={{ width: 16, height: 16, borderRadius: 4 }} />
+          <Text style={{ fontFamily: fontFamily.bold, fontSize: 15, color: colors.textPrimary, letterSpacing: -0.5 }}>
+            harry.
+          </Text>
+        </View>
       ) : <View style={{ width: 40 }} />}
       <View style={{ flex: 1, alignItems: "center" }}>
         {chipLabel && (

@@ -17,6 +17,7 @@ import { TasksProvider } from "@/lib/TasksContext";
 import { useLists } from "@/lib/ListsContext";
 import { useNotes } from "@/lib/NotesContext";
 import { migrateListsToNotes } from "@/lib/migrateListsToNotes";
+import { migrateBlocksToBody } from "@/lib/migrateBlocksToBody";
 import { ListsProvider } from "@/lib/ListsContext";
 import { NotesProvider } from "@/lib/NotesContext";
 import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
@@ -39,7 +40,7 @@ function AppShell() {
   const { colors } = useTheme();
   const { tasks, loaded: tasksLoaded } = useTasks();
   const { lists, loaded: listsLoaded } = useLists();
-  const { notes, loaded: notesLoaded, bulkAddNotes } = useNotes();
+  const { notes, loaded: notesLoaded, bulkAddNotes, updateNote: updateNoteFn } = useNotes();
   // On web, both Inter and Ionicons are declared via CSS @font-face in
   // global.css pointing at /assets/fonts/. We must NOT load them via useFonts
   // on web: expo-font injects @font-face rules with Metro-hashed URLs that
@@ -75,10 +76,15 @@ function AppShell() {
     initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
   }, [fontsLoaded]);
 
-  // One-time migration: convert existing lists → notes with checkbox blocks
+  // One-time migration: convert existing lists → notes with checkbox blocks,
+  // then convert any block-based notes into markdown bodies (order matters so
+  // freshly-migrated lists are converted too).
   useEffect(() => {
     if (!listsLoaded || !notesLoaded) return;
-    migrateListsToNotes(lists, notes, bulkAddNotes).catch(console.error);
+    (async () => {
+      await migrateListsToNotes(lists, notes, bulkAddNotes);
+      await migrateBlocksToBody(notes, updateNoteFn);
+    })().catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listsLoaded, notesLoaded]);
 
