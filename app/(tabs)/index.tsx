@@ -16,7 +16,7 @@ import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext"
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
+import { getTodayStr, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { carryForwardToday } from "@/lib/todayCarry";
 import { useMounted } from "@/lib/useMounted";
 import { notePreview } from "@/components/notes/utils";
@@ -159,7 +159,7 @@ function DashboardScreen() {
   const header = (
     <View style={{ paddingTop: spacing[8], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 32, fontFamily: fontFamily.bold, letterSpacing: -1.2, color: colors.textPrimary, lineHeight: 36 }}>
+        <Text size="display" weight="bold">
           {mounted ? greeting() : "Good morning"}
         </Text>
         <Text size="sm" secondary style={{ marginTop: spacing[1] }}>
@@ -250,14 +250,7 @@ function DashboardScreen() {
         <GlassCard style={{ overflow: "hidden" }}>
           {tasksCardItems.map((task, i) => (
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                {task.priority && (
-                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLOR[task.priority] }} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
-                </View>
-              </View>
+              <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
             </View>
           ))}
           {tasksOverflow > 0 && (

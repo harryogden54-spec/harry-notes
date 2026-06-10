@@ -101,6 +101,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const selRef   = useRef<Sel>({ start: 0, end: 0 });
   const [cursor, setCursor]       = useState<Sel | undefined>(undefined);
   const [preview, setPreview]     = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -213,7 +214,24 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={{ flex: 1 }}>
+        {/* Focus mode: all chrome hidden, one floating exit control */}
+        {focusMode && (
+          <Pressable
+            onPress={() => setFocusMode(false)}
+            hitSlop={12}
+            accessibilityLabel="Exit focus mode"
+            style={{
+              position: "absolute", top: spacing[3], right: spacing[4], zIndex: 20,
+              padding: spacing[1.5], borderRadius: 99,
+              backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.bgBorder,
+            }}
+          >
+            <Ionicons name="contract-outline" size={16} color={colors.textTertiary} />
+          </Pressable>
+        )}
+
         {/* Header */}
+        {!focusMode && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
           {showBackButton && (
             <Pressable onPress={onClose} hitSlop={12} style={{ padding: spacing[1] }}>
@@ -230,6 +248,14 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
               {preview ? "Edit" : "Preview"}
             </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setFocusMode(true)}
+            hitSlop={12}
+            accessibilityLabel="Focus mode"
+            style={{ padding: spacing[1] }}
+          >
+            <Ionicons name="expand-outline" size={15} color={colors.textTertiary} />
           </Pressable>
           <Pressable onPress={handleCopy} hitSlop={12} style={{ padding: spacing[1] }}>
             <Ionicons name="copy-outline" size={15} color={colors.textTertiary} />
@@ -258,9 +284,10 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             <Text size="xs" style={{ color: colors.danger }}>Delete</Text>
           </Pressable>
         </View>
+        )}
 
         {/* Formatting bar — pinned at the top (iOS Notes style), edit mode only */}
-        {!preview && (
+        {!preview && !focusMode && (
           <View style={{ borderBottomWidth: 1, borderBottomColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
             <MarkdownToolbar
               body={note.body}
@@ -306,12 +333,14 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         </ScrollView>
 
         {/* Backlinks */}
-        <BacklinksPanel note={note} allNotes={allNotes} onOpen={handleOpenNote} />
+        {!focusMode && <BacklinksPanel note={note} allNotes={allNotes} onOpen={handleOpenNote} />}
 
         {/* Footer */}
+        {!focusMode && (
         <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[6], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
           <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
         </View>
+        )}
 
         {/* Wiki-link autocomplete (edit mode) */}
         {!preview && wikiQuery !== null && (

@@ -71,17 +71,16 @@ function RowContent({ task, onPress }: Props) {
         flexDirection: "row", alignItems: "center", gap: spacing[3],
         minHeight: 52,
         paddingVertical: spacing[3], paddingHorizontal: spacing[4],
-        paddingLeft: priorityColor ? spacing[4] + 3 : spacing[4],
         borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: task.priority === "urgent" && !task.done ? `${colors.danger}12` : colors.bgSecondary,
         opacity: task.done ? 0.45 : 1,
       }}
     >
-      {/* Priority left-border strip */}
-      {priorityColor && (
-        <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, backgroundColor: priorityColor }} />
-      )}
       <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} accessibilityLabel={task.title} />
+      {/* Priority dot beside the checkbox */}
+      {priorityColor && (
+        <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: priorityColor, marginLeft: -spacing[1] }} />
+      )}
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ position: "relative" }}>
           {renaming ? (

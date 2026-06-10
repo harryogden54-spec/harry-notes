@@ -209,6 +209,8 @@ export function advanceByRecurrence(base: string | undefined, recurrence: string
   return toStr(d);
 }
 
+// Sanctioned fixed palette — priority hues stay identical across themes so
+// urgency reads instantly regardless of palette (like categoryColors).
 export const PRIORITY_COLOR: Record<Priority, string> = {
   urgent: "#E05252",
   high:   "#E8874A",

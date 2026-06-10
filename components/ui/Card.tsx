@@ -1,7 +1,7 @@
 import React from "react";
 import { View, ViewProps, StyleSheet, Pressable, PressableProps, Platform } from "react-native";
 import { useTheme } from "@/lib/useTheme";
-import { radius, spacing, getShadow } from "@/lib/theme";
+import { radius, spacing, getShadow, motion } from "@/lib/theme";
 
 export type CardVariant = "elevated" | "filled" | "outlined";
 
@@ -71,11 +71,16 @@ export function CardPressable({ elevated, variant = "elevated", style, children,
   return (
     <Pressable
       accessibilityRole="button"
-      style={({ pressed }) => ({
-        ...base,
-        backgroundColor: pressed ? colors.bgTertiary : base.backgroundColor,
-        ...(typeof style === "object" && style !== null && !Array.isArray(style) ? style : {}),
-      })}
+      style={(state) => {
+        const pressed = state.pressed;
+        const hovered = (state as { hovered?: boolean }).hovered ?? false;
+        return {
+          ...base,
+          backgroundColor: pressed || hovered ? colors.bgTertiary : base.backgroundColor,
+          transform: pressed ? [{ scale: motion.pressScale }] : undefined,
+          ...(typeof style === "object" && style !== null && !Array.isArray(style) ? style : {}),
+        };
+      }}
       {...props}
     >
       {children}
