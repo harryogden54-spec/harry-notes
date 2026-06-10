@@ -8,7 +8,7 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, GradientBackground, EmptyState } from "@/components/ui";
-import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
+import { spacing, radius, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
 import { useNotesData, useNotesActions, useNotesSync } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 
@@ -20,7 +20,7 @@ function PostItEditModal({
   id: string; text: string; onClose: () => void; onDelete: () => void;
 }) {
   const { updateNote } = useNotesActions();
-  const { colors, notePastels } = useTheme();
+  const { colors, notePastels, scheme } = useTheme();
   const [val, setVal] = useState(text);
   const inputRef = useRef<TextInput | null>(null);
   const idx = getNotePastelIndex(id);
@@ -56,8 +56,7 @@ function PostItEditModal({
             borderWidth: 1, borderColor: border,
             borderTopColor: "rgba(255,255,255,0.55)",
             padding: spacing[5],
-            shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.25, shadowRadius: 16, elevation: 8,
+            ...getShadow("overlay", scheme),
           }}
         >
           <TextInput
@@ -108,7 +107,7 @@ function PostItEditModal({
 // ─── Post-it Card (display only) ──────────────────────────────────────────────
 
 function PostItCard({ id, text, onPress }: { id: string; text: string; onPress: () => void }) {
-  const { notePastels } = useTheme();
+  const { notePastels, scheme } = useTheme();
   const idx = getNotePastelIndex(id);
 
   return (
@@ -123,11 +122,7 @@ function PostItCard({ id, text, onPress }: { id: string; text: string; onPress: 
         padding: spacing[4],
         minHeight: 96,
         justifyContent: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.09,
-        shadowRadius: 8,
-        elevation: 3,
+        ...getShadow("xs", scheme),
       }}
     >
       <Text

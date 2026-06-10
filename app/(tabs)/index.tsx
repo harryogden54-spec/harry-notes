@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
+import { spacing, radius, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
@@ -88,7 +88,7 @@ function TodayPanel() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { colors, notePastels } = useTheme();
+  const { colors, notePastels, scheme } = useTheme();
   const { open: openPalette }  = useCommandPalette();
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
@@ -383,11 +383,7 @@ function DashboardScreen() {
                 padding: spacing[3],
                 minHeight: 72,
                 justifyContent: "center",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.07,
-                shadowRadius: 4,
-                elevation: 2,
+                ...getShadow("xs", scheme),
               }}>
                 <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, lineHeight: 18 }}>
                   {n.title || "…"}

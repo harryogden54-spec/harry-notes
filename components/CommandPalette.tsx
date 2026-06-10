@@ -11,7 +11,7 @@ import { useNotesData } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
 import { PRIORITY_CONFIG, formatDate } from "@/components/tasks/constants";
 
 // ── Navigation shortcuts ───────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export function CommandPalette() {
   const { addTask }             = useTasksActions();
   const { notes }               = useNotesData();
   const { showToast }           = useToast();
-  const { colors }              = useTheme();
+  const { colors, scheme }      = useTheme();
   const router                  = useRouter();
   const inputRef                = useRef<TextInput>(null);
   const [query, setQuery]       = useState("");
@@ -128,11 +128,7 @@ export function CommandPalette() {
             borderRadius: radius.xl,
             borderWidth: 1, borderColor: colors.bgBorder,
             overflow: "hidden",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 12 },
-            shadowOpacity: 0.45,
-            shadowRadius: 32,
-            elevation: 12,
+            ...getShadow("overlay", scheme),
           }}
         >
           {/* Input row */}

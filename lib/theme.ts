@@ -219,9 +219,73 @@ export const typography = {
   xl:    { fontSize: 20, lineHeight: 28 },
   "2xl": { fontSize: 24, lineHeight: 32 },
   "3xl": { fontSize: 30, lineHeight: 38 },
+  // Atelier editorial styles
+  /** Screen greetings / hero titles — confident, tightly-tracked. */
+  display: { fontSize: 34, lineHeight: 40, letterSpacing: -0.5 },
+  /** Uppercase section labels — small, wide-tracked, textTertiary. */
+  label:   { fontSize: 12, lineHeight: 16, letterSpacing: 0.8 },
 } as const;
 
 export type ColorScheme = "dark" | "light";
+
+// ─── Elevation (Atelier) ──────────────────────────────────────────────────────
+// One shadow language for the whole app. Rules:
+//   content cards  → hairline bgBorder border + "sm"
+//   floating bits  → "md" (FAB, toasts)
+//   overlays       → "overlay" (modals, command palette, detail sheets)
+// RN-web converts these shadow* props to box-shadow, so one definition serves
+// both platforms; elevation covers Android.
+
+export type ShadowLevel = "xs" | "sm" | "md" | "overlay";
+
+const SHADOW_SPECS: Record<ShadowLevel, { dark: number; light: number; radius: number; offsetY: number; elevation: number }> = {
+  xs:      { dark: 0.20, light: 0.05, radius: 3,  offsetY: 1,  elevation: 1 },
+  sm:      { dark: 0.26, light: 0.08, radius: 8,  offsetY: 2,  elevation: 2 },
+  md:      { dark: 0.34, light: 0.12, radius: 16, offsetY: 6,  elevation: 6 },
+  overlay: { dark: 0.45, light: 0.20, radius: 32, offsetY: 16, elevation: 16 },
+};
+
+export function getShadow(level: ShadowLevel, scheme: ColorScheme) {
+  const s = SHADOW_SPECS[level];
+  return {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: s.offsetY },
+    shadowOpacity: scheme === "dark" ? s.dark : s.light,
+    shadowRadius: s.radius,
+    elevation: s.elevation,
+  } as const;
+}
+
+// ─── Layout constants ─────────────────────────────────────────────────────────
+// Previously magic numbers scattered across screens.
+
+export const layout = {
+  tabBarHeight: { ios: 88, default: 68 },
+  fabBottom:    { ios: 100, default: 76 },
+  gutter:       { mobile: 20, desktop: 32 },
+  maxWidth:     { narrow: 720, wide: 1200 },
+} as const;
+
+// ─── Motion ───────────────────────────────────────────────────────────────────
+
+export const motion = {
+  fast: 150,
+  base: 200,
+  slow: 300,
+  /** Standard pressable feedback. */
+  pressOpacity: 0.85,
+  pressScale: 0.98,
+} as const;
+
+// ─── Priority colours ─────────────────────────────────────────────────────────
+// Keys into ThemeTokens so priorities follow the active theme/scheme.
+
+export const priorityColorKey = {
+  urgent: "danger",
+  high:   "warning",
+  medium: "accent",
+  low:    "textTertiary",
+} as const satisfies Record<string, keyof ThemeTokens>;
 
 // ─── Accent options (override accent within any theme) ────────────────────────
 
@@ -245,30 +309,133 @@ export const fontFamily = {
   bold:     "Inter_700Bold",
 } as const;
 
-// ─── Note pastels (sticky-note backgrounds) ───────────────────────────────────
-// Theme-aware: dark mode uses low-luminance tinted surfaces so notes read
-// correctly on dark backgrounds; light mode keeps the classic bright paper feel.
+// ─── Per-theme personality kits (Atelier) ─────────────────────────────────────
+// Each theme owns its note-pastel palette, background wash, and hero gradient,
+// so switching themes changes the app's character — not just its grays.
+//   pastels — 6 theme-tinted sticky-note colours (dark: low-luminance with
+//             real chroma; light: bright paper), derived from curated hue sets
+//   wash    — colour pair for the web radial background wash
+//   hero    — accent gradient pair for hero elements (focus ring, progress)
 
-type NotePaletteSet = {
+export type NotePaletteSet = {
   bg:     readonly string[];
   border: readonly string[];
   text:   string;
 };
 
-const PASTELS_LIGHT: NotePaletteSet = {
-  bg:     ["#FFF9C4", "#FCE4EC", "#E8F5E9", "#E3F2FD", "#EDE7F6", "#FBE9E7"],
-  border: ["#F0E68C", "#F8BBD9", "#C8E6C9", "#BBDEFB", "#D1C4E9", "#FFCCBC"],
-  text:   "#1A1A2E",
+export type ThemeKit = {
+  pastels: NotePaletteSet;
+  wash: readonly [string, string];
+  hero: readonly [string, string];
 };
 
-const PASTELS_DARK: NotePaletteSet = {
-  bg:     ["#2A2418", "#2A1A20", "#1A2A1A", "#1A2030", "#22182A", "#2A2018"],
-  border: ["#3A3020", "#3A2030", "#253525", "#253040", "#302038", "#3A3028"],
-  text:   "#E8E0D4",
+/** hsl(h°, s 0–1, l 0–1) → #RRGGBB. Tokens are precomputed once per kit. */
+function hslHex(h: number, s: number, l: number): string {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    return Math.round(255 * c).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+}
+
+function buildPastels(hues: readonly number[], sat: number, scheme: ColorScheme): NotePaletteSet {
+  if (scheme === "dark") {
+    return {
+      bg:     hues.map(h => hslHex(h, 0.34 * sat, 0.16)),
+      border: hues.map(h => hslHex(h, 0.36 * sat, 0.26)),
+      text:   hslHex(hues[0], 0.16, 0.88),
+    };
+  }
+  return {
+    bg:     hues.map(h => hslHex(h, 0.80 * sat, 0.93)),
+    border: hues.map(h => hslHex(h, 0.60 * sat, 0.80)),
+    text:   hslHex(hues[0], 0.30, 0.14),
+  };
+}
+
+type KitSpec = {
+  /** Six pastel hues (degrees) — the theme's note palette identity. */
+  hues: readonly number[];
+  /** Saturation multiplier (graphite wants near-monochrome pastels). */
+  sat: number;
+  wash: { dark: readonly [string, string]; light: readonly [string, string] };
+  hero: { dark: readonly [string, string]; light: readonly [string, string] };
 };
 
-export function getNotePastels(scheme: ColorScheme): NotePaletteSet {
-  return scheme === "dark" ? PASTELS_DARK : PASTELS_LIGHT;
+const KIT_SPECS: Record<ThemeId, KitSpec> = {
+  obsidian: { // precise, neutral ink
+    hues: [228, 280, 200, 150, 335, 42], sat: 0.85,
+    wash: { dark: ["#6B77D9", "#9B59D9"], light: ["#5B6AD0", "#8B6AD9"] },
+    hero: { dark: ["#6B77D9", "#A685F7"], light: ["#5B6AD0", "#8854E0"] },
+  },
+  nord: { // frost & aurora
+    hues: [193, 213, 280, 140, 354, 45], sat: 0.8,
+    wash: { dark: ["#88C0D0", "#B48EAD"], light: ["#5E81AC", "#88C0D0"] },
+    hero: { dark: ["#88C0D0", "#A3BE8C"], light: ["#5E81AC", "#4E9A8C"] },
+  },
+  graphite: { // near-monochrome studio
+    hues: [228, 200, 280, 150, 340, 45], sat: 0.3,
+    wash: { dark: ["#98989D", "#6E6E73"], light: ["#8E8E93", "#B0B0B5"] },
+    hero: { dark: ["#AEAEB2", "#8E8E93"], light: ["#636366", "#8E8E93"] },
+  },
+  rose: { // warm blush paper
+    hues: [340, 320, 10, 25, 285, 350], sat: 0.9,
+    wash: { dark: ["#D4849A", "#B86A9A"], light: ["#C0607A", "#D88AA8"] },
+    hero: { dark: ["#D4849A", "#E8A8B8"], light: ["#C0607A", "#A84878"] },
+  },
+  evergreen: { // botanical
+    hues: [140, 95, 170, 60, 200, 28], sat: 0.85,
+    wash: { dark: ["#6DBF7E", "#3A9A8A"], light: ["#3A8A4A", "#6ABF8E"] },
+    hero: { dark: ["#6DBF7E", "#9ACD6A"], light: ["#3A8A4A", "#2A7A6A"] },
+  },
+  mocha: { // catppuccin lavenders
+    hues: [267, 343, 217, 115, 23, 41], sat: 0.95,
+    wash: { dark: ["#CBA6F7", "#F5C2E7"], light: ["#8839EF", "#EA76CB"] },
+    hero: { dark: ["#CBA6F7", "#89B4FA"], light: ["#8839EF", "#1E66F5"] },
+  },
+  midnight: { // deep-water blues
+    hues: [222, 245, 205, 265, 190, 280], sat: 0.95,
+    wash: { dark: ["#3A7AFF", "#7048E8"], light: ["#1A54FF", "#6A8AFF"] },
+    hero: { dark: ["#3A7AFF", "#00C2FF"], light: ["#1A54FF", "#0090E8"] },
+  },
+  dune: { // desert warmth
+    hues: [40, 25, 58, 15, 80, 345], sat: 0.85,
+    wash: { dark: ["#C8A86A", "#A87A4A"], light: ["#9A7A40", "#C8A86A"] },
+    hero: { dark: ["#C8A86A", "#E8C88A"], light: ["#9A7A40", "#B8924A"] },
+  },
+  solar: { // dawn-lit lagoon
+    hues: [45, 18, 175, 205, 68, 331], sat: 0.85,
+    wash: { dark: ["#B58900", "#2AA198"], light: ["#CB4B16", "#B58900"] },
+    hero: { dark: ["#B58900", "#CB4B16"], light: ["#CB4B16", "#D33682"] },
+  },
+  ember: { // hearth glow
+    hues: [10, 25, 0, 40, 350, 55], sat: 0.95,
+    wash: { dark: ["#E85D4A", "#C2452E"], light: ["#C0392B", "#E87A4A"] },
+    hero: { dark: ["#E85D4A", "#F5A623"], light: ["#C0392B", "#E06A30"] },
+  },
+};
+
+const kitCache = new Map<string, ThemeKit>();
+
+export function getThemeKit(themeId: ThemeId, scheme: ColorScheme): ThemeKit {
+  const key = `${themeId}:${scheme}`;
+  let kit = kitCache.get(key);
+  if (!kit) {
+    const spec = KIT_SPECS[themeId] ?? KIT_SPECS.obsidian;
+    kit = {
+      pastels: buildPastels(spec.hues, spec.sat, scheme),
+      wash: spec.wash[scheme],
+      hero: spec.hero[scheme],
+    };
+    kitCache.set(key, kit);
+  }
+  return kit;
+}
+
+export function getNotePastels(scheme: ColorScheme, themeId: ThemeId = "obsidian"): NotePaletteSet {
+  return getThemeKit(themeId, scheme).pastels;
 }
 
 /** Stable index from any string id — same id always picks the same pastel.
@@ -277,11 +444,12 @@ export function getNotePastelIndex(id: string): number {
   const s = typeof id === "string" ? id : String(id ?? "");
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h % PASTELS_LIGHT.bg.length;
+  return h % 6;
 }
 
 // ─── Category colours ─────────────────────────────────────────────────────────
-// Fixed across themes so they're recognisable regardless of palette.
+// Sanctioned fixed palette: identical across themes so categories stay
+// recognisable regardless of palette. Not subject to the no-hardcoded-hex rule.
 
 export const categoryColors = {
   personal: "#88C0D0",
@@ -289,12 +457,9 @@ export const categoryColors = {
 } as const;
 
 // ─── List default colours ─────────────────────────────────────────────────────
+// Sanctioned fixed palette — user-picked list identities, theme-independent.
 
 export const listColors: readonly string[] = [
   "#4A90D9", "#9B59B6", "#27AE60", "#E67E22",
   "#E74C3C", "#E8C84A", "#E91E8C", "#1ABC9C",
 ];
-
-// ─── Legacy exports (kept so old imports don't break during migration) ─────────
-// TODO: remove notePastels after all consumers are updated to getNotePastels()
-export const notePastels = PASTELS_LIGHT;

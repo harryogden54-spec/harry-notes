@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { useColorScheme } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 import { storage } from "./storage";
 import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
 
@@ -49,6 +49,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const scheme = override ?? device;
+
+  // Keep the CSS --accent variable (focus outlines in global.css) in sync
+  // with the active accent on web.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const accent = (ACCENT_OPTIONS.find(a => a.id === accentId) ?? ACCENT_OPTIONS[0]).color;
+    document.documentElement.style.setProperty("--accent", accent);
+  }, [accentId]);
 
   const toggle = useCallback(() => {
     setOverride(prev => {

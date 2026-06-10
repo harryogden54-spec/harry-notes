@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import { Text } from "./Text";
 import { Checkbox } from "./Checkbox";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
 import { useTasksActions, type Task } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr, getTomorrowStr, formatDueDate, PRIORITY_COLOR } from "@/lib/utils";
@@ -137,7 +137,7 @@ function RowContent({ task, onPress }: Props) {
 }
 
 function WebTaskRow({ task, onPress }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const [hovered, setHovered] = useState(false);
@@ -177,8 +177,7 @@ function WebTaskRow({ task, onPress }: Props) {
               borderWidth: 1, borderColor: colors.bgBorder,
               borderRadius: radius.lg,
               paddingHorizontal: spacing[1.5], paddingVertical: spacing[1],
-              // @ts-ignore
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              ...getShadow("md", scheme),
             }}>
               <Pressable
                 onPress={handleComplete}

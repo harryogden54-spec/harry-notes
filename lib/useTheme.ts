@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useThemeContext } from "./ThemeContext";
-import { ACCENT_OPTIONS, THEMES, getNotePastels } from "./theme";
+import { ACCENT_OPTIONS, THEMES, getThemeKit } from "./theme";
 
 export function useTheme() {
   const { scheme, accentId, themeId } = useThemeContext();
@@ -21,9 +21,9 @@ export function useTheme() {
       accentSubtle: scheme === "dark" ? accentOpt.subtle : accentOpt.lightSubtle,
     };
 
-    // Theme-aware note pastels (dark = low-luminance tinted, light = bright paper)
-    const notePastels = getNotePastels(scheme);
+    // Per-theme personality kit: note pastels, background wash, hero gradient.
+    const kit = getThemeKit(themeId in THEMES ? themeId : "obsidian", scheme);
 
-    return { scheme, colors, isDark: scheme === "dark", notePastels };
+    return { scheme, colors, isDark: scheme === "dark", notePastels: kit.pastels, kit };
   }, [scheme, accentId, themeId]);
 }

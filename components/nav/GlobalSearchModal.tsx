@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { View, Text, TextInput, ScrollView, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
 import { useTasksData } from "@/lib/TasksContext";
 import { useNotesData } from "@/lib/NotesContext";
 import { SearchResults } from "@/components/dashboard/SearchResults";
@@ -10,7 +10,7 @@ import { SearchResults } from "@/components/dashboard/SearchResults";
 type Props = { visible: boolean; onClose: () => void };
 
 export function GlobalSearchModal({ visible, onClose }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const { tasks } = useTasksData();
   const { notes } = useNotesData();
   const [query, setQuery] = useState("");
@@ -51,11 +51,7 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
         borderWidth: 1,
         borderColor: colors.bgBorder,
         overflow: "hidden",
-        // @ts-ignore
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 16 },
-        shadowOpacity: 0.4,
-        shadowRadius: 32,
+        ...getShadow("overlay", scheme),
       }}>
         <View style={{
           flexDirection: "row", alignItems: "center", gap: spacing[3],

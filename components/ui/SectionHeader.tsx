@@ -2,7 +2,7 @@ import React from "react";
 import { View, Pressable } from "react-native";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, fontFamily, radius } from "@/lib/theme";
+import { spacing, fontFamily, typography } from "@/lib/theme";
 
 interface Props {
   label: string;
@@ -16,10 +16,9 @@ export function SectionHeader({ label, count, subtitle, action }: Props) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
       <Text style={{
-        fontSize: 13,
+        ...typography.label,
         fontFamily: fontFamily.semibold,
-        color: colors.textSecondary,
-        letterSpacing: 0.6,
+        color: colors.textTertiary,
         textTransform: "uppercase",
       }}>
         {label}

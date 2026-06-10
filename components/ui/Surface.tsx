@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Platform, type ViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "@/lib/useTheme";
-import { radius } from "@/lib/theme";
+import { radius, getShadow } from "@/lib/theme";
 
 type Variant = "default" | "elevated" | "inset";
 
@@ -19,7 +19,7 @@ interface Props extends ViewProps {
  * Use variant="elevated" for floating panels, variant="inset" for inner wells.
  */
 export function Surface({ variant = "default", style, children, ...props }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
 
   const baseColor =
     variant === "inset"    ? colors.bgTertiary  :
@@ -36,22 +36,9 @@ export function Surface({ variant = "default", style, children, ...props }: Prop
     } : {}),
   };
 
-  const shadowStyle: ViewStyle = variant === "elevated"
-    ? {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-        elevation: 4,
-      }
-    : variant === "default"
-    ? {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.10,
-        shadowRadius: 4,
-        elevation: 2,
-      }
+  const shadowStyle: ViewStyle =
+    variant === "elevated" ? getShadow("sm", scheme)
+    : variant === "default" ? getShadow("xs", scheme)
     : {};
 
   return (
