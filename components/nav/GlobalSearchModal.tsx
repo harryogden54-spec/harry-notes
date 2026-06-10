@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { View, Text, TextInput, ScrollView, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
@@ -15,6 +15,8 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
   const { notes } = useNotesData();
   const [query, setQuery] = useState("");
   const inputRef = useRef<TextInput | null>(null);
+  // Stable array so SearchResults' Fuse index doesn't rebuild per keystroke.
+  const openTasks = useMemo(() => tasks.filter(t => !t.done && !t.archived), [tasks]);
 
   useEffect(() => {
     if (visible) {
@@ -90,7 +92,7 @@ export function GlobalSearchModal({ visible, onClose }: Props) {
             keyboardShouldPersistTaps="handled"
           >
             <SearchResults
-              tasks={tasks.filter(t => !t.done && !t.archived)}
+              tasks={openTasks}
               notes={notes}
               query={query.trim()}
               onTaskPress={() => onClose()}
