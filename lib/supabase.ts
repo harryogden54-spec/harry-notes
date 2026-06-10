@@ -22,33 +22,63 @@ export const supabase = createClient(
   SUPABASE_ANON_KEY || "placeholder"
 );
 
+// Upserts are chunked so a large dirty set (e.g. first-device bootstrap) can't
+// produce one oversized POST that times out on a slow connection.
+const UPSERT_CHUNK_SIZE = 100;
+
 // Result type so callers can distinguish "remote is empty" from "fetch failed".
 // The previous shape (returning [] on error) caused contexts to mistake a
 // network blip for an empty remote and re-upload the entire local store.
 export type FetchResult<T> =
-  | { ok: true; rows: T[] }
+  | { ok: true; rows: T[]; deletedIds: string[]; serverMax: string | null }
   | { ok: false; error: string };
 
+const EMPTY_OK: { ok: true; rows: never[]; deletedIds: never[]; serverMax: null } =
+  { ok: true, rows: [], deletedIds: [], serverMax: null };
+
+/**
+ * Fetch rows for this sync key. With `sinceIso` set, only rows the server
+ * touched after that timestamp are returned (incremental delta); without it,
+ * the full table slice is returned (reconciliation path).
+ *
+ * Returns live rows, tombstoned ids, and `serverMax` — the highest server
+ * updated_at seen, which the caller persists as the next delta cursor.
+ * Timestamps are always server-clock (set_updated_at trigger), so the cursor
+ * is immune to client clock skew.
+ */
 export async function syncFetch<T extends { id: string }>(
-  table: string
+  table: string,
+  sinceIso?: string | null
 ): Promise<FetchResult<T>> {
-  if (!SYNC_ENABLED) return { ok: true, rows: [] };
+  if (!SYNC_ENABLED) return EMPTY_OK;
 
   // No sync key = device hasn't been set up for sync yet → offline mode.
   const syncKey = await getSyncKey();
-  if (!syncKey) return { ok: true, rows: [] };
+  if (!syncKey) return EMPTY_OK;
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from(table)
-      .select("id, data, updated_at")
+      .select("id, data, updated_at, deleted")
       .eq("sync_key", syncKey);
+    if (sinceIso) query = query.gt("updated_at", sinceIso);
+    const { data, error } = await query;
     if (error) {
       console.warn(`syncFetch ${table}:`, error.message);
       return { ok: false, error: error.message };
     }
-    const rows = (data ?? []).map((row: any) => ({ ...row.data, _updated_at: row.updated_at })) as T[];
-    return { ok: true, rows };
+
+    const rows: T[] = [];
+    const deletedIds: string[] = [];
+    let serverMax: string | null = null;
+    for (const row of (data ?? []) as any[]) {
+      if (typeof row.updated_at === "string" && (!serverMax || row.updated_at > serverMax)) {
+        serverMax = row.updated_at;
+      }
+      if (row.deleted) deletedIds.push(row.id);
+      else rows.push({ ...row.data, _updated_at: row.updated_at } as T);
+    }
+    return { ok: true, rows, deletedIds, serverMax };
   } catch (e: any) {
     console.warn(`syncFetch ${table}: network error`, e);
     return { ok: false, error: e?.message ?? "network error" };
@@ -70,16 +100,30 @@ export async function syncUpsert<T extends { id: string }>(
   // table sets updated_at = now() server-side on INSERT/UPDATE, so all devices
   // compare against a common server clock rather than skewed client clocks.
   // See migrations/001_sync_key_and_server_timestamps.sql
+  //
+  // deleted: false resurrects a tombstoned row when the user undoes a delete
+  // (or edits a row another device removed).
   const rows = items.map(item => ({
     id: item.id,
     data: item,
     sync_key: syncKey,
+    deleted: false,
   }));
-  const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
-  if (error) { console.warn(`syncUpsert ${table}:`, error.message); return false; }
+  for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
+    const { error } = await supabase.from(table).upsert(chunk, { onConflict: "id" });
+    if (error) { console.warn(`syncUpsert ${table}:`, error.message); return false; }
+  }
   return true;
 }
 
+/**
+ * Tombstone delete: an upsert with deleted=true rather than a row DELETE, so
+ * the server stamps it with updated_at = now() and other devices learn about
+ * the deletion through the incremental fetch. The data blob is reduced to a
+ * stub; the row itself stays visible server-side for debugging.
+ * See migrations/002_tombstones_and_delta_index.sql
+ */
 export async function syncDelete(table: string, id: string): Promise<boolean> {
   if (!SYNC_ENABLED) return true;
 
@@ -88,9 +132,7 @@ export async function syncDelete(table: string, id: string): Promise<boolean> {
 
   const { error } = await supabase
     .from(table)
-    .delete()
-    .eq("id", id)
-    .eq("sync_key", syncKey);
+    .upsert([{ id, data: { id }, sync_key: syncKey, deleted: true }], { onConflict: "id" });
   if (error) { console.warn(`syncDelete ${table}:`, error.message); return false; }
   return true;
 }

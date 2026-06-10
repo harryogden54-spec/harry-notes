@@ -201,7 +201,9 @@ export default function SettingsScreen() {
   const currentTheme   = THEMES[themeId];
 
   async function handleSyncNow() {
-    await Promise.all([syncTasks(), syncNotes()]);
+    // Manual sync is the reconciliation path: full fetch, ignoring the delta
+    // cursor, so it can repair any divergence the incremental sync missed.
+    await Promise.all([syncTasks({ full: true }), syncNotes({ full: true })]);
     showToast("Synced successfully");
   }
 

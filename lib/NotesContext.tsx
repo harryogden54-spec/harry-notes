@@ -34,7 +34,7 @@ type NotesData = {
 type NotesSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: () => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<void>;
 };
 
 type NotesActions = {
@@ -85,8 +85,8 @@ function newId() {
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const {
     items: notes, setItems: setNotes, loaded, syncStatus, lastSynced,
-    itemsRef: notesRef, pendingDeletesRef, dirtyIdsRef,
-    markDirty, syncNow,
+    itemsRef: notesRef, pendingDeletesRef,
+    markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Note>({
     table: "notes",
     storageKey: "notes",
@@ -101,8 +101,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       }
       return (await storage.get<Note[]>("notes") ?? []).map(normalizeNote);
     },
-    saveLocal: (items) => {
-      if (Platform.OS !== "web") dbSaveNotes(items).catch(console.error);
+    saveLocal: (items, changes) => {
+      if (Platform.OS !== "web") dbSaveNotes(items, changes).catch(console.error);
     },
     // Coerce remote rows — older rows may be missing type/body/title.
     normalizeRemote: (row) => normalizeNote(row),
@@ -129,7 +129,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     const deleted = notesRef.current.find(n => n.id === id);
     setNotes(prev => prev.filter(n => n.id !== id));
     pendingDeletesRef.current.add(id);
-    dirtyIdsRef.current.delete(id);
+    markLocallyDeleted(id); // remove the SQLite row on next flush
     const timer = setTimeout(() => {
       syncDelete("notes", id);
       pendingDeletesRef.current.delete(id);
@@ -138,11 +138,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // also clears the local-delete mark
         setNotes(prev => [deleted, ...prev]);
       }
     };
-  }, [notesRef, pendingDeletesRef, dirtyIdsRef, markDirty, setNotes]);
+  }, [notesRef, pendingDeletesRef, markLocallyDeleted, markDirty, setNotes]);
 
   const bulkAddNotes = useCallback((newNotes: Note[]) => {
     if (newNotes.length === 0) return;

@@ -37,7 +37,7 @@ type ListsData = {
 type ListsSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: () => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<void>;
 };
 
 type ListsActions = {
@@ -90,8 +90,8 @@ function newId() {
 export function ListsProvider({ children }: { children: React.ReactNode }) {
   const {
     items: lists, setItems: setLists, loaded, syncStatus, lastSynced,
-    itemsRef: listsRef, pendingDeletesRef, dirtyIdsRef,
-    markDirty, syncNow,
+    itemsRef: listsRef, pendingDeletesRef,
+    markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<NoteList>({
     table: "lists",
     storageKey: "lists",
@@ -106,8 +106,8 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       }
       return (await storage.get<NoteList[]>("lists") ?? []).map(normalizeList);
     },
-    saveLocal: (items) => {
-      if (Platform.OS !== "web") dbSaveLists(items).catch(console.error);
+    saveLocal: (items, changes) => {
+      if (Platform.OS !== "web") dbSaveLists(items, changes).catch(console.error);
     },
     // Coerce remote rows — older rows may be missing name/created_at/items.
     normalizeRemote: (row) => normalizeList(row),
@@ -133,7 +133,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     const deleted = listsRef.current.find(l => l.id === id);
     setLists(prev => prev.filter(l => l.id !== id));
     pendingDeletesRef.current.add(id);
-    dirtyIdsRef.current.delete(id);
+    markLocallyDeleted(id); // remove the SQLite row on next flush
     const timer = setTimeout(() => {
       syncDelete("lists", id);
       pendingDeletesRef.current.delete(id);
@@ -142,11 +142,11 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // also clears the local-delete mark
         setLists(prev => [...prev, deleted]);
       }
     };
-  }, [listsRef, pendingDeletesRef, dirtyIdsRef, markDirty, setLists]);
+  }, [listsRef, pendingDeletesRef, markLocallyDeleted, markDirty, setLists]);
 
   const pinList = useCallback((id: string) => {
     markDirty(id);

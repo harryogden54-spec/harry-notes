@@ -55,7 +55,7 @@ type TasksData = {
 type TasksSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: () => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<void>;
 };
 
 type TasksActions = {
@@ -107,8 +107,8 @@ function newId() {
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const {
     items: tasks, setItems: setTasks, loaded, syncStatus, lastSynced,
-    itemsRef: tasksRef, pendingDeletesRef, dirtyIdsRef,
-    markDirty, syncNow,
+    itemsRef: tasksRef, pendingDeletesRef,
+    markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Task>({
     table: "tasks",
     storageKey: "tasks",
@@ -127,8 +127,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       }
       return (await storage.get<Task[]>("tasks") ?? []).map(normalizeTask);
     },
-    saveLocal: (items) => {
-      if (Platform.OS !== "web") dbSaveTasks(items).catch(console.error);
+    saveLocal: (items, changes) => {
+      if (Platform.OS !== "web") dbSaveTasks(items, changes).catch(console.error);
     },
     // Auto-archive tasks completed 7+ days ago on initial load.
     // Use completed_at + 7 days as updated_at so a real archive event on
@@ -217,7 +217,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     const deleted = tasksRef.current.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
     pendingDeletesRef.current.add(id);
-    dirtyIdsRef.current.delete(id);
+    markLocallyDeleted(id); // remove the SQLite row on next flush
     const timer = setTimeout(() => {
       syncDelete("tasks", id);
       pendingDeletesRef.current.delete(id);
@@ -226,11 +226,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // also clears the local-delete mark
         setTasks(prev => [...prev, deleted]);
       }
     };
-  }, [tasksRef, pendingDeletesRef, dirtyIdsRef, markDirty, setTasks]);
+  }, [tasksRef, pendingDeletesRef, markLocallyDeleted, markDirty, setTasks]);
 
   const reorderTask = useCallback((id: string, direction: "up" | "down") => {
     setTasks(prev => {
