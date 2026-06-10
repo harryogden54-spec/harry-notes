@@ -3,8 +3,8 @@ import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useSyncStatus } from "@/lib/useSyncStatus";
-import { useNotes } from "@/lib/NotesContext";
-import { useTasks } from "@/lib/TasksContext";
+import { useNotesSync } from "@/lib/NotesContext";
+import { useTasksSync } from "@/lib/TasksContext";
 import { Text } from "./Text";
 import { spacing, radius } from "@/lib/theme";
 import { timeAgo } from "@/components/notes/utils";
@@ -17,8 +17,8 @@ import { timeAgo } from "@/components/notes/utils";
 export function SyncStatusBadge() {
   const { colors } = useTheme();
   const { status, lastSynced } = useSyncStatus();
-  const { syncNow: syncNotes } = useNotes();
-  const { syncNow: syncTasks } = useTasks();
+  const { syncNow: syncNotes } = useNotesSync();
+  const { syncNow: syncTasks } = useTasksSync();
 
   async function handlePress() {
     await Promise.all([syncNotes(), syncTasks()]);

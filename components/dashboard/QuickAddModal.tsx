@@ -9,8 +9,8 @@ import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr, parseNaturalDate } from "@/lib/utils";
-import { type TaskCategory, type UniCourse, UNI_COURSES, useTasks } from "@/lib/TasksContext";
-import { useNotes } from "@/lib/NotesContext";
+import { type TaskCategory, type UniCourse, UNI_COURSES, useTasksData } from "@/lib/TasksContext";
+import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { DatePicker } from "@/components/ui/DatePicker";
 
@@ -180,8 +180,9 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
 export function QuickAddModal({ visible, onClose, onAdd }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
-  const { tasks } = useTasks();
-  const { notes, addNote, updateNote } = useNotes();
+  const { tasks } = useTasksData();
+  const { notes } = useNotesData();
+  const { addNote, updateNote } = useNotesActions();
   const { themeId, setThemeId } = useThemeContext();
 
   const [query, setQuery]       = useState("");

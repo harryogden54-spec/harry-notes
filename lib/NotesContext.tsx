@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
 import { syncDelete } from "./supabase";
@@ -25,21 +25,30 @@ export type Note = {
   updated_at?: string;
 };
 
-type NotesContextValue = {
+// Split into data / sync / actions contexts — see TasksContext for rationale.
+type NotesData = {
   notes: Note[];
   loaded: boolean;
+};
+
+type NotesSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
+  syncNow: () => Promise<void>;
+};
+
+type NotesActions = {
   addNote: (type?: "note" | "postit") => string;
   bulkAddNotes: (notes: Note[]) => void;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => void;
   deleteNote: (id: string) => () => void;
   pinNote: (id: string) => void;
   toggleBlockCheck: (noteId: string, blockId: string) => void;
-  syncNow: () => Promise<void>;
 };
 
-const NotesContext = createContext<NotesContextValue | null>(null);
+const NotesDataContext    = createContext<NotesData | null>(null);
+const NotesSyncContext    = createContext<NotesSync | null>(null);
+const NotesActionsContext = createContext<NotesActions | null>(null);
 
 function stamp(note: Note): Note {
   return { ...note, updated_at: new Date().toISOString() };
@@ -161,15 +170,52 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, pinned: !n.pinned }) : n));
   }, [markDirty, setNotes]);
 
+  const dataValue = useMemo(() => ({ notes, loaded }), [notes, loaded]);
+  const syncValue = useMemo(
+    () => ({ syncStatus, lastSynced, syncNow }),
+    [syncStatus, lastSynced, syncNow]
+  );
+  const actionsValue = useMemo(
+    () => ({ addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck }),
+    [addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck]
+  );
+
   return (
-    <NotesContext.Provider value={{ notes, loaded, syncStatus, lastSynced, addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck, syncNow }}>
-      {children}
-    </NotesContext.Provider>
+    <NotesDataContext.Provider value={dataValue}>
+      <NotesSyncContext.Provider value={syncValue}>
+        <NotesActionsContext.Provider value={actionsValue}>
+          {children}
+        </NotesActionsContext.Provider>
+      </NotesSyncContext.Provider>
+    </NotesDataContext.Provider>
   );
 }
 
-export function useNotes() {
-  const ctx = useContext(NotesContext);
-  if (!ctx) throw new Error("useNotes must be used within NotesProvider");
+export function useNotesData(): NotesData {
+  const ctx = useContext(NotesDataContext);
+  if (!ctx) throw new Error("useNotesData must be used within NotesProvider");
   return ctx;
+}
+
+export function useNotesSync(): NotesSync {
+  const ctx = useContext(NotesSyncContext);
+  if (!ctx) throw new Error("useNotesSync must be used within NotesProvider");
+  return ctx;
+}
+
+export function useNotesActions(): NotesActions {
+  const ctx = useContext(NotesActionsContext);
+  if (!ctx) throw new Error("useNotesActions must be used within NotesProvider");
+  return ctx;
+}
+
+/**
+ * @deprecated Compatibility alias — re-renders on every data AND sync change.
+ * Prefer useNotesData / useNotesActions / useNotesSync.
+ */
+export function useNotes(): NotesData & NotesSync & NotesActions {
+  const data    = useNotesData();
+  const sync    = useNotesSync();
+  const actions = useNotesActions();
+  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
 import { syncDelete } from "./supabase";
@@ -28,11 +28,19 @@ export type NoteList = {
 // Re-exported from theme.ts as the single source of truth.
 export { listColors as LIST_COLORS } from "./theme";
 
-type ListsContextValue = {
+// Split into data / sync / actions contexts — see TasksContext for rationale.
+type ListsData = {
   lists: NoteList[];
   loaded: boolean;
+};
+
+type ListsSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
+  syncNow: () => Promise<void>;
+};
+
+type ListsActions = {
   addList: (name: string, color: string, initialItems?: string[]) => string;
   updateList: (id: string, updates: Partial<Omit<NoteList, "id" | "created_at">>) => void;
   deleteList: (id: string) => () => void;
@@ -44,10 +52,11 @@ type ListsContextValue = {
   deleteItem: (listId: string, itemId: string) => () => void;
   moveItem: (fromListId: string, itemId: string, toListId: string) => void;
   reorderItems: (listId: string, newItems: ListItem[]) => void;
-  syncNow: () => Promise<void>;
 };
 
-const ListsContext = createContext<ListsContextValue | null>(null);
+const ListsDataContext    = createContext<ListsData | null>(null);
+const ListsSyncContext    = createContext<ListsSync | null>(null);
+const ListsActionsContext = createContext<ListsActions | null>(null);
 
 function stamp(obj: NoteList): NoteList {
   return { ...obj, updated_at: new Date().toISOString() };
@@ -229,19 +238,56 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     ));
   }, [markDirty, setLists]);
 
-  return (
-    <ListsContext.Provider value={{
-      lists, loaded, syncStatus, lastSynced,
+  const dataValue = useMemo(() => ({ lists, loaded }), [lists, loaded]);
+  const syncValue = useMemo(
+    () => ({ syncStatus, lastSynced, syncNow }),
+    [syncStatus, lastSynced, syncNow]
+  );
+  const actionsValue = useMemo(
+    () => ({
       addList, updateList, deleteList, duplicateList, pinList,
-      addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems, syncNow,
-    }}>
-      {children}
-    </ListsContext.Provider>
+      addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems,
+    }),
+    [addList, updateList, deleteList, duplicateList, pinList,
+     addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems]
+  );
+
+  return (
+    <ListsDataContext.Provider value={dataValue}>
+      <ListsSyncContext.Provider value={syncValue}>
+        <ListsActionsContext.Provider value={actionsValue}>
+          {children}
+        </ListsActionsContext.Provider>
+      </ListsSyncContext.Provider>
+    </ListsDataContext.Provider>
   );
 }
 
-export function useLists() {
-  const ctx = useContext(ListsContext);
-  if (!ctx) throw new Error("useLists must be used within ListsProvider");
+export function useListsData(): ListsData {
+  const ctx = useContext(ListsDataContext);
+  if (!ctx) throw new Error("useListsData must be used within ListsProvider");
   return ctx;
+}
+
+export function useListsSync(): ListsSync {
+  const ctx = useContext(ListsSyncContext);
+  if (!ctx) throw new Error("useListsSync must be used within ListsProvider");
+  return ctx;
+}
+
+export function useListsActions(): ListsActions {
+  const ctx = useContext(ListsActionsContext);
+  if (!ctx) throw new Error("useListsActions must be used within ListsProvider");
+  return ctx;
+}
+
+/**
+ * @deprecated Compatibility alias — re-renders on every data AND sync change.
+ * Prefer useListsData / useListsActions / useListsSync.
+ */
+export function useLists(): ListsData & ListsSync & ListsActions {
+  const data    = useListsData();
+  const sync    = useListsSync();
+  const actions = useListsActions();
+  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
 }

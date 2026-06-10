@@ -3,16 +3,16 @@ import { View, Text, TextInput, ScrollView, Pressable, Platform } from "react-na
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useTasksData } from "@/lib/TasksContext";
+import { useNotesData } from "@/lib/NotesContext";
 import { SearchResults } from "@/components/dashboard/SearchResults";
 
 type Props = { visible: boolean; onClose: () => void };
 
 export function GlobalSearchModal({ visible, onClose }: Props) {
   const { colors } = useTheme();
-  const { tasks } = useTasks();
-  const { notes } = useNotes();
+  const { tasks } = useTasksData();
+  const { notes } = useNotesData();
   const [query, setQuery] = useState("");
   const inputRef = useRef<TextInput | null>(null);
 

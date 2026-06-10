@@ -1,13 +1,13 @@
-import { useTasks } from "./TasksContext";
-import { useLists } from "./ListsContext";
-import { useNotes } from "./NotesContext";
+import { useTasksSync } from "./TasksContext";
+import { useListsSync } from "./ListsContext";
+import { useNotesSync } from "./NotesContext";
 
 export type SyncState = "idle" | "syncing" | "synced" | "error";
 
 export function useSyncStatus(): { status: SyncState; lastSynced: string | null } {
-  const { syncStatus: taskSync, lastSynced: taskLast } = useTasks();
-  const { syncStatus: listSync, lastSynced: listLast } = useLists();
-  const { syncStatus: noteSync, lastSynced: noteLast } = useNotes();
+  const { syncStatus: taskSync, lastSynced: taskLast } = useTasksSync();
+  const { syncStatus: listSync, lastSynced: listLast } = useListsSync();
+  const { syncStatus: noteSync, lastSynced: noteLast } = useNotesSync();
 
   const status: SyncState =
     taskSync === "error" || listSync === "error" || noteSync === "error" ? "error" :

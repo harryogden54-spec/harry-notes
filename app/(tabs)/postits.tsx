@@ -9,7 +9,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, GradientBackground, EmptyState } from "@/components/ui";
 import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
-import { useNotes } from "@/lib/NotesContext";
+import { useNotesData, useNotesActions, useNotesSync } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ function PostItEditModal({
 }: {
   id: string; text: string; onClose: () => void; onDelete: () => void;
 }) {
-  const { updateNote } = useNotes();
+  const { updateNote } = useNotesActions();
   const { colors, notePastels } = useTheme();
   const [val, setVal] = useState(text);
   const inputRef = useRef<TextInput | null>(null);
@@ -150,7 +150,9 @@ function PostItCard({ id, text, onPress }: { id: string; text: string; onPress: 
 function PostItsScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const { notes, addNote, deleteNote, loaded, syncNow } = useNotes();
+  const { notes, loaded } = useNotesData();
+  const { addNote, deleteNote } = useNotesActions();
+  const { syncNow } = useNotesSync();
   const { showToast } = useToast();
 
   const [editingId, setEditingId] = useState<string | null>(null);

@@ -6,8 +6,8 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
-import { useTasks, type Task } from "@/lib/TasksContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useTasksData, useTasksActions, type Task } from "@/lib/TasksContext";
+import { useNotesData } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
@@ -33,8 +33,9 @@ type ResultItem = NavItem | CreateItem | TaskResult | NoteResult;
 
 export function CommandPalette() {
   const { isOpen, close }       = useCommandPalette();
-  const { tasks, addTask }      = useTasks();
-  const { notes }               = useNotes();
+  const { tasks }               = useTasksData();
+  const { addTask }             = useTasksActions();
+  const { notes }               = useNotesData();
   const { showToast }           = useToast();
   const { colors }              = useTheme();
   const router                  = useRouter();

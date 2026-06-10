@@ -13,7 +13,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
-import { useTasks, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
+import { useTasksData, useTasksActions, useTasksSync, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { storage } from "@/lib/storage";
 import { getTodayStr } from "@/lib/utils";
@@ -26,7 +26,9 @@ import {
 
 function TasksScreen() {
   const { colors } = useTheme();
-  const { tasks, addTask, loaded, syncStatus, syncNow, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasks();
+  const { tasks, loaded } = useTasksData();
+  const { addTask, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasksActions();
+  const { syncStatus, syncNow } = useTasksSync();
   const { showToast } = useToast();
   const params = useLocalSearchParams<{ create?: string; taskId?: string; filter?: string }>();
   const { width } = useWindowDimensions();

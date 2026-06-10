@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useColorScheme } from "react-native";
 import { storage } from "./storage";
 import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
@@ -26,7 +26,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeReady, setThemeReady]  = useState(false);
 
   useEffect(() => {
-    const timeout = setTimeout(() => setThemeReady(true), 2000);
+    // Fallback ceiling only — storage.get is local and normally resolves in
+    // milliseconds. 500ms caps the worst-case blank frame (was 2s).
+    const timeout = setTimeout(() => setThemeReady(true), 500);
 
     Promise.all([
       storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); }),
@@ -48,29 +50,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const scheme = override ?? device;
 
-  function toggle() {
-    const next: Scheme = scheme === "dark" ? "light" : "dark";
-    setOverride(next);
-    storage.set("theme_override", next);
-  }
+  const toggle = useCallback(() => {
+    setOverride(prev => {
+      const next: Scheme = (prev ?? device) === "dark" ? "light" : "dark";
+      storage.set("theme_override", next);
+      return next;
+    });
+  }, [device]);
 
-  function setAccentId(id: AccentId) {
+  const setAccentId = useCallback((id: AccentId) => {
     setAccentIdState(id);
     storage.set("accent_id_v2", id);
-  }
+  }, []);
 
-  function setThemeId(id: ThemeId) {
+  const setThemeId = useCallback((id: ThemeId) => {
     setThemeIdState(id);
     storage.set("theme-v3", id);
-  }
+  }, []);
+
+  // Memoized — useTheme() has ~157 call sites, so a fresh value object every
+  // provider render would re-render most of the app on any parent update.
+  const value = useMemo(() => ({
+    scheme, toggle, isManual: !!override,
+    accentId, setAccentId,
+    themeId, setThemeId,
+    themeReady,
+  }), [scheme, toggle, override, accentId, setAccentId, themeId, setThemeId, themeReady]);
 
   return (
-    <ThemeContext.Provider value={{
-      scheme, toggle, isManual: !!override,
-      accentId, setAccentId,
-      themeId, setThemeId,
-      themeReady,
-    }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

@@ -12,9 +12,9 @@ import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
+import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useNotesData } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
 import { getTodayStr, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { carryForwardToday } from "@/lib/todayCarry";
@@ -90,9 +90,11 @@ function TodayPanel() {
 function DashboardScreen() {
   const { colors, notePastels } = useTheme();
   const { open: openPalette }  = useCommandPalette();
-  const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
+  const { tasks, loaded: tasksLoaded } = useTasksData();
+  const { addTask, updateTask } = useTasksActions();
+  const { syncNow: syncTasks } = useTasksSync();
   const { showToast }          = useToast();
-  const { notes, loaded: notesLoaded } = useNotes();
+  const { notes, loaded: notesLoaded } = useNotesData();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
   const [search, setSearch]       = useState("");

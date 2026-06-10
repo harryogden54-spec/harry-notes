@@ -10,7 +10,7 @@ import { Text } from "./Text";
 import { Checkbox } from "./Checkbox";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useTasks, type Task } from "@/lib/TasksContext";
+import { useTasksActions, type Task } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr, getTomorrowStr, formatDueDate, PRIORITY_COLOR } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ interface Props {
 
 function RowContent({ task, onPress }: Props) {
   const { colors } = useTheme();
-  const { toggleTask, updateTask } = useTasks();
+  const { toggleTask, updateTask } = useTasksActions();
   const { showToast } = useToast();
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
@@ -138,7 +138,7 @@ function RowContent({ task, onPress }: Props) {
 
 function WebTaskRow({ task, onPress }: Props) {
   const { colors } = useTheme();
-  const { toggleTask, deleteTask } = useTasks();
+  const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -229,7 +229,7 @@ function WebTaskRow({ task, onPress }: Props) {
 
 export function TaskRow({ task, onPress }: Props) {
   const { colors } = useTheme();
-  const { toggleTask, deleteTask } = useTasks();
+  const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const swipeRef = useRef<Swipeable | null>(null);
 

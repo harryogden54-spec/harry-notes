@@ -6,8 +6,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useNotes, type Note } from "@/lib/NotesContext";
-import { useTasks } from "@/lib/TasksContext";
+import { useNotesData, useNotesActions, type Note } from "@/lib/NotesContext";
+import { useTasksData } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr } from "@/lib/utils";
 import { blocksToMarkdown } from "@/lib/migrateBlocksToBody";
@@ -91,8 +91,9 @@ type Props = {
 
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
-  const { notes, updateNote, deleteNote, pinNote } = useNotes();
-  const { tasks } = useTasks();
+  const { notes } = useNotesData();
+  const { updateNote, deleteNote, pinNote } = useNotesActions();
+  const { tasks } = useTasksData();
   const { showToast } = useToast();
   const today = getTodayStr();
   const titleRef = useRef<TextInput | null>(null);

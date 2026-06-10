@@ -12,7 +12,7 @@ import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { storage } from "@/lib/storage";
-import { useTasks } from "@/lib/TasksContext";
+import { useTasksData } from "@/lib/TasksContext";
 import { getTodayStr, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
 import { carryForwardToday } from "@/lib/todayCarry";
 import { useMounted } from "@/lib/useMounted";
@@ -48,7 +48,7 @@ function getTodayKey() {
 
 function TodayScreen() {
   const { colors } = useTheme();
-  const { tasks } = useTasks();
+  const { tasks } = useTasksData();
   const [items, setItems]             = useState<TodayItem[]>([]);
   const [input, setInput]             = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);

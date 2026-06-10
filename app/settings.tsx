@@ -8,9 +8,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { THEMES } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
-import { useLists } from "@/lib/ListsContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
+import { useListsSync } from "@/lib/ListsContext";
+import { useNotesData, useNotesSync } from "@/lib/NotesContext";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -138,12 +138,15 @@ function formatRelativeTime(iso: string | null): string {
 export default function SettingsScreen() {
   const { colors }     = useTheme();
   const { scheme, toggle, themeId } = useThemeContext();
-  const { syncStatus: taskSync, syncNow: syncTasks, tasks, clearCompleted, lastSynced: taskLastSynced } = useTasks();
-  const { syncStatus: listSync, lastSynced: listLastSynced } = useLists();
-  const { syncStatus: noteSync, syncNow: syncNotes, notes, lastSynced: noteLastSynced } = useNotes();
+  const { syncStatus: taskSync, syncNow: syncTasks, lastSynced: taskLastSynced } = useTasksSync();
+  const { tasks } = useTasksData();
+  const { clearCompleted } = useTasksActions();
+  const { syncStatus: listSync, lastSynced: listLastSynced } = useListsSync();
+  const { syncStatus: noteSync, syncNow: syncNotes, lastSynced: noteLastSynced } = useNotesSync();
+  const { notes } = useNotesData();
   const { showToast } = useToast();
   const router = useRouter();
-  const { unarchiveTask, deleteTask } = useTasks();
+  const { unarchiveTask, deleteTask } = useTasksActions();
   const [clearing, setClearing]   = useState(false);
   const [showTrash, setShowTrash] = useState(false);
 

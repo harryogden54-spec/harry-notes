@@ -12,10 +12,10 @@ import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_7
 import { Ionicons } from "@expo/vector-icons";
 import { initDb } from "@/lib/db";
 import { requestNotificationPermission, scheduleTaskReminders } from "@/lib/notifications";
-import { useTasks } from "@/lib/TasksContext";
+import { useTasksData } from "@/lib/TasksContext";
 import { TasksProvider } from "@/lib/TasksContext";
-import { useLists } from "@/lib/ListsContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useListsData } from "@/lib/ListsContext";
+import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { migrateListsToNotes } from "@/lib/migrateListsToNotes";
 import { migrateBlocksToBody } from "@/lib/migrateBlocksToBody";
 import { ListsProvider } from "@/lib/ListsContext";
@@ -38,9 +38,10 @@ SplashScreen.preventAutoHideAsync();
 function AppShell() {
   const { scheme, themeReady } = useThemeContext();
   const { colors } = useTheme();
-  const { tasks, loaded: tasksLoaded } = useTasks();
-  const { lists, loaded: listsLoaded } = useLists();
-  const { notes, loaded: notesLoaded, bulkAddNotes, updateNote: updateNoteFn } = useNotes();
+  const { tasks, loaded: tasksLoaded } = useTasksData();
+  const { lists, loaded: listsLoaded } = useListsData();
+  const { notes, loaded: notesLoaded } = useNotesData();
+  const { bulkAddNotes, updateNote: updateNoteFn } = useNotesActions();
   // On web, both Inter and Ionicons are declared via CSS @font-face in
   // global.css pointing at /assets/fonts/. We must NOT load them via useFonts
   // on web: expo-font injects @font-face rules with Metro-hashed URLs that

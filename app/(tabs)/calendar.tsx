@@ -6,7 +6,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, GradientBackground, Surface, DatePicker, TaskRow, SectionHeader } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
-import { useTasks } from "@/lib/TasksContext";
+import { useTasksData, useTasksActions, type Task } from "@/lib/TasksContext";
 import { getTodayStr } from "@/lib/utils";
 
 const DAYS   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -56,7 +56,7 @@ function RescheduleMenu({
   visible: boolean; onClose: () => void;
 }) {
   const { colors } = useTheme();
-  const { updateTask } = useTasks();
+  const { updateTask } = useTasksActions();
   const [showPicker, setShowPicker] = useState(false);
 
   const prevDay = toDateStr(addDays(new Date(fromDate + "T00:00:00"), -1));
@@ -122,7 +122,7 @@ function RescheduleMenu({
 
 // ─── Task chip (shared by both views) ────────────────────────────────────────
 
-function TaskChip({ task, fromDate }: { task: ReturnType<typeof useTasks>["tasks"][0]; fromDate: string }) {
+function TaskChip({ task, fromDate }: { task: Task; fromDate: string }) {
   const { colors } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const today = getTodayStr();
@@ -171,7 +171,7 @@ function WeekView({
   weekStart, tasksByDate, today, onDaySelect, selectedDate,
 }: {
   weekStart: Date;
-  tasksByDate: Record<string, ReturnType<typeof useTasks>["tasks"]>;
+  tasksByDate: Record<string, Task[]>;
   today: string;
   onDaySelect: (d: string) => void;
   selectedDate: string | null;
@@ -240,7 +240,7 @@ function WeekView({
 
 function CalendarScreen() {
   const { colors } = useTheme();
-  const { tasks } = useTasks();
+  const { tasks } = useTasksData();
   const today = getTodayStr();
 
   type ViewMode = "month" | "week";

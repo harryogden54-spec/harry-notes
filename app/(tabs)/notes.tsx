@@ -10,7 +10,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing } from "@/lib/theme";
 import { cmpRecentDesc } from "@/lib/utils";
-import { useNotes } from "@/lib/NotesContext";
+import { useNotesData, useNotesActions, useNotesSync } from "@/lib/NotesContext";
 import {
   NoteEditor, NoteIndexRow, NoteCard, animate,
 } from "@/components/notes";
@@ -20,7 +20,9 @@ function NotesScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
 
-  const { notes, addNote, loaded: notesLoaded, syncNow: syncNotes } = useNotes();
+  const { notes, loaded: notesLoaded } = useNotesData();
+  const { addNote } = useNotesActions();
+  const { syncNow: syncNotes } = useNotesSync();
   const loaded = notesLoaded;
 
   const [refreshing, setRefreshing] = useState(false);

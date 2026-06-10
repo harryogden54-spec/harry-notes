@@ -2,12 +2,13 @@ import React from "react";
 import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
-import { useToast } from "@/lib/ToastContext";
+import { useToast, useToastState } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius } from "@/lib/theme";
 
 export function ToastContainer() {
-  const { toasts, dismissToast } = useToast();
+  const toasts = useToastState();
+  const { dismissToast } = useToast();
   const { colors } = useTheme();
   if (toasts.length === 0) return null;
 

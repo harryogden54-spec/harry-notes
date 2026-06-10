@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useNotes } from "@/lib/NotesContext";
+import { useNotesData } from "@/lib/NotesContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import type { NavItem } from "./navConfig";
 import { NAV_ITEMS } from "./navConfig";
@@ -41,7 +41,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const { notes } = useNotes();
+  const { notes } = useNotesData();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const pinnedNotes = notes

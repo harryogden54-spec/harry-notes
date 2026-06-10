@@ -5,8 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, fontFamily } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useTasksActions } from "@/lib/TasksContext";
+import { useNotesActions } from "@/lib/NotesContext";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
 import {
   PersistentHeader, OfflineBanner, Sidebar, ShortcutsHelp, GlobalSearchModal, NAV_ITEMS,
@@ -35,8 +35,8 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const pathname = usePathname();
-  const { addTask, updateTask } = useTasks();
-  const { addNote } = useNotes();
+  const { addTask, updateTask } = useTasksActions();
+  const { addNote } = useNotesActions();
 
   const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;

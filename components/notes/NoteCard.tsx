@@ -5,14 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui";
 import { spacing, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import { useTheme } from "@/lib/useTheme";
-import { useNotes } from "@/lib/NotesContext";
+import { useNotesActions } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
 import { timeAgo, notePreview } from "./utils";
 
 type Props = { note: Note; onOpen: () => void };
 
 export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
-  const { pinNote } = useNotes();
+  const { pinNote } = useNotesActions();
   const { notePastels } = useTheme();
   const idx = getNotePastelIndex(note.id);
   const preview = notePreview(note, 240);
