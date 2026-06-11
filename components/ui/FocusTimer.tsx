@@ -121,9 +121,9 @@ export function FocusTimer() {
               borderRadius: 99,
               backgroundColor: isComplete ? colors.success ?? colors.accent : kit.hero[0],
             },
-            // @ts-ignore — web-only CSS gradient
+            // Web-only CSS gradient — not part of RN's ViewStyle type
             Platform.OS === "web" && !isComplete
-              ? { backgroundImage: `linear-gradient(90deg, ${kit.hero[0]}, ${kit.hero[1]})` }
+              ? ({ backgroundImage: `linear-gradient(90deg, ${kit.hero[0]}, ${kit.hero[1]})` } as any)
               : null,
           ]} />
         </View>
