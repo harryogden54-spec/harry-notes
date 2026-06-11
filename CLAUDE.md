@@ -76,9 +76,11 @@ Always prefer these over raw RN primitives to keep styling consistent.
 - Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
 
 ## Current state
-Built: tasks, notes, lists, calendar tabs, settings screen, theme system, Supabase sync
-In progress: —
-Not started: —
+Built: tasks, notes, lists, calendar tabs, settings screen, theme system, Supabase sync,
+Atelier design system (shadow/type/layout/motion tokens + per-theme kits in `lib/theme.ts`),
+split data/sync/actions contexts, delta-cursor sync with tombstones
+In progress: — (migrations/002 written but NOT yet applied to Supabase — apply before next web deploy; until then new clients sync-fail gracefully into offline mode)
+Not started: calendar screen memoization polish (hidden screen, deferred)
 
 > Update "In progress" and "Not started" at the start of each session.
 
