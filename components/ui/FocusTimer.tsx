@@ -33,7 +33,7 @@ async function fireCompletionNotification(mode: Mode) {
 }
 
 export function FocusTimer() {
-  const { colors } = useTheme();
+  const { colors, kit } = useTheme();
   const [mode, setMode]           = useState<Mode>("focus");
   const [remaining, setRemaining] = useState(PRESETS.focus);
   const [running, setRunning]     = useState(false);
@@ -112,14 +112,20 @@ export function FocusTimer() {
 
       {/* Timer row */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[4] }}>
-        {/* Progress arc (simple bar) */}
-        <View style={{ flex: 1, height: 4, borderRadius: 99, backgroundColor: colors.bgBorder, overflow: "hidden" }}>
-          <View style={{
-            height: "100%",
-            width: `${Math.round(progress * 100)}%`,
-            borderRadius: 99,
-            backgroundColor: isComplete ? colors.success ?? colors.accent : colors.accent,
-          }} />
+        {/* Progress bar — per-theme hero gradient on web, hero tint on native */}
+        <View style={{ flex: 1, height: 5, borderRadius: 99, backgroundColor: colors.bgBorder, overflow: "hidden" }}>
+          <View style={[
+            {
+              height: "100%",
+              width: `${Math.round(progress * 100)}%`,
+              borderRadius: 99,
+              backgroundColor: isComplete ? colors.success ?? colors.accent : kit.hero[0],
+            },
+            // @ts-ignore — web-only CSS gradient
+            Platform.OS === "web" && !isComplete
+              ? { backgroundImage: `linear-gradient(90deg, ${kit.hero[0]}, ${kit.hero[1]})` }
+              : null,
+          ]} />
         </View>
 
         {/* Time display */}

@@ -127,6 +127,21 @@ function TodayScreen() {
     setItems(prev => prev.filter(i => i.id !== id));
   }, []);
 
+  // Web reorder affordance — native uses long-press drag instead.
+  const moveItem = useCallback((id: string, dir: "up" | "down") => {
+    setItems(prev => {
+      const activeItems = prev.filter(i => !i.done);
+      const rest        = prev.filter(i => i.done);
+      const idx = activeItems.findIndex(i => i.id === id);
+      if (idx === -1) return prev;
+      const swap = dir === "up" ? idx - 1 : idx + 1;
+      if (swap < 0 || swap >= activeItems.length) return prev;
+      const next = [...activeItems];
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return [...next, ...rest];
+    });
+  }, []);
+
   const updateItemTime = (id: string, time: string | undefined) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, time_block: time } : i));
   };
@@ -148,12 +163,23 @@ function TodayScreen() {
         borderBottomColor: colors.bgBorder,
         opacity: isActive ? 0.8 : 1,
       }}>
-        {/* Drag handle — drag is disabled on web (activationDistance 999), so
-            don't render an affordance that does nothing there. */}
-        {Platform.OS !== "web" && (
+        {/* Reorder: long-press drag handle on native, ↑/↓ buttons on web
+            (RNGH drag is unreliable on web — same pattern as TaskItem). */}
+        {Platform.OS !== "web" ? (
           <Pressable onLongPress={drag} hitSlop={8} delayLongPress={150}>
             <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
           </Pressable>
+        ) : (
+          <View style={{ flexDirection: "row", gap: 2 }}>
+            <Pressable onPress={() => moveItem(item.id, "up")} hitSlop={6}
+              style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
+              <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
+            </Pressable>
+            <Pressable onPress={() => moveItem(item.id, "down")} hitSlop={6}
+              style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
+              <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
+            </Pressable>
+          </View>
         )}
 
         <Pressable
