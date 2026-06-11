@@ -1,15 +1,18 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useRef, useMemo } from "react";
 
 export type ToastAction = { label: string; onPress: () => void };
 export type ToastItem   = { id: string; message: string; action?: ToastAction };
 
-type ToastContextValue = {
+type ToastActions = {
   showToast: (message: string, action?: ToastAction) => void;
-  toasts: ToastItem[];
   dismissToast: (id: string) => void;
 };
 
-const ToastContext = createContext<ToastContextValue | null>(null);
+// State and actions are separate contexts: only ToastContainer reads the queue,
+// while ~60 call sites only need showToast. Bundling them re-rendered every
+// caller whenever a toast appeared or expired.
+const ToastStateContext   = createContext<ToastItem[] | null>(null);
+const ToastActionsContext = createContext<ToastActions | null>(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -27,15 +30,27 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     timers.current[id] = setTimeout(() => dismissToast(id), 3500);
   }, [dismissToast]);
 
+  const actions = useMemo(() => ({ showToast, dismissToast }), [showToast, dismissToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast, toasts, dismissToast }}>
-      {children}
-    </ToastContext.Provider>
+    <ToastActionsContext.Provider value={actions}>
+      <ToastStateContext.Provider value={toasts}>
+        {children}
+      </ToastStateContext.Provider>
+    </ToastActionsContext.Provider>
   );
 }
 
-export function useToast() {
-  const ctx = useContext(ToastContext);
+/** Stable actions — safe to call from anywhere without re-render churn. */
+export function useToast(): ToastActions {
+  const ctx = useContext(ToastActionsContext);
   if (!ctx) throw new Error("useToast must be within ToastProvider");
+  return ctx;
+}
+
+/** The live toast queue — consumed only by ToastContainer. */
+export function useToastState(): ToastItem[] {
+  const ctx = useContext(ToastStateContext);
+  if (!ctx) throw new Error("useToastState must be within ToastProvider");
   return ctx;
 }

@@ -9,8 +9,8 @@ import * as Haptics from "expo-haptics";
 import { Text } from "./Text";
 import { Checkbox } from "./Checkbox";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useTasks, type Task } from "@/lib/TasksContext";
+import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
+import { useTasksActions, type Task } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr, getTomorrowStr, formatDueDate, PRIORITY_COLOR } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ interface Props {
 
 function RowContent({ task, onPress }: Props) {
   const { colors } = useTheme();
-  const { toggleTask, updateTask } = useTasks();
+  const { toggleTask, updateTask } = useTasksActions();
   const { showToast } = useToast();
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
@@ -71,17 +71,16 @@ function RowContent({ task, onPress }: Props) {
         flexDirection: "row", alignItems: "center", gap: spacing[3],
         minHeight: 52,
         paddingVertical: spacing[3], paddingHorizontal: spacing[4],
-        paddingLeft: priorityColor ? spacing[4] + 3 : spacing[4],
         borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: task.priority === "urgent" && !task.done ? `${colors.danger}12` : colors.bgSecondary,
         opacity: task.done ? 0.45 : 1,
       }}
     >
-      {/* Priority left-border strip */}
-      {priorityColor && (
-        <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, backgroundColor: priorityColor }} />
-      )}
       <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} accessibilityLabel={task.title} />
+      {/* Priority dot beside the checkbox */}
+      {priorityColor && (
+        <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: priorityColor, marginLeft: -spacing[1] }} />
+      )}
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ position: "relative" }}>
           {renaming ? (
@@ -137,8 +136,8 @@ function RowContent({ task, onPress }: Props) {
 }
 
 function WebTaskRow({ task, onPress }: Props) {
-  const { colors } = useTheme();
-  const { toggleTask, deleteTask } = useTasks();
+  const { colors, scheme } = useTheme();
+  const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -177,8 +176,7 @@ function WebTaskRow({ task, onPress }: Props) {
               borderWidth: 1, borderColor: colors.bgBorder,
               borderRadius: radius.lg,
               paddingHorizontal: spacing[1.5], paddingVertical: spacing[1],
-              // @ts-ignore
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              ...getShadow("md", scheme),
             }}>
               <Pressable
                 onPress={handleComplete}
@@ -229,7 +227,7 @@ function WebTaskRow({ task, onPress }: Props) {
 
 export function TaskRow({ task, onPress }: Props) {
   const { colors } = useTheme();
-  const { toggleTask, deleteTask } = useTasks();
+  const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const swipeRef = useRef<Swipeable | null>(null);
 

@@ -108,9 +108,10 @@ export function EmptyState({ type, title, subtitle }: EmptyStateProps) {
       gap: spacing[3],
     }}>
       <View style={{
-        backgroundColor: colors.bgTertiary,
-        borderRadius: radius.xl,
-        borderWidth: 1,
+        backgroundColor: colors.accentSubtle,
+        borderRadius: 999,
+        borderWidth: 1.5,
+        borderStyle: "dashed",
         borderColor: colors.bgBorder,
         width: 96,
         height: 96,

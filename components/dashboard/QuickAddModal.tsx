@@ -7,10 +7,10 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow, THEMES, type ThemeId } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr, parseNaturalDate } from "@/lib/utils";
-import { type TaskCategory, type UniCourse, UNI_COURSES, useTasks } from "@/lib/TasksContext";
-import { useNotes } from "@/lib/NotesContext";
+import { type TaskCategory, type UniCourse, UNI_COURSES, useTasksData } from "@/lib/TasksContext";
+import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { DatePicker } from "@/components/ui/DatePicker";
 
@@ -178,10 +178,11 @@ function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
 // ─── Main palette ─────────────────────────────────────────────────────────────
 
 export function QuickAddModal({ visible, onClose, onAdd }: Props) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
-  const { tasks } = useTasks();
-  const { notes, addNote, updateNote } = useNotes();
+  const { tasks } = useTasksData();
+  const { notes } = useNotesData();
+  const { addNote, updateNote } = useNotesActions();
   const { themeId, setThemeId } = useThemeContext();
 
   const [query, setQuery]       = useState("");
@@ -288,8 +289,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
           borderWidth: 1, borderColor: colors.bgBorder,
           padding: spacing[5], gap: spacing[3],
           width: "90%" as any, maxWidth: 480,
-          // @ts-ignore
-          shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 10,
+          ...getShadow("overlay", scheme),
           maxHeight: Platform.OS === "web" ? "70vh" as any : 560,
         }}
       >

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useDeferredValue } from "react";
 import { View, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -33,11 +33,32 @@ export function SearchResults({ tasks, notes, query, onTaskPress, onAdd }: Props
   const { colors } = useTheme();
   const router = useRouter();
 
+  // Index construction is split from query execution: the Fuse index rebuilds
+  // only when the collection changes, never per keystroke. The query runs
+  // against a deferred value so typing stays responsive on large collections.
+  const deferredQuery = useDeferredValue(query);
+
+  const taskFuse = useMemo(
+    () => new Fuse(tasks, { keys: ["title", "description"], threshold: 0.35, ignoreLocation: true }),
+    [tasks]
+  );
+  const noteFuse = useMemo(
+    () => new Fuse(notes, {
+      keys: [
+        { name: "body",  weight: 0.7 },
+        { name: "title", weight: 0.3 },
+      ],
+      threshold: 0.4,
+      ignoreLocation: true,
+      includeMatches: true,
+    }),
+    [notes]
+  );
+
   const matchTasks = useMemo(() => {
-    if (!query) return [];
-    const fuse = new Fuse(tasks, { keys: ["title", "description"], threshold: 0.35, ignoreLocation: true });
-    return fuse.search(query).map((r: { item: Task }) => r.item).slice(0, 8);
-  }, [tasks, query]);
+    if (!deferredQuery) return [];
+    return taskFuse.search(deferredQuery).map((r: { item: Task }) => r.item).slice(0, 8);
+  }, [taskFuse, deferredQuery]);
 
   /**
    * Feature 16 — body-first search for notes.
@@ -46,24 +67,15 @@ export function SearchResults({ tasks, notes, query, onTaskPress, onAdd }: Props
    * are visually demoted (secondary colour, italic "title match" chip).
    */
   const matchNotes = useMemo(() => {
-    if (!query) return [] as Array<{ note: Note; titleOnly: boolean }>;
-    const fuse = new Fuse(notes, {
-      keys: [
-        { name: "body",  weight: 0.7 },
-        { name: "title", weight: 0.3 },
-      ],
-      threshold: 0.4,
-      ignoreLocation: true,
-      includeMatches: true,
-    });
-    const raw = fuse.search(query) as Array<{ item: Note; matches?: Array<{ key?: string }> }>;
+    if (!deferredQuery) return [] as Array<{ note: Note; titleOnly: boolean }>;
+    const raw = noteFuse.search(deferredQuery) as Array<{ item: Note; matches?: Array<{ key?: string }> }>;
     const annotated = raw.slice(0, 8).map(r => ({ note: r.item, titleOnly: isTitleOnlyMatch(r) }));
     // Body matches first, then title-only
     return [
       ...annotated.filter(a => !a.titleOnly),
       ...annotated.filter(a => a.titleOnly),
     ];
-  }, [notes, query]);
+  }, [noteFuse, deferredQuery]);
 
   if (matchTasks.length === 0 && matchNotes.length === 0) {
     return (

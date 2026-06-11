@@ -4,9 +4,9 @@ import { Platform, Animated, View, Pressable, useWindowDimensions } from "react-
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, fontFamily } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
-import { useNotes } from "@/lib/NotesContext";
+import { spacing, fontFamily, getShadow, layout } from "@/lib/theme";
+import { useTasksActions } from "@/lib/TasksContext";
+import { useNotesActions } from "@/lib/NotesContext";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
 import {
   PersistentHeader, OfflineBanner, Sidebar, ShortcutsHelp, GlobalSearchModal, NAV_ITEMS,
@@ -30,13 +30,13 @@ function useFadeTab() {
 }
 
 export default function TabLayout() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const { onTabPress } = useFadeTab();
   const { width } = useWindowDimensions();
   const router = useRouter();
   const pathname = usePathname();
-  const { addTask, updateTask } = useTasks();
-  const { addNote } = useNotes();
+  const { addTask, updateTask } = useTasksActions();
+  const { addNote } = useNotesActions();
 
   const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;
@@ -129,7 +129,7 @@ export default function TabLayout() {
       <OfflineBanner />
       {/* Dual FAB */}
       <View
-        style={{ position: "absolute", bottom: Platform.OS === "ios" ? 100 : 76, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2] }}
+        style={{ position: "absolute", bottom: Platform.OS === "ios" ? layout.fabBottom.ios : layout.fabBottom.default, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2] }}
         pointerEvents="box-none"
       >
         <Pressable
@@ -142,7 +142,7 @@ export default function TabLayout() {
             width: 44, height: 44, borderRadius: 99,
             backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.bgBorder,
             alignItems: "center", justifyContent: "center",
-            shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 4,
+            ...getShadow("md", scheme),
           }}
         >
           <Ionicons name="layers-outline" size={19} color={colors.textSecondary} />
@@ -155,8 +155,8 @@ export default function TabLayout() {
           style={{
             width: 52, height: 52, borderRadius: 99,
             backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
-            // @ts-ignore
-            shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8,
+            // Accent glow — md geometry from the token scale, tinted shadow
+            ...getShadow("md", scheme), shadowColor: colors.accent, shadowOpacity: 0.4,
           }}
         >
           <Ionicons name="add" size={26} color={colors.textInverse} />
@@ -171,7 +171,7 @@ export default function TabLayout() {
             backgroundColor: colors.bgSecondary,
             borderTopColor:  colors.bgBorder,
             borderTopWidth:  1,
-            height: Platform.OS === "ios" ? 88 : 68,
+            height: Platform.OS === "ios" ? layout.tabBarHeight.ios : layout.tabBarHeight.default,
             paddingBottom: Platform.OS === "ios" ? 28 : 10,
             paddingTop: Platform.OS === "ios" ? 8 : 6,
           } as any,

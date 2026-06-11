@@ -2,7 +2,7 @@ import React from "react";
 import { View, Platform, type ViewStyle } from "react-native";
 import { BlurView } from "expo-blur";
 import { useTheme } from "@/lib/useTheme";
-import { radius } from "@/lib/theme";
+import { radius, getShadow } from "@/lib/theme";
 
 export type GlassVariant = "default" | "elevated" | "inset";
 
@@ -30,28 +30,18 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
     ? "rgba(255,255,255,0.04)"
     : "rgba(0,0,0,0.03)";
 
-  const elevatedShadow: ViewStyle = {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 20,
-    elevation: 8,
-  };
-
-  const defaultShadow: ViewStyle = {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
-  };
-
+  // Glass is the overlay surface: floating panels get "md", true overlays
+  // (modals, palettes) get "overlay", insets sit flush.
+  const scheme = isDark ? "dark" : "light";
   const insetBorder: ViewStyle = {
     borderWidth: 1,
     borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
   };
 
-  const shadowStyle = variant === "elevated" ? elevatedShadow : variant === "inset" ? {} : defaultShadow;
+  const shadowStyle: ViewStyle =
+    variant === "elevated" ? getShadow("overlay", scheme)
+    : variant === "inset"  ? {}
+    : getShadow("md", scheme);
   const variantBorder = variant === "inset" ? insetBorder : {};
 
   if (Platform.OS === "web") {
@@ -70,8 +60,9 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
           shadowStyle,
           variantBorder,
           style,
-          // @ts-ignore — web-only CSS properties
-          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: isDark ? "0 4px 16px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.12)" : "0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04)" },
+          // @ts-ignore — web-only CSS properties (shadow comes from shadowStyle
+          // via RN-web's box-shadow conversion, so it stays on the token scale)
+          { backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" },
         ]}
       >
         {children}

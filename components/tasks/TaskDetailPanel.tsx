@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
-import { useTasks, type Task } from "@/lib/TasksContext";
+import { useTasksActions, type Task } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { MetaRow } from "./MetaRow";
 import { PrioritySelector } from "./PrioritySelector";
@@ -17,7 +17,7 @@ type Props = { task: Task; onClose?: () => void };
 
 export function TaskDetailPanel({ task, onClose }: Props) {
   const { colors } = useTheme();
-  const { updateTask, deleteTask, toggleTask } = useTasks();
+  const { updateTask, deleteTask, toggleTask } = useTasksActions();
   const { showToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
 

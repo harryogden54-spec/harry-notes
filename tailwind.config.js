@@ -92,6 +92,8 @@ module.exports = {
         xl:    ["20px", { lineHeight: "28px" }],
         "2xl": ["24px", { lineHeight: "32px" }],
         "3xl": ["30px", { lineHeight: "38px" }],
+        display: ["34px", { lineHeight: "40px", letterSpacing: "-0.5px" }],
+        label:   ["12px", { lineHeight: "16px", letterSpacing: "0.8px" }],
       },
       borderRadius: {
         sm:    "6px",

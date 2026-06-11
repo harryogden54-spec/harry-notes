@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
-import { ACCENT_OPTIONS, THEMES, type ThemeId, spacing, radius, fontFamily } from "@/lib/theme";
+import { ACCENT_OPTIONS, THEMES, getThemeKit, type ThemeId, spacing, radius, fontFamily } from "@/lib/theme";
 import { Text, GradientBackground } from "@/components/ui";
 import { webContentStyle } from "@/lib/webLayout";
 
@@ -18,6 +18,7 @@ function ThemeCard({
   const { scheme } = useThemeContext();
   const def    = THEMES[id];
   const tokens = scheme === "dark" ? def.dark : def.light;
+  const kit    = getThemeKit(id, scheme);
   const cardAccent = accent.color;
 
   return (
@@ -32,12 +33,27 @@ function ThemeCard({
         backgroundColor: tokens.bgSecondary,
       }}
     >
-      {/* Colour swatches */}
-      <View style={{ flexDirection: "row", height: 40 }}>
-        <View style={{ flex: 1, backgroundColor: tokens.bgPrimary }} />
-        <View style={{ flex: 1, backgroundColor: tokens.bgSecondary }} />
-        <View style={{ flex: 1, backgroundColor: tokens.bgTertiary }} />
-        <View style={{ flex: 0.8, backgroundColor: cardAccent }} />
+      {/* Live miniature dashboard — the theme's actual personality, not just swatches */}
+      <View style={{ height: 86, backgroundColor: tokens.bgPrimary, padding: spacing[2.5], gap: 4 }}>
+        <View style={{ width: "55%", height: 6, borderRadius: 99, backgroundColor: tokens.textPrimary, opacity: 0.85 }} />
+        <View style={{ width: "32%", height: 4, borderRadius: 99, backgroundColor: tokens.textTertiary }} />
+        <View style={{ marginTop: 3, backgroundColor: tokens.bgSecondary, borderRadius: 6, borderWidth: 1, borderColor: tokens.bgBorder, padding: 5, gap: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 99, borderWidth: 1, borderColor: cardAccent }} />
+            <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: tokens.danger }} />
+            <View style={{ flex: 1, height: 4, borderRadius: 99, backgroundColor: tokens.textSecondary, opacity: 0.5 }} />
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: cardAccent }} />
+            <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: tokens.warning }} />
+            <View style={{ flex: 0.7, height: 4, borderRadius: 99, backgroundColor: tokens.textTertiary, opacity: 0.6 }} />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 4, marginTop: "auto" as any }}>
+          {[0, 1, 2].map(i => (
+            <View key={i} style={{ flex: 1, height: 13, borderRadius: 4, backgroundColor: kit.pastels.bg[i], borderWidth: 1, borderColor: kit.pastels.border[i] }} />
+          ))}
+        </View>
       </View>
       {/* Label row */}
       <View style={{

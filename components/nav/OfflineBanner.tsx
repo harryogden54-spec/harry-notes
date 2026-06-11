@@ -3,11 +3,11 @@ import { View, Text, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, fontFamily } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
+import { useTasksSync } from "@/lib/TasksContext";
 
 export function OfflineBanner() {
   const { colors } = useTheme();
-  const { syncStatus, syncNow } = useTasks();
+  const { syncStatus, syncNow } = useTasksSync();
   const [networkOffline, setNetworkOffline] = useState(false);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, ViewProps, StyleSheet, Pressable, PressableProps, Platform } from "react-native";
 import { useTheme } from "@/lib/useTheme";
-import { radius, spacing } from "@/lib/theme";
+import { radius, spacing, getShadow, motion } from "@/lib/theme";
 
 export type CardVariant = "elevated" | "filled" | "outlined";
 
@@ -26,14 +26,10 @@ function cardStyle(colors: ReturnType<typeof useTheme>["colors"], variant: CardV
       return {
         ...base,
         backgroundColor: colors.bgSecondary,
+        // Atelier content-card treatment: hairline border + soft "sm" shadow
         borderWidth: 1,
-        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-        // Soft ambient shadow — iOS-style
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
+        borderColor: colors.bgBorder,
+        ...getShadow("sm", isDark ? "dark" : "light"),
       };
     case "outlined":
       return {
@@ -75,11 +71,16 @@ export function CardPressable({ elevated, variant = "elevated", style, children,
   return (
     <Pressable
       accessibilityRole="button"
-      style={({ pressed }) => ({
-        ...base,
-        backgroundColor: pressed ? colors.bgTertiary : base.backgroundColor,
-        ...(typeof style === "object" && style !== null && !Array.isArray(style) ? style : {}),
-      })}
+      style={(state) => {
+        const pressed = state.pressed;
+        const hovered = (state as { hovered?: boolean }).hovered ?? false;
+        return {
+          ...base,
+          backgroundColor: pressed || hovered ? colors.bgTertiary : base.backgroundColor,
+          transform: pressed ? [{ scale: motion.pressScale }] : undefined,
+          ...(typeof style === "object" && style !== null && !Array.isArray(style) ? style : {}),
+        };
+      }}
       {...props}
     >
       {children}

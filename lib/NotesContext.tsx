@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
 import { syncDelete } from "./supabase";
@@ -25,21 +25,30 @@ export type Note = {
   updated_at?: string;
 };
 
-type NotesContextValue = {
+// Split into data / sync / actions contexts — see TasksContext for rationale.
+type NotesData = {
   notes: Note[];
   loaded: boolean;
+};
+
+type NotesSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
+  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+};
+
+type NotesActions = {
   addNote: (type?: "note" | "postit") => string;
   bulkAddNotes: (notes: Note[]) => void;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => void;
   deleteNote: (id: string) => () => void;
   pinNote: (id: string) => void;
   toggleBlockCheck: (noteId: string, blockId: string) => void;
-  syncNow: () => Promise<void>;
 };
 
-const NotesContext = createContext<NotesContextValue | null>(null);
+const NotesDataContext    = createContext<NotesData | null>(null);
+const NotesSyncContext    = createContext<NotesSync | null>(null);
+const NotesActionsContext = createContext<NotesActions | null>(null);
 
 function stamp(note: Note): Note {
   return { ...note, updated_at: new Date().toISOString() };
@@ -76,8 +85,8 @@ function newId() {
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const {
     items: notes, setItems: setNotes, loaded, syncStatus, lastSynced,
-    itemsRef: notesRef, pendingDeletesRef, dirtyIdsRef,
-    markDirty, syncNow,
+    itemsRef: notesRef, pendingDeletesRef,
+    markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Note>({
     table: "notes",
     storageKey: "notes",
@@ -92,8 +101,8 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       }
       return (await storage.get<Note[]>("notes") ?? []).map(normalizeNote);
     },
-    saveLocal: (items) => {
-      if (Platform.OS !== "web") dbSaveNotes(items).catch(console.error);
+    saveLocal: (items, changes) => {
+      if (Platform.OS !== "web") dbSaveNotes(items, changes).catch(console.error);
     },
     // Coerce remote rows — older rows may be missing type/body/title.
     normalizeRemote: (row) => normalizeNote(row),
@@ -102,11 +111,10 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   const addNote = useCallback((type: "note" | "postit" = "note"): string => {
     const id  = newId();
     const now = new Date().toISOString();
-    // Notes get an initial empty text block; post-its stay plain text.
-    const blocks: Block[] | undefined = type === "note"
-      ? [{ id: newId(), type: "text", content: "" }]
-      : undefined;
-    const note: Note = { id, title: "", body: "", blocks, pinned: false, type, created_at: now, updated_at: now };
+    // Both notes and post-its are plain markdown `body` strings — one editable
+    // TextInput, so text is fully selectable/copyable. (Legacy block notes are
+    // converted to markdown by migrateBlocksToBody.)
+    const note: Note = { id, title: "", body: "", pinned: false, type, created_at: now, updated_at: now };
     markDirty(id);
     setNotes(prev => [note, ...prev]);
     return id;
@@ -121,7 +129,7 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     const deleted = notesRef.current.find(n => n.id === id);
     setNotes(prev => prev.filter(n => n.id !== id));
     pendingDeletesRef.current.add(id);
-    dirtyIdsRef.current.delete(id);
+    markLocallyDeleted(id); // remove the SQLite row on next flush
     const timer = setTimeout(() => {
       syncDelete("notes", id);
       pendingDeletesRef.current.delete(id);
@@ -130,11 +138,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // also clears the local-delete mark
         setNotes(prev => [deleted, ...prev]);
       }
     };
-  }, [notesRef, pendingDeletesRef, dirtyIdsRef, markDirty, setNotes]);
+  }, [notesRef, pendingDeletesRef, markLocallyDeleted, markDirty, setNotes]);
 
   const bulkAddNotes = useCallback((newNotes: Note[]) => {
     if (newNotes.length === 0) return;
@@ -162,15 +170,52 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, pinned: !n.pinned }) : n));
   }, [markDirty, setNotes]);
 
+  const dataValue = useMemo(() => ({ notes, loaded }), [notes, loaded]);
+  const syncValue = useMemo(
+    () => ({ syncStatus, lastSynced, syncNow }),
+    [syncStatus, lastSynced, syncNow]
+  );
+  const actionsValue = useMemo(
+    () => ({ addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck }),
+    [addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck]
+  );
+
   return (
-    <NotesContext.Provider value={{ notes, loaded, syncStatus, lastSynced, addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck, syncNow }}>
-      {children}
-    </NotesContext.Provider>
+    <NotesDataContext.Provider value={dataValue}>
+      <NotesSyncContext.Provider value={syncValue}>
+        <NotesActionsContext.Provider value={actionsValue}>
+          {children}
+        </NotesActionsContext.Provider>
+      </NotesSyncContext.Provider>
+    </NotesDataContext.Provider>
   );
 }
 
-export function useNotes() {
-  const ctx = useContext(NotesContext);
-  if (!ctx) throw new Error("useNotes must be used within NotesProvider");
+export function useNotesData(): NotesData {
+  const ctx = useContext(NotesDataContext);
+  if (!ctx) throw new Error("useNotesData must be used within NotesProvider");
   return ctx;
+}
+
+export function useNotesSync(): NotesSync {
+  const ctx = useContext(NotesSyncContext);
+  if (!ctx) throw new Error("useNotesSync must be used within NotesProvider");
+  return ctx;
+}
+
+export function useNotesActions(): NotesActions {
+  const ctx = useContext(NotesActionsContext);
+  if (!ctx) throw new Error("useNotesActions must be used within NotesProvider");
+  return ctx;
+}
+
+/**
+ * @deprecated Compatibility alias — re-renders on every data AND sync change.
+ * Prefer useNotesData / useNotesActions / useNotesSync.
+ */
+export function useNotes(): NotesData & NotesSync & NotesActions {
+  const data    = useNotesData();
+  const sync    = useNotesSync();
+  const actions = useNotesActions();
+  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
 }

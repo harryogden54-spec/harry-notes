@@ -105,17 +105,42 @@ export const TaskItem = React.memo(function TaskItem({
           style={{
             borderColor: highlighted ? colors.accent : selected ? colors.accent : isExpanded ? (priorityColor ?? colors.accent) : undefined,
             borderWidth: highlighted ? 2 : 1,
-            borderLeftWidth: priorityColor && !highlighted ? 3 : highlighted ? 2 : 1,
-            borderLeftColor: highlighted ? colors.accent : priorityColor ?? undefined,
             marginBottom: spacing[1.5],
             opacity: selected ? 0.85 : 1,
+            // Urgent tasks get a faint danger tint across the whole row
+            ...(task.priority === "urgent" && !task.done
+              ? { backgroundColor: `${colors.danger}12` }
+              : {}),
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: compact ? spacing[1] : spacing[2] }}>
             {selectMode ? (
               <Checkbox checked={selected} onToggle={onSelect} size={16} />
             ) : (
-              <Checkbox checked={task.done} onToggle={() => onUpdate(task.id, { done: !task.done })} />
+              <Checkbox
+                checked={task.done}
+                onToggle={() => {
+                  if (!task.done && Platform.OS !== "web") {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  }
+                  onUpdate(task.id, { done: !task.done });
+                }}
+              />
+            )}
+            {/* Priority dot — beside the checkbox; tap to edit inline */}
+            {!selectMode && (
+              <Pressable
+                onPress={e => { (e as any).stopPropagation?.(); if (!task.done) setInlineField(f => f === "priority" ? null : "priority"); }}
+                hitSlop={8}
+              >
+                <View style={{
+                  width: 8, height: 8, borderRadius: 99,
+                  backgroundColor: priorityColor ?? "transparent",
+                  borderWidth: priorityColor ? 0 : 1.5,
+                  borderColor: colors.bgBorder,
+                  opacity: task.done ? 0.4 : 1,
+                }} />
+              </Pressable>
             )}
             <Pressable
               onPress={selectMode ? onSelect : onToggleExpand}
@@ -153,19 +178,6 @@ export const TaskItem = React.memo(function TaskItem({
                   </View>
                 )}
               </View>
-              <Pressable
-                onPress={e => { (e as any).stopPropagation?.(); if (!selectMode && !task.done) setInlineField(f => f === "priority" ? null : "priority"); }}
-                hitSlop={8}
-                style={{ padding: 2 }}
-              >
-                <View style={{
-                  width: 7, height: 7, borderRadius: 99,
-                  backgroundColor: priorityColor ?? colors.bgBorder,
-                  borderWidth: priorityColor ? 0 : 1,
-                  borderColor: colors.bgBorder,
-                  opacity: inlineField === "priority" ? 1 : 0.85,
-                }} />
-              </Pressable>
               {hovered && !selectMode && !isExpanded && (
                 <View style={{ flexDirection: "row", gap: 2 }}>
                   <Pressable onPress={(e) => { e.stopPropagation?.(); onReorderUp(); }} hitSlop={6}

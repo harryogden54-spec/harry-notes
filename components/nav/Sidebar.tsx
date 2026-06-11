@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Platform } from "react-native";
+import { View, Text, Pressable, ScrollView, Platform, Image } from "react-native";
 import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { useNotesData } from "@/lib/NotesContext";
+import { cmpRecentDesc } from "@/lib/utils";
 import type { NavItem } from "./navConfig";
 import { NAV_ITEMS } from "./navConfig";
 
@@ -39,7 +41,12 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const { notes } = useNotesData();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  const pinnedNotes = notes
+    .filter(n => n.pinned && n.type !== "postit")
+    .sort(cmpRecentDesc);
 
 
   const chevronRot = useSharedValue(collapsed ? 1 : 0);
@@ -78,9 +85,12 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
           paddingHorizontal: collapsed ? 0 : spacing[3],
         }}>
           {!collapsed && (
-            <Text style={{ fontSize: 22, fontFamily: fontFamily.bold, color: colors.textPrimary, letterSpacing: -1 }}>
-              harry.
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+              <Image source={require("@/assets/images/icon.png")} style={{ width: 20, height: 20, borderRadius: 5 }} />
+              <Text style={{ fontSize: 22, fontFamily: fontFamily.bold, color: colors.textPrimary, letterSpacing: -1 }}>
+                harry.
+              </Text>
+            </View>
           )}
           <Pressable
             onPress={onToggleCollapse}
@@ -168,6 +178,44 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
             );
           })}
         </View>
+
+        {/* Pinned notes */}
+        {pinnedNotes.length > 0 && (
+          <View style={{ marginTop: spacing[5], paddingHorizontal: collapsed ? 0 : spacing[2] }}>
+            {!collapsed && (
+              <Text style={{ fontSize: 11, fontFamily: fontFamily.semibold, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
+                Pinned
+              </Text>
+            )}
+            {pinnedNotes.map(n => {
+              const key = `pin_${n.id}`;
+              const hovered = hoveredItem === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => router.push(`/(tabs)/notes?openId=${n.id}&_t=${Date.now()}` as any)}
+                  // @ts-ignore
+                  onHoverIn={() => setHoveredItem(key)}
+                  onHoverOut={() => setHoveredItem(null)}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: collapsed ? 0 : spacing[2],
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    paddingHorizontal: collapsed ? 0 : spacing[3], paddingVertical: spacing[1.5],
+                    borderRadius: radius.md,
+                    backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
+                  }}
+                >
+                  <Ionicons name="pin" size={12} color={hovered ? colors.accent : colors.textTertiary} />
+                  {!collapsed && (
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, fontFamily: fontFamily.regular, color: hovered ? colors.textPrimary : colors.textSecondary }}>
+                      {n.title || "Untitled"}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
       </ScrollView>
 

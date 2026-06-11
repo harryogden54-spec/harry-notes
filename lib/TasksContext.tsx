@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
 import { syncDelete } from "./supabase";
@@ -44,11 +44,21 @@ export type Task = {
   recurrence?: string;
 };
 
-type TasksContextValue = {
+// Split into three contexts so consumers subscribe only to what they use:
+// data changes on every mutation, sync status churns around every sync, and
+// actions never change. Bundling them re-rendered every consumer on all three.
+type TasksData = {
   tasks: Task[];
   loaded: boolean;
+};
+
+type TasksSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
+  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+};
+
+type TasksActions = {
   addTask: (title: string, due_date?: string) => string;
   updateTask: (id: string, updates: Partial<Omit<Task, "id" | "created_at">>) => void;
   toggleTask: (id: string) => void;
@@ -58,10 +68,11 @@ type TasksContextValue = {
   reorderTask: (id: string, direction: "up" | "down") => void;
   setSectionOrder: (reorderedSection: Task[]) => void;
   clearCompleted: () => void;
-  syncNow: () => Promise<void>;
 };
 
-const TasksContext = createContext<TasksContextValue | null>(null);
+const TasksDataContext    = createContext<TasksData | null>(null);
+const TasksSyncContext    = createContext<TasksSync | null>(null);
+const TasksActionsContext = createContext<TasksActions | null>(null);
 
 function stamp(task: Task): Task {
   return { ...task, updated_at: new Date().toISOString() };
@@ -96,8 +107,8 @@ function newId() {
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const {
     items: tasks, setItems: setTasks, loaded, syncStatus, lastSynced,
-    itemsRef: tasksRef, pendingDeletesRef, dirtyIdsRef,
-    markDirty, syncNow,
+    itemsRef: tasksRef, pendingDeletesRef,
+    markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Task>({
     table: "tasks",
     storageKey: "tasks",
@@ -116,8 +127,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       }
       return (await storage.get<Task[]>("tasks") ?? []).map(normalizeTask);
     },
-    saveLocal: (items) => {
-      if (Platform.OS !== "web") dbSaveTasks(items).catch(console.error);
+    saveLocal: (items, changes) => {
+      if (Platform.OS !== "web") dbSaveTasks(items, changes).catch(console.error);
     },
     // Auto-archive tasks completed 7+ days ago on initial load.
     // Use completed_at + 7 days as updated_at so a real archive event on
@@ -206,7 +217,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     const deleted = tasksRef.current.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
     pendingDeletesRef.current.add(id);
-    dirtyIdsRef.current.delete(id);
+    markLocallyDeleted(id); // remove the SQLite row on next flush
     const timer = setTimeout(() => {
       syncDelete("tasks", id);
       pendingDeletesRef.current.delete(id);
@@ -215,11 +226,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // also clears the local-delete mark
         setTasks(prev => [...prev, deleted]);
       }
     };
-  }, [tasksRef, pendingDeletesRef, dirtyIdsRef, markDirty, setTasks]);
+  }, [tasksRef, pendingDeletesRef, markLocallyDeleted, markDirty, setTasks]);
 
   const reorderTask = useCallback((id: string, direction: "up" | "down") => {
     setTasks(prev => {
@@ -254,19 +265,58 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setTasks(prev => prev.map(t => archivedIds.has(t.id) ? archivedMap.get(t.id)! : t));
   }, [tasksRef, markDirty, setTasks]);
 
-  return (
-    <TasksContext.Provider value={{
-      tasks, loaded, syncStatus, lastSynced,
+  const dataValue = useMemo(() => ({ tasks, loaded }), [tasks, loaded]);
+  const syncValue = useMemo(
+    () => ({ syncStatus, lastSynced, syncNow }),
+    [syncStatus, lastSynced, syncNow]
+  );
+  // Every action is a useCallback over stable refs, so this object never changes.
+  const actionsValue = useMemo(
+    () => ({
       addTask, updateTask, toggleTask, deleteTask, archiveTask, unarchiveTask,
-      reorderTask, setSectionOrder, clearCompleted, syncNow,
-    }}>
-      {children}
-    </TasksContext.Provider>
+      reorderTask, setSectionOrder, clearCompleted,
+    }),
+    [addTask, updateTask, toggleTask, deleteTask, archiveTask, unarchiveTask,
+     reorderTask, setSectionOrder, clearCompleted]
+  );
+
+  return (
+    <TasksDataContext.Provider value={dataValue}>
+      <TasksSyncContext.Provider value={syncValue}>
+        <TasksActionsContext.Provider value={actionsValue}>
+          {children}
+        </TasksActionsContext.Provider>
+      </TasksSyncContext.Provider>
+    </TasksDataContext.Provider>
   );
 }
 
-export function useTasks() {
-  const ctx = useContext(TasksContext);
-  if (!ctx) throw new Error("useTasks must be used within TasksProvider");
+export function useTasksData(): TasksData {
+  const ctx = useContext(TasksDataContext);
+  if (!ctx) throw new Error("useTasksData must be used within TasksProvider");
   return ctx;
+}
+
+export function useTasksSync(): TasksSync {
+  const ctx = useContext(TasksSyncContext);
+  if (!ctx) throw new Error("useTasksSync must be used within TasksProvider");
+  return ctx;
+}
+
+export function useTasksActions(): TasksActions {
+  const ctx = useContext(TasksActionsContext);
+  if (!ctx) throw new Error("useTasksActions must be used within TasksProvider");
+  return ctx;
+}
+
+/**
+ * @deprecated Compatibility alias — subscribes to all three contexts, so it
+ * re-renders on every data AND sync change. Prefer useTasksData /
+ * useTasksActions / useTasksSync.
+ */
+export function useTasks(): TasksData & TasksSync & TasksActions {
+  const data    = useTasksData();
+  const sync    = useTasksSync();
+  const actions = useTasksActions();
+  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
 }

@@ -22,7 +22,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { cmpRecentDesc } from "@/lib/utils";
-import { useLists, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
+import { useListsData, useListsActions, useListsSync, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
 import { SearchBar } from "@/components/ui/SearchBar";
 
@@ -57,7 +57,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 
 export function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => void }) {
   const { colors } = useTheme();
-  const { addList } = useLists();
+  const { addList } = useListsActions();
   const [name, setName]             = useState("");
   const [color, setColor]           = useState(LIST_COLORS[0]);
   const [templateItems, setTemplateItems] = useState<string[]>([]);
@@ -203,7 +203,7 @@ function ListItemRow({
   isDragActive?: boolean;
 }) {
   const { colors } = useTheme();
-  const { toggleItem, updateItem, deleteItem, moveItem } = useLists();
+  const { toggleItem, updateItem, deleteItem, moveItem } = useListsActions();
   const { showToast } = useToast();
   const [editing, setEditing]   = useState(false);
   const [val, setVal]           = useState(item.content);
@@ -317,7 +317,7 @@ function ListItemRow({
 
 function AddItemRow({ listId, defaultType }: { listId: string; defaultType: ListItemType }) {
   const { colors } = useTheme();
-  const { addItem } = useLists();
+  const { addItem } = useListsActions();
   const [val, setVal]   = useState("");
   const [type, setType] = useState<ListItemType>(defaultType);
 
@@ -399,7 +399,7 @@ export function ListIndexRow({ list, isSelected, onSelect }: {
 
 export function ListDetailPane({ list, otherLists }: { list: NoteList; otherLists: NoteList[] }) {
   const { colors } = useTheme();
-  const { updateList, deleteList, duplicateList, pinList, reorderItems } = useLists();
+  const { updateList, deleteList, duplicateList, pinList, reorderItems } = useListsActions();
   const { showToast } = useToast();
   const [editingName, setEditingName]   = useState(false);
   const [nameVal, setNameVal]           = useState(list.name);
@@ -517,7 +517,7 @@ export function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
   list: NoteList; isExpanded: boolean; onToggleExpand: () => void; otherLists: NoteList[];
 }) {
   const { colors } = useTheme();
-  const { updateList, deleteList, duplicateList, pinList, reorderItems } = useLists();
+  const { updateList, deleteList, duplicateList, pinList, reorderItems } = useListsActions();
   const { showToast } = useToast();
   const [editingName, setEditingName]   = useState(false);
   const [nameVal, setNameVal]           = useState(list.name);
@@ -657,7 +657,7 @@ function ListsScreen() {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
-  const { lists, loaded } = useLists();
+  const { lists, loaded } = useListsData();
   const [creating, setCreating]     = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -701,7 +701,7 @@ function ListsScreen() {
     l.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const { syncNow, syncStatus } = useLists();
+  const { syncNow, syncStatus } = useListsSync();
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

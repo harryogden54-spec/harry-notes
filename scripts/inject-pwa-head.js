@@ -11,7 +11,8 @@ const path = require("path");
 
 const INDEX = path.join(__dirname, "..", "dist", "index.html");
 
-const TAGS = `    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+const TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0D0D0D" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -22,7 +23,7 @@ const TAGS = `    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
 let html = fs.readFileSync(INDEX, "utf8");
 
-if (html.includes('rel="apple-touch-icon"')) {
+if (html.includes('rel="apple-touch-icon"') && html.includes('rel="icon"')) {
   console.log("inject-pwa-head: tags already present — skipping.");
 } else if (!html.includes("</head>")) {
   console.error("inject-pwa-head: no </head> found in dist/index.html");

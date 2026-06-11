@@ -10,13 +10,14 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
-import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow, SyncStatusBadge } from "@/components/ui";
-import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
-import { useTasks } from "@/lib/TasksContext";
+import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
+import { spacing, radius, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
+import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
-import { useNotes } from "@/lib/NotesContext";
+import { useNotesData } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr, PRIORITY_COLOR, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
+import { getTodayStr, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
+import { carryForwardToday } from "@/lib/todayCarry";
 import { useMounted } from "@/lib/useMounted";
 import { notePreview } from "@/components/notes/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
@@ -46,7 +47,11 @@ function TodayPanel() {
   const todayKey = getTodayKey();
 
   useEffect(() => {
-    storage.get<TodayItem[]>(todayKey).then(saved => { if (saved) setItems(saved); });
+    (async () => {
+      await carryForwardToday();
+      const saved = await storage.get<TodayItem[]>(todayKey);
+      if (saved) setItems(saved);
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -68,9 +73,9 @@ function TodayPanel() {
           paddingVertical: spacing[1.5],
         }}>
           <View style={{
-            width: 16, height: 16, borderRadius: 4,
-            borderWidth: 1.5, borderColor: colors.bgBorder,
-            backgroundColor: "transparent",
+            width: 5, height: 5, borderRadius: 99,
+            backgroundColor: colors.textTertiary,
+            marginHorizontal: 5.5,
           }} />
           <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.text}</Text>
         </View>
@@ -83,11 +88,13 @@ function TodayPanel() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { colors, notePastels } = useTheme();
+  const { colors, notePastels, scheme } = useTheme();
   const { open: openPalette }  = useCommandPalette();
-  const { tasks, addTask, updateTask, loaded: tasksLoaded, syncNow: syncTasks } = useTasks();
+  const { tasks, loaded: tasksLoaded } = useTasksData();
+  const { addTask, updateTask } = useTasksActions();
+  const { syncNow: syncTasks } = useTasksSync();
   const { showToast }          = useToast();
-  const { notes, loaded: notesLoaded } = useNotes();
+  const { notes, loaded: notesLoaded } = useNotesData();
   const router                 = useRouter();
   const searchRef              = useRef<TextInput | null>(null);
   const [search, setSearch]       = useState("");
@@ -152,7 +159,7 @@ function DashboardScreen() {
   const header = (
     <View style={{ paddingTop: spacing[8], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 32, fontFamily: fontFamily.bold, letterSpacing: -1.2, color: colors.textPrimary, lineHeight: 36 }}>
+        <Text size="display" weight="bold">
           {mounted ? greeting() : "Good morning"}
         </Text>
         <Text size="sm" secondary style={{ marginTop: spacing[1] }}>
@@ -160,7 +167,6 @@ function DashboardScreen() {
         </Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
-        <SyncStatusBadge />
         <Pressable onPress={openPalette} hitSlop={12} style={{ padding: spacing[1] }}>
           <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
         </Pressable>
@@ -241,17 +247,10 @@ function DashboardScreen() {
           <Text size="sm" secondary>No open tasks</Text>
         </GlassCard>
       ) : (
-        <GlassCard style={{ overflow: "hidden", flex: 1 }}>
+        <GlassCard style={{ overflow: "hidden" }}>
           {tasksCardItems.map((task, i) => (
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                {task.priority && (
-                  <View style={{ width: 3, position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: PRIORITY_COLOR[task.priority] }} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
-                </View>
-              </View>
+              <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
             </View>
           ))}
           {tasksOverflow > 0 && (
@@ -377,11 +376,7 @@ function DashboardScreen() {
                 padding: spacing[3],
                 minHeight: 72,
                 justifyContent: "center",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.07,
-                shadowRadius: 4,
-                elevation: 2,
+                ...getShadow("xs", scheme),
               }}>
                 <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, lineHeight: 18 }}>
                   {n.title || "…"}
@@ -400,7 +395,7 @@ function DashboardScreen() {
     <>
       {overdueBanner}
       {isWide ? (
-        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[6], alignItems: "stretch" }}>
+        <View style={{ flexDirection: "row", gap: spacing[4], marginBottom: spacing[6], alignItems: "flex-start" }}>
           {tasksCard}
           {todayCard}
         </View>

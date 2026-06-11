@@ -2,20 +2,21 @@ import React from "react";
 import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
-import { useToast } from "@/lib/ToastContext";
+import { useToast, useToastState } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, getShadow, layout } from "@/lib/theme";
 
 export function ToastContainer() {
-  const { toasts, dismissToast } = useToast();
-  const { colors } = useTheme();
+  const toasts = useToastState();
+  const { dismissToast } = useToast();
+  const { colors, scheme } = useTheme();
   if (toasts.length === 0) return null;
 
   return (
     <View
       style={{
         position: "absolute",
-        bottom: Platform.OS === "ios" ? 104 : 72,
+        bottom: Platform.OS === "ios" ? layout.fabBottom.ios + 4 : layout.fabBottom.default - 4,
         left: spacing[4],
         right: spacing[4],
         gap: spacing[2],
@@ -37,10 +38,7 @@ export function ToastContainer() {
             paddingVertical: spacing[3],
             paddingHorizontal: spacing[4],
             gap: spacing[3],
-            shadowColor: "#000",
-            shadowOpacity: 0.35,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 4 },
+            ...getShadow("md", scheme),
           }}
         >
           <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{toast.message}</Text>

@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, PressableProps, ActivityIndicator, View } from "react-native";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
-import { radius, spacing } from "@/lib/theme";
+import { radius, spacing, motion } from "@/lib/theme";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size    = "sm" | "md" | "lg";
@@ -68,19 +68,31 @@ export function Button({
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!(disabled || loading) }}
       disabled={disabled || loading}
-      style={({ pressed }) => ({
-        backgroundColor: bg[variant],
-        borderRadius: radius.xl,
-        borderWidth: 1,
-        borderColor: border[variant],
-        flexDirection: "row" as const,
-        alignItems: "center" as const,
-        justifyContent: "center" as const,
-        gap: spacing[1.5],
-        opacity: pressed || disabled ? 0.65 : 1,
-        ...(style as object),
-        ...padding[size],
-      })}
+      style={(state) => {
+        const pressed = state.pressed;
+        // RN-web extends the state callback with hover; native never sets it.
+        const hovered = (state as { hovered?: boolean }).hovered ?? false;
+        const hoverBg: Record<Variant, string> = {
+          primary:   colors.accentHover,
+          secondary: colors.bgTertiary,
+          ghost:     colors.bgTertiary,
+          danger:    `${colors.danger}33`,
+        };
+        return {
+          backgroundColor: hovered && !disabled ? hoverBg[variant] : bg[variant],
+          borderRadius: radius.xl,
+          borderWidth: 1,
+          borderColor: border[variant],
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          gap: spacing[1.5],
+          opacity: disabled ? 0.55 : pressed ? motion.pressOpacity : 1,
+          transform: pressed ? [{ scale: motion.pressScale }] : undefined,
+          ...(style as object),
+          ...padding[size],
+        };
+      }}
       {...props}
     >
       {loading ? (

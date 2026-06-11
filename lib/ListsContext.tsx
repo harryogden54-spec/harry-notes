@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
 import { syncDelete } from "./supabase";
@@ -28,11 +28,19 @@ export type NoteList = {
 // Re-exported from theme.ts as the single source of truth.
 export { listColors as LIST_COLORS } from "./theme";
 
-type ListsContextValue = {
+// Split into data / sync / actions contexts — see TasksContext for rationale.
+type ListsData = {
   lists: NoteList[];
   loaded: boolean;
+};
+
+type ListsSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
+  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+};
+
+type ListsActions = {
   addList: (name: string, color: string, initialItems?: string[]) => string;
   updateList: (id: string, updates: Partial<Omit<NoteList, "id" | "created_at">>) => void;
   deleteList: (id: string) => () => void;
@@ -44,10 +52,11 @@ type ListsContextValue = {
   deleteItem: (listId: string, itemId: string) => () => void;
   moveItem: (fromListId: string, itemId: string, toListId: string) => void;
   reorderItems: (listId: string, newItems: ListItem[]) => void;
-  syncNow: () => Promise<void>;
 };
 
-const ListsContext = createContext<ListsContextValue | null>(null);
+const ListsDataContext    = createContext<ListsData | null>(null);
+const ListsSyncContext    = createContext<ListsSync | null>(null);
+const ListsActionsContext = createContext<ListsActions | null>(null);
 
 function stamp(obj: NoteList): NoteList {
   return { ...obj, updated_at: new Date().toISOString() };
@@ -81,8 +90,8 @@ function newId() {
 export function ListsProvider({ children }: { children: React.ReactNode }) {
   const {
     items: lists, setItems: setLists, loaded, syncStatus, lastSynced,
-    itemsRef: listsRef, pendingDeletesRef, dirtyIdsRef,
-    markDirty, syncNow,
+    itemsRef: listsRef, pendingDeletesRef,
+    markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<NoteList>({
     table: "lists",
     storageKey: "lists",
@@ -97,8 +106,8 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       }
       return (await storage.get<NoteList[]>("lists") ?? []).map(normalizeList);
     },
-    saveLocal: (items) => {
-      if (Platform.OS !== "web") dbSaveLists(items).catch(console.error);
+    saveLocal: (items, changes) => {
+      if (Platform.OS !== "web") dbSaveLists(items, changes).catch(console.error);
     },
     // Coerce remote rows — older rows may be missing name/created_at/items.
     normalizeRemote: (row) => normalizeList(row),
@@ -124,7 +133,7 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     const deleted = listsRef.current.find(l => l.id === id);
     setLists(prev => prev.filter(l => l.id !== id));
     pendingDeletesRef.current.add(id);
-    dirtyIdsRef.current.delete(id);
+    markLocallyDeleted(id); // remove the SQLite row on next flush
     const timer = setTimeout(() => {
       syncDelete("lists", id);
       pendingDeletesRef.current.delete(id);
@@ -133,11 +142,11 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer);
       pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // also clears the local-delete mark
         setLists(prev => [...prev, deleted]);
       }
     };
-  }, [listsRef, pendingDeletesRef, dirtyIdsRef, markDirty, setLists]);
+  }, [listsRef, pendingDeletesRef, markLocallyDeleted, markDirty, setLists]);
 
   const pinList = useCallback((id: string) => {
     markDirty(id);
@@ -229,19 +238,56 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
     ));
   }, [markDirty, setLists]);
 
-  return (
-    <ListsContext.Provider value={{
-      lists, loaded, syncStatus, lastSynced,
+  const dataValue = useMemo(() => ({ lists, loaded }), [lists, loaded]);
+  const syncValue = useMemo(
+    () => ({ syncStatus, lastSynced, syncNow }),
+    [syncStatus, lastSynced, syncNow]
+  );
+  const actionsValue = useMemo(
+    () => ({
       addList, updateList, deleteList, duplicateList, pinList,
-      addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems, syncNow,
-    }}>
-      {children}
-    </ListsContext.Provider>
+      addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems,
+    }),
+    [addList, updateList, deleteList, duplicateList, pinList,
+     addItem, updateItem, toggleItem, deleteItem, moveItem, reorderItems]
+  );
+
+  return (
+    <ListsDataContext.Provider value={dataValue}>
+      <ListsSyncContext.Provider value={syncValue}>
+        <ListsActionsContext.Provider value={actionsValue}>
+          {children}
+        </ListsActionsContext.Provider>
+      </ListsSyncContext.Provider>
+    </ListsDataContext.Provider>
   );
 }
 
-export function useLists() {
-  const ctx = useContext(ListsContext);
-  if (!ctx) throw new Error("useLists must be used within ListsProvider");
+export function useListsData(): ListsData {
+  const ctx = useContext(ListsDataContext);
+  if (!ctx) throw new Error("useListsData must be used within ListsProvider");
   return ctx;
+}
+
+export function useListsSync(): ListsSync {
+  const ctx = useContext(ListsSyncContext);
+  if (!ctx) throw new Error("useListsSync must be used within ListsProvider");
+  return ctx;
+}
+
+export function useListsActions(): ListsActions {
+  const ctx = useContext(ListsActionsContext);
+  if (!ctx) throw new Error("useListsActions must be used within ListsProvider");
+  return ctx;
+}
+
+/**
+ * @deprecated Compatibility alias — re-renders on every data AND sync change.
+ * Prefer useListsData / useListsActions / useListsSync.
+ */
+export function useLists(): ListsData & ListsSync & ListsActions {
+  const data    = useListsData();
+  const sync    = useListsSync();
+  const actions = useListsActions();
+  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
 }
