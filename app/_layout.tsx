@@ -20,6 +20,7 @@ import { migrateListsToNotes } from "@/lib/migrateListsToNotes";
 import { migrateBlocksToBody } from "@/lib/migrateBlocksToBody";
 import { ListsProvider } from "@/lib/ListsContext";
 import { NotesProvider } from "@/lib/NotesContext";
+import { DumpProvider } from "@/lib/DumpContext";
 import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
 import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
@@ -140,12 +141,14 @@ export default function RootLayout() {
         <TasksProvider>
           <ListsProvider>
             <NotesProvider>
+              <DumpProvider>
               <ToastProvider>
                 <CommandPaletteProvider>
                   <AppShell />
                   <ToastContainer />
                 </CommandPaletteProvider>
               </ToastProvider>
+              </DumpProvider>
             </NotesProvider>
           </ListsProvider>
         </TasksProvider>

@@ -19,7 +19,8 @@ export function getDb(): SQLite.SQLiteDatabase {
 // columns immediately (without relying on migrations to add them).
 // v7: query indexes on created_at / archived / pinned (created in the
 // always-run block below — CREATE INDEX IF NOT EXISTS covers old installs).
-const SCHEMA_VERSION = 7;
+// v8: dumps table added.
+const SCHEMA_VERSION = 8;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -76,11 +77,22 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_tasks_done ON tasks(done);
     CREATE INDEX IF NOT EXISTS idx_tasks_due  ON tasks(due_date);
 
+    CREATE TABLE IF NOT EXISTS dumps (
+      id         TEXT PRIMARY KEY,
+      content    TEXT NOT NULL DEFAULT '',
+      tag        TEXT NOT NULL DEFAULT 'journal',
+      note_date  TEXT NOT NULL DEFAULT '',
+      filed      INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_created   ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_tasks_archived  ON tasks(archived);
     CREATE INDEX IF NOT EXISTS idx_notes_created   ON notes(created_at);
     CREATE INDEX IF NOT EXISTS idx_notes_pinned    ON notes(pinned);
     CREATE INDEX IF NOT EXISTS idx_lists_created   ON lists(created_at);
+    CREATE INDEX IF NOT EXISTS idx_dumps_created   ON dumps(created_at);
   `);
 
   // ── Migrations ──────────────────────────────────────────────────────────────
@@ -130,6 +142,22 @@ export async function initDb(): Promise<void> {
     await db.execAsync(`
       DROP TABLE IF EXISTS sticky_notes;
       DROP TABLE IF EXISTS list_items;
+    `);
+  }
+
+  if (current < 8) {
+    // v8: dumps table — CREATE TABLE IF NOT EXISTS is a no-op for fresh installs.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS dumps (
+        id         TEXT PRIMARY KEY,
+        content    TEXT NOT NULL DEFAULT '',
+        tag        TEXT NOT NULL DEFAULT 'journal',
+        note_date  TEXT NOT NULL DEFAULT '',
+        filed      INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_dumps_created ON dumps(created_at);
     `);
   }
 
@@ -310,6 +338,34 @@ export async function dbLoadNotes(): Promise<any[]> {
     type: (r.type ?? "note") as "note" | "postit",
     created_at: r.created_at,
     updated_at: r.updated_at,
+  }));
+}
+
+export async function dbLoadDumps(): Promise<any[]> {
+  const rows = await getDb().getAllAsync<Record<string, any>>(
+    "SELECT * FROM dumps ORDER BY created_at ASC"
+  );
+  return rows.map(r => ({
+    id: r.id,
+    content: r.content,
+    tag: r.tag,
+    note_date: r.note_date,
+    filed: !!r.filed,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
+}
+
+export async function dbSaveDumps(dumps: any[], changes?: SaveChanges): Promise<void> {
+  enqueue("dumps", toReq(dumps, changes), (req) => runSave("dumps", req, async (db, d) => {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO dumps (id,content,tag,note_date,filed,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
+      [
+        d.id, d.content ?? "", d.tag ?? "journal", d.note_date ?? "",
+        d.filed ? 1 : 0,
+        d.created_at, d.updated_at ?? d.created_at,
+      ]
+    );
   }));
 }
 
