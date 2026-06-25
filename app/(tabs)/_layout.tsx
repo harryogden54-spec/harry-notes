@@ -83,6 +83,7 @@ export default function TabLayout() {
         else if (key === "t") { e.preventDefault(); router.push("/(tabs)/tasks" as any); }
         else if (key === "n") { e.preventDefault(); router.push("/(tabs)/notes" as any); }
         else if (key === "p") { e.preventDefault(); router.push("/(tabs)/postits" as any); }
+        else if (key === "d") { e.preventDefault(); router.push("/(tabs)/dump" as any); }
       }
     }
 
@@ -183,7 +184,8 @@ export default function TabLayout() {
         <Tabs.Screen name="today"   options={{ title: "Today",    tabBarIcon: p => <TabIcon {...p} iconOutline="today-outline"    iconFilled="today"    /> }} listeners={{ tabPress: onTabPress }} />
         <Tabs.Screen name="tasks"   options={{ title: "Tasks",    tabBarIcon: p => <TabIcon {...p} iconOutline="checkbox-outline" iconFilled="checkbox" /> }} listeners={{ tabPress: onTabPress }} />
         <Tabs.Screen name="notes"   options={{ title: "Notes",    tabBarIcon: p => <TabIcon {...p} iconOutline="albums-outline"   iconFilled="albums"   /> }} listeners={{ tabPress: onTabPress }} />
-        <Tabs.Screen name="postits" options={{ title: "Post Its", tabBarIcon: p => <TabIcon {...p} iconOutline="layers-outline"   iconFilled="layers"   /> }} listeners={{ tabPress: onTabPress }} />
+        <Tabs.Screen name="postits" options={{ title: "Post Its", tabBarIcon: p => <TabIcon {...p} iconOutline="layers-outline"      iconFilled="layers"       /> }} listeners={{ tabPress: onTabPress }} />
+        <Tabs.Screen name="dump"    options={{ title: "Dump",     tabBarIcon: p => <TabIcon {...p} iconOutline="cloud-upload-outline" iconFilled="cloud-upload" /> }} listeners={{ tabPress: onTabPress }} />
         <Tabs.Screen name="calendar" options={{ href: null }} />
         <Tabs.Screen name="lists"   options={{ href: null }} />
       </Tabs>
