@@ -3,30 +3,35 @@
 @tailwind utilities;
 
 /* ── Inter font-face (synchronous CSS fallback for web) ─────────────────────
-   These match the hashed filenames Metro bundles into dist/assets/.
+   Served from public/fonts/ — NOT public/assets/fonts/. Metro's dev server
+   unconditionally claims the whole /assets/* URL namespace for its own
+   asset-resolution middleware (see Assets.js), so static files placed under
+   /assets/ 404 in `expo start --web` even though they work fine once
+   exported to dist/ for production. /fonts/ sidesteps that collision so
+   real fonts load in both dev and prod instead of falling back to serif.
    useFonts() also injects these via JS, but rendering starts before that
    resolves — so the CSS declarations here prevent the serif flash.        */
 @font-face {
   font-family: 'Inter_400Regular';
-  src: url('/assets/fonts/Inter_400Regular.ttf') format('truetype');
+  src: url('/fonts/Inter_400Regular.ttf') format('truetype');
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: 'Inter_500Medium';
-  src: url('/assets/fonts/Inter_500Medium.ttf') format('truetype');
+  src: url('/fonts/Inter_500Medium.ttf') format('truetype');
   font-weight: 500;
   font-display: swap;
 }
 @font-face {
   font-family: 'Inter_600SemiBold';
-  src: url('/assets/fonts/Inter_600SemiBold.ttf') format('truetype');
+  src: url('/fonts/Inter_600SemiBold.ttf') format('truetype');
   font-weight: 600;
   font-display: swap;
 }
 @font-face {
   font-family: 'Inter_700Bold';
-  src: url('/assets/fonts/Inter_700Bold.ttf') format('truetype');
+  src: url('/fonts/Inter_700Bold.ttf') format('truetype');
   font-weight: 700;
   font-display: swap;
 }
@@ -34,7 +39,7 @@
 /* ── Ionicons ────────────────────────────────────────────────────────────── */
 @font-face {
   font-family: 'Ionicons';
-  src: url('/assets/fonts/Ionicons.ttf') format('truetype');
+  src: url('/fonts/Ionicons.ttf') format('truetype');
   font-display: block;
 }
 
