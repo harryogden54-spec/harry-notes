@@ -248,9 +248,11 @@ function DumpScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
             <View>
               <Text size="2xl" weight="bold">Dump</Text>
-              <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-                {sorted.length > 0 ? `${sorted.length} capture${sorted.length !== 1 ? "s" : ""}` : "Nothing captured yet"}
-              </Text>
+              {sorted.length > 0 && (
+                <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
+                  {sorted.length} capture{sorted.length !== 1 ? "s" : ""}
+                </Text>
+              )}
             </View>
             <Pressable
               onPress={handleAdd}

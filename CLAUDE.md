@@ -17,6 +17,16 @@ npm run deploy         # expo export --platform web && wrangler pages deploy
 
 There is no test runner configured. TypeScript is checked implicitly by the Expo build toolchain.
 
+### Working in a git worktree
+
+A fresh worktree has no `node_modules/` or `.env` (both are gitignored). Before `npm run web`, `npm run deploy`, or the TypeScript-via-node workaround will work, copy `.env` from the main checkout and run `npm install` inside the worktree.
+
+### Web fonts — dev and prod use the same path now
+
+Inter + Ionicons `.ttf` files are committed at `public/fonts/` and referenced by `global.css` as `/fonts/*.ttf`. They are **not** under `/assets/fonts/` — Metro's dev server (`expo start --web`) unconditionally claims the entire `/assets/*` URL space for its own bundler asset-resolution middleware, so static files placed there 404 in dev even though the identical path works fine once exported. `expo export --platform web` copies `public/` straight into `dist/`, so `dist/fonts/` is produced automatically — there is no font-copy build step (`scripts/copy-fonts.js` was deleted; previously it pulled TTFs from `node_modules` post-export). If `npm run web` ever shows serif/system fonts instead of Inter, check `public/fonts/` still has the 5 files and `global.css` still points at `/fonts/`, not `/assets/fonts/`.
+
+One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Error: ENOENT: ... scandir 'fonts'` once per page load on web. Root cause wasn't isolated — it's unrelated to the `/fonts/` static files (those load fine; checked via `document.fonts` reporting `"loaded"` for all five). Safe to ignore.
+
 ## Architecture
 
 **Stack:** Expo SDK 54 · expo-router v6 · React Native 0.81 · NativeWind v4 (Tailwind CSS) · expo-sqlite · Supabase (sync)
@@ -24,7 +34,7 @@ There is no test runner configured. TypeScript is checked implicitly by the Expo
 ### Routing
 
 expo-router file-based routing. All screens live under `app/`:
-- `app/(tabs)/` — tab bar: `index` (Dashboard), `tasks`, `lists`, `notes`, `calendar`
+- `app/(tabs)/` — tab bar: `index` (Dashboard), `today`, `tasks`, `notes`, `postits`, `dump`; `lists` and `calendar` also live here but are hidden from the tab bar (`href: null`)
 - `app/settings.tsx` — modal screen
 - `app/_layout.tsx` — root layout: wraps everything in providers, initialises the DB, requests notification permissions
 
@@ -76,10 +86,11 @@ Always prefer these over raw RN primitives to keep styling consistent.
 - Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
 
 ## Current state
-Built: tasks, notes, lists, calendar tabs, settings screen, theme system, Supabase sync,
+Built: tasks, notes, lists, calendar tabs, postits, dump (frictionless capture, migration 003),
+settings screen, theme system, Supabase sync,
 Atelier design system (shadow/type/layout/motion tokens + per-theme kits in `lib/theme.ts`),
 split data/sync/actions contexts, delta-cursor sync with tombstones
-In progress: — (migrations/002 applied to Supabase 2026-06-11; delta-sync client deployed to Cloudflare Pages same day)
+In progress: — (Dump tab shipped + deployed 2026-06-30; dev-server web font loading fixed same day — see "Web fonts" above)
 Not started: calendar screen memoization polish (hidden screen, deferred)
 
 > Update "In progress" and "Not started" at the start of each session.

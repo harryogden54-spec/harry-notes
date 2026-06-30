@@ -3,6 +3,7 @@
  * These mirror tailwind.config.js so we can use them in StyleSheet / inline styles
  * when Tailwind classes aren't available (e.g. react-navigation config).
  */
+import { Platform } from "react-native";
 
 // ─── Theme types ──────────────────────────────────────────────────────────────
 
@@ -245,15 +246,31 @@ const SHADOW_SPECS: Record<ShadowLevel, { dark: number; light: number; radius: n
   overlay: { dark: 0.45, light: 0.20, radius: 32, offsetY: 16, elevation: 16 },
 };
 
-export function getShadow(level: ShadowLevel, scheme: ColorScheme) {
+function opacityToHexAlpha(o: number): string {
+  return Math.round(Math.min(1, Math.max(0, o)) * 255).toString(16).padStart(2, "0");
+}
+
+export function getShadow(
+  level: ShadowLevel,
+  scheme: ColorScheme,
+  options?: { color?: string; opacity?: number },
+) {
   const s = SHADOW_SPECS[level];
+  const color   = options?.color ?? "#000";
+  const opacity = options?.opacity ?? (scheme === "dark" ? s.dark : s.light);
+
+  // RN Web warns that shadow*/elevation style props are deprecated in favour
+  // of boxShadow — return the CSS form on web, the native form elsewhere.
+  if (Platform.OS === "web") {
+    return { boxShadow: `0px ${s.offsetY}px ${s.radius}px ${color}${opacityToHexAlpha(opacity)}` };
+  }
   return {
-    shadowColor: "#000",
+    shadowColor: color,
     shadowOffset: { width: 0, height: s.offsetY },
-    shadowOpacity: scheme === "dark" ? s.dark : s.light,
+    shadowOpacity: opacity,
     shadowRadius: s.radius,
     elevation: s.elevation,
-  } as const;
+  };
 }
 
 // ─── Layout constants ─────────────────────────────────────────────────────────

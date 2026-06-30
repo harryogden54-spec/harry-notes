@@ -129,7 +129,7 @@ function AppShell() {
         <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
       <CommandPalette />
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor }, fadeStyle]} pointerEvents="none" />
+      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor, pointerEvents: "none" }, fadeStyle]} />
     </NavThemeProvider>
   );
 }

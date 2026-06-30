@@ -130,8 +130,7 @@ export default function TabLayout() {
       <OfflineBanner />
       {/* Dual FAB */}
       <View
-        style={{ position: "absolute", bottom: Platform.OS === "ios" ? layout.fabBottom.ios : layout.fabBottom.default, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2] }}
-        pointerEvents="box-none"
+        style={{ position: "absolute", bottom: Platform.OS === "ios" ? layout.fabBottom.ios : layout.fabBottom.default, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2], pointerEvents: "box-none" }}
       >
         <Pressable
           onPress={() => {
@@ -157,7 +156,7 @@ export default function TabLayout() {
             width: 52, height: 52, borderRadius: 99,
             backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
             // Accent glow — md geometry from the token scale, tinted shadow
-            ...getShadow("md", scheme), shadowColor: colors.accent, shadowOpacity: 0.4,
+            ...getShadow("md", scheme, { color: colors.accent, opacity: 0.4 }),
           }}
         >
           <Ionicons name="add" size={26} color={colors.textInverse} />

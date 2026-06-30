@@ -200,9 +200,11 @@ function PostItsScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
             <View>
               <Text size="2xl" weight="bold">Post Its</Text>
-              <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-                {postits.length > 0 ? `${postits.length} post-it${postits.length !== 1 ? "s" : ""}` : "No post-its yet"}
-              </Text>
+              {postits.length > 0 && (
+                <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
+                  {postits.length} post-it{postits.length !== 1 ? "s" : ""}
+                </Text>
+              )}
             </View>
             <Pressable
               onPress={handleAdd}

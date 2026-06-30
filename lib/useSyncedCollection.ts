@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
 import { syncFetch, syncUpsert, SYNC_ENABLED } from "./supabase";
+import { getSyncKey } from "./syncKey";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -119,6 +120,9 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   const flushRemoteNow = useCallback(async () => {
     if (syncDebounce.current) { clearTimeout(syncDebounce.current); syncDebounce.current = null; }
     if (!SYNC_ENABLED) return;
+    // No sync key configured — offline-only mode. Bail before touching
+    // syncStatus so the UI doesn't report "synced" for a no-op.
+    if (!(await getSyncKey())) return;
     const dirtyIds = dirtyIdsRef.current;
     if (dirtyIds.size === 0) return;
     const dirty = itemsRef.current.filter(t => dirtyIds.has(t.id));
@@ -223,6 +227,9 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   // the cursor key must always reproduce identical state.
   const performSync = useCallback(async (opts?: { full?: boolean }) => {
     if (!SYNC_ENABLED) return;
+    // No sync key configured — offline-only mode. Bail before touching
+    // syncStatus so the UI doesn't report "synced" for a no-op.
+    if (!(await getSyncKey())) return;
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
