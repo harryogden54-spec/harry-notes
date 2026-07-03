@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, FlatList, SafeAreaView, Pressable,
+  View, ScrollView, SafeAreaView, Pressable,
   KeyboardAvoidingView, Platform, RefreshControl, useWindowDimensions,
-  type ListRenderItemInfo,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
@@ -15,6 +14,32 @@ import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/No
 import {
   NoteEditor, NoteIndexRow, NoteCard, animate,
 } from "@/components/notes";
+
+function SectionLabel({ label, count }: { label: string; count: number }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: spacing[2.5] }}>
+      <Text size="xs" weight="semibold" style={{ letterSpacing: 1, color: colors.textTertiary, textTransform: "uppercase" }}>
+        {label}
+      </Text>
+      <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+        <Text size="xs" style={{ color: colors.textTertiary }}>{count}</Text>
+      </View>
+    </View>
+  );
+}
+
+function NoteCardGrid({ notes, onOpen }: { notes: Note[]; onOpen: (id: string) => void }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+      {notes.map(note => (
+        <View key={note.id} style={{ width: "48%" as any }}>
+          <NoteCard note={note} onOpen={() => onOpen(note.id)} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function NotesScreen() {
   const { colors } = useTheme();
@@ -63,7 +88,7 @@ function NotesScreen() {
     [notes]
   );
 
-  const sortedNotes = useMemo(() => {
+  const { pinnedNotes, restNotes } = useMemo(() => {
     const q = search.toLowerCase();
     const filtered = !search ? allNotes : allNotes.filter(n => {
       const blockText = n.blocks?.map(b => b.content).join(" ") ?? "";
@@ -73,11 +98,11 @@ function NotesScreen() {
         blockText.toLowerCase().includes(q)
       );
     });
-    return [...filtered].sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return cmpRecentDesc(a, b);
-    });
+    const sorted = [...filtered].sort(cmpRecentDesc);
+    return {
+      pinnedNotes: sorted.filter(n => n.pinned),
+      restNotes: sorted.filter(n => !n.pinned),
+    };
   }, [allNotes, search]);
 
   // Desktop: auto-select newest note when created
@@ -97,20 +122,6 @@ function NotesScreen() {
     else setOpenNoteId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [addNote, isDesktop]);
-
-  const renderNoteCard = useCallback(({ item }: ListRenderItemInfo<Note>) => (
-    <View style={{ width: "48%" as any, marginBottom: spacing[2] }}>
-      <NoteCard note={item} onOpen={() => { animate(); setOpenNoteId(item.id); }} />
-    </View>
-  ), []);
-
-  const renderIndexRow = useCallback(({ item }: ListRenderItemInfo<Note>) => (
-    <NoteIndexRow
-      note={item}
-      isSelected={selectedNote === item.id}
-      onSelect={() => setSelectedNote(item.id)}
-    />
-  ), [selectedNote]);
 
   if (!loaded) {
     return (
@@ -140,61 +151,66 @@ function NotesScreen() {
       );
     }
 
+    const openCard = (id: string) => { animate(); setOpenNoteId(id); };
+
     return (
       <GradientBackground>
         <SafeAreaView style={{ flex: 1 }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <FlatList
-              data={sortedNotes}
-              keyExtractor={(n) => n.id}
-              numColumns={2}
-              columnWrapperStyle={{ justifyContent: "space-between" }}
-              renderItem={renderNoteCard}
+            <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16] }}
               keyboardShouldPersistTaps="handled"
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-              initialNumToRender={12}
-              windowSize={7}
-              removeClippedSubviews={Platform.OS !== "web"}
-              ListHeaderComponent={
-                <>
-                  {/* Header */}
-                  <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[4] }}>
-                    <View>
-                      <Text size="2xl" weight="bold">Notes</Text>
-                      <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-                        {allNotes.length} note{allNotes.length !== 1 ? "s" : ""}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={handleNewNote}
-                      style={{
-                        flexDirection: "row", alignItems: "center", gap: spacing[1.5],
-                        paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-                        borderRadius: 99, backgroundColor: colors.accent,
-                      }}
-                    >
-                      <Text style={{ color: colors.textInverse, fontSize: 18, lineHeight: 22 }}>+</Text>
-                      <Text size="sm" weight="medium" style={{ color: "#fff" }}>New</Text>
-                    </Pressable>
-                  </View>
+            >
+              {/* Header */}
+              <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[4] }}>
+                <View>
+                  <Text size="2xl" weight="bold">Notes</Text>
+                  <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
+                    {allNotes.length} note{allNotes.length !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={handleNewNote}
+                  style={{
+                    flexDirection: "row", alignItems: "center", gap: spacing[1.5],
+                    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+                    borderRadius: 99, backgroundColor: colors.accent,
+                  }}
+                >
+                  <Text style={{ color: colors.textInverse, fontSize: 18, lineHeight: 22 }}>+</Text>
+                  <Text size="sm" weight="medium" style={{ color: "#fff" }}>New</Text>
+                </Pressable>
+              </View>
 
-                  {allNotes.length > 1 && (
-                    <View style={{ marginBottom: spacing[4] }}>
-                      <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />
+              {allNotes.length > 1 && (
+                <View style={{ marginBottom: spacing[4] }}>
+                  <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />
+                </View>
+              )}
+
+              {allNotes.length === 0 ? (
+                <EmptyState type="notes" title="No notes yet" subtitle="Tap + to capture a thought." />
+              ) : pinnedNotes.length === 0 && restNotes.length === 0 ? (
+                <EmptyState type="notes" title="No notes match" subtitle="Try a different search." />
+              ) : (
+                <>
+                  {pinnedNotes.length > 0 && (
+                    <View style={{ marginBottom: spacing[5] }}>
+                      <SectionLabel label="Pinned" count={pinnedNotes.length} />
+                      <NoteCardGrid notes={pinnedNotes} onOpen={openCard} />
+                    </View>
+                  )}
+                  {restNotes.length > 0 && (
+                    <View>
+                      <SectionLabel label="All notes" count={restNotes.length} />
+                      <NoteCardGrid notes={restNotes} onOpen={openCard} />
                     </View>
                   )}
                 </>
-              }
-              ListEmptyComponent={
-                <EmptyState
-                  type="notes"
-                  title={search ? "No notes match" : "No notes yet"}
-                  subtitle={search ? "Try a different search." : "Tap + to capture a thought."}
-                />
-              }
-            />
+              )}
+            </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </GradientBackground>
@@ -210,47 +226,66 @@ function NotesScreen() {
         <View style={{ flex: 1, flexDirection: "row" }}>
           {/* Left pane — note index */}
           <View style={{ width: 380, borderRightWidth: 1, borderRightColor: colors.bgBorder, flexShrink: 0 }}>
-            <FlatList
-              data={sortedNotes}
-              keyExtractor={(n) => n.id}
-              renderItem={renderIndexRow}
-              extraData={selectedNote}
+            <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ paddingBottom: spacing[16] }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-              initialNumToRender={16}
-              windowSize={7}
-              ListHeaderComponent={
-                <>
-                  {/* Header */}
-                  <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: spacing[3], flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <Text size="xl" weight="bold">Notes</Text>
-                    <Pressable
-                      onPress={handleNewNote}
-                      hitSlop={8}
-                      style={{
-                        width: 28, height: 28, borderRadius: 99,
-                        backgroundColor: colors.accent,
-                        alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ color: colors.textInverse, fontSize: 20, lineHeight: 24 }}>+</Text>
-                    </Pressable>
-                  </View>
+            >
+              {/* Header */}
+              <View style={{ paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: spacing[3], flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text size="xl" weight="bold">Notes</Text>
+                <Pressable
+                  onPress={handleNewNote}
+                  hitSlop={8}
+                  style={{
+                    width: 28, height: 28, borderRadius: 99,
+                    backgroundColor: colors.accent,
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.textInverse, fontSize: 20, lineHeight: 24 }}>+</Text>
+                </Pressable>
+              </View>
 
-                  {allNotes.length > 1 && (
-                    <View style={{ paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
-                      <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />
+              {allNotes.length > 1 && (
+                <View style={{ paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
+                  <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />
+                </View>
+              )}
+
+              {allNotes.length === 0 ? (
+                <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3] }}>
+                  <Text size="xs" secondary>No notes yet — tap + to create.</Text>
+                </View>
+              ) : pinnedNotes.length === 0 && restNotes.length === 0 ? (
+                <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3] }}>
+                  <Text size="xs" secondary>No notes match.</Text>
+                </View>
+              ) : (
+                <>
+                  {pinnedNotes.length > 0 && (
+                    <View style={{ marginBottom: spacing[3] }}>
+                      <View style={{ paddingHorizontal: spacing[4] }}>
+                        <SectionLabel label="Pinned" count={pinnedNotes.length} />
+                      </View>
+                      {pinnedNotes.map(note => (
+                        <NoteIndexRow key={note.id} note={note} isSelected={selectedNote === note.id} onSelect={() => setSelectedNote(note.id)} />
+                      ))}
+                    </View>
+                  )}
+                  {restNotes.length > 0 && (
+                    <View>
+                      <View style={{ paddingHorizontal: spacing[4] }}>
+                        <SectionLabel label="All notes" count={restNotes.length} />
+                      </View>
+                      {restNotes.map(note => (
+                        <NoteIndexRow key={note.id} note={note} isSelected={selectedNote === note.id} onSelect={() => setSelectedNote(note.id)} />
+                      ))}
                     </View>
                   )}
                 </>
-              }
-              ListEmptyComponent={
-                <View style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3] }}>
-                  <Text size="xs" secondary>{search ? "No notes match." : "No notes yet — tap + to create."}</Text>
-                </View>
-              }
-            />
+              )}
+            </ScrollView>
           </View>
 
           {/* Right pane — editor */}
