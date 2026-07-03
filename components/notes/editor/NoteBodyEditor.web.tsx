@@ -4,27 +4,41 @@ import {
   parseMarkdownToBlocks, blocksToMarkdown, inlineMarkdownToHtml, inlineNodeToMarkdown,
   type Block, type BlockType,
 } from "./markdownDom";
-import type { BodyFocusHandle } from "./NoteBodyEditor";
+import type { BodyEditorHandle } from "./NoteBodyEditor";
 
 type Colors = ReturnType<typeof import("@/lib/useTheme").useTheme>["colors"];
 
 // NoteBodyEditorProps includes several native-only fields (preview, replCtx,
-// selRef, cursor, onToggleCheckboxLine, onWikiQueryChange) that this
-// implementation ignores — true WYSIWYG has no Preview mode, and wikilink
-// autocomplete + checkbox-preview-tap are deferred to a later pass. Typed
-// loosely here rather than importing the full native prop type, since half
-// of it doesn't apply.
+// selRef, cursor, onToggleCheckboxLine) that this implementation ignores —
+// true WYSIWYG has no Preview mode, and checkbox-preview-tap doesn't apply
+// since checkboxes are already live/interactive here. Typed loosely rather
+// than importing the full native prop type, since half of it doesn't apply.
 type Props = {
   body: string;
   onChangeBody: (body: string) => void;
-  bodyRef: React.RefObject<BodyFocusHandle | null>;
+  bodyRef: React.RefObject<BodyEditorHandle | null>;
   colors: Colors;
   onPickImage: () => void;
   uploading: boolean;
+  onWikiQueryChange: (q: string | null) => void;
 };
 
 function createBlockElement(b: Block): HTMLElement {
   if (b.type === "divider") return document.createElement("hr");
+
+  if (b.type === "image") {
+    const wrap = document.createElement("div");
+    wrap.setAttribute("data-md-type", "image");
+    wrap.contentEditable = "false";
+    wrap.style.margin = "8px 0";
+    const img = document.createElement("img");
+    img.setAttribute("src", b.src ?? "");
+    img.style.maxWidth = "100%";
+    img.style.borderRadius = "8px";
+    img.style.display = "block";
+    wrap.appendChild(img);
+    return wrap;
+  }
 
   if (b.type === "bullet") {
     const li = document.createElement("li");
@@ -79,6 +93,14 @@ function findTopLevelBlock(container: HTMLElement, node: Node | null): HTMLEleme
   return null;
 }
 
+/** Markdown (with formatting preserved) for the content covered by a Range. */
+function markdownInRange(range: Range): string {
+  const frag = range.cloneContents();
+  const wrapper = document.createElement("div");
+  wrapper.appendChild(frag);
+  return inlineNodeToMarkdown(wrapper);
+}
+
 function serializeContainer(container: HTMLElement): string {
   const blocks: Block[] = [];
   container.childNodes.forEach(node => {
@@ -90,6 +112,11 @@ function serializeContainer(container: HTMLElement): string {
     if (tag === "H2") { blocks.push({ type: "h2", text: inlineNodeToMarkdown(el) }); return; }
     if (tag === "H3") { blocks.push({ type: "h3", text: inlineNodeToMarkdown(el) }); return; }
     const mdType = el.getAttribute("data-md-type");
+    if (mdType === "image") {
+      const img = el.querySelector("img");
+      blocks.push({ type: "image", text: "", src: img?.getAttribute("src") ?? "" });
+      return;
+    }
     if (mdType === "bullet") { blocks.push({ type: "bullet", text: inlineNodeToMarkdown(el) }); return; }
     if (mdType === "checkbox") {
       const label = el.querySelector('[data-md-checkbox-label]');
@@ -113,15 +140,98 @@ function serializeContainer(container: HTMLElement): string {
  * reason other than this editor's own last edit (see lastSerializedRef) —
  * otherwise the live DOM (and caret) would be destroyed on every keystroke.
  */
-export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImage, uploading }: Props) {
+export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImage, uploading, onWikiQueryChange }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastSerializedRef = useRef<string | null>(null);
+  // Clicking a wikilink suggestion chip moves focus away from the
+  // contentEditable container first, which clears/collapses the live
+  // selection — so we stash the caret range whenever a "[[query" match is
+  // found and restore it in insertWikiLink rather than trusting
+  // window.getSelection() at click time.
+  const lastWikiCaretRangeRef = useRef<Range | null>(null);
+
+  const serialize = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const md = serializeContainer(container);
+    lastSerializedRef.current = md;
+    onChangeBody(md);
+  }, [onChangeBody]);
+
+  // Wikilink query: text from the start of the current block up to the
+  // caret, matched against the same "[[partial" pattern getWikiQuery uses.
+  const updateWikiQuery = useCallback(() => {
+    const container = containerRef.current;
+    const sel = window.getSelection();
+    if (!container || !sel || sel.rangeCount === 0) { onWikiQueryChange(null); return; }
+    const caretRange = sel.getRangeAt(0);
+    const block = findTopLevelBlock(container, caretRange.startContainer);
+    if (!block) { onWikiQueryChange(null); return; }
+    const preRange = document.createRange();
+    preRange.selectNodeContents(block);
+    preRange.setEnd(caretRange.endContainer, caretRange.endOffset);
+    const before = preRange.toString();
+    const match = before.match(/\[\[([^\][]*)$/);
+    onWikiQueryChange(match ? match[1] : null);
+    lastWikiCaretRangeRef.current = match ? caretRange.cloneRange() : null;
+  }, [onWikiQueryChange]);
 
   useEffect(() => {
-    (bodyRef as React.MutableRefObject<BodyFocusHandle | null>).current = {
+    const handle: BodyEditorHandle = {
       focus: () => containerRef.current?.focus(),
+
+      insertWikiLink: (title: string) => {
+        const container = containerRef.current;
+        const sel = window.getSelection();
+        if (!container || !sel) return;
+        // Prefer the stashed range from when the "[[query" was detected —
+        // clicking the suggestion chip already moved focus away, clearing
+        // the live selection by the time this runs.
+        const caretRange = lastWikiCaretRangeRef.current ?? (sel.rangeCount > 0 ? sel.getRangeAt(0) : null);
+        if (!caretRange) return;
+        const block = findTopLevelBlock(container, caretRange.startContainer);
+        if (!block) return;
+
+        const preRange = document.createRange();
+        preRange.selectNodeContents(block);
+        preRange.setEnd(caretRange.endContainer, caretRange.endOffset);
+        const beforeMd = markdownInRange(preRange);
+        const bracketIdx = beforeMd.lastIndexOf("[[");
+        if (bracketIdx === -1) return;
+
+        const postRange = document.createRange();
+        postRange.selectNodeContents(block);
+        postRange.setStart(caretRange.endContainer, caretRange.endOffset);
+        const afterMd = markdownInRange(postRange);
+
+        const newBlockMd = `${beforeMd.slice(0, bracketIdx)}[[${title}]] ${afterMd}`;
+        block.innerHTML = inlineMarkdownToHtml(newBlockMd) || "<br/>";
+
+        const r = document.createRange();
+        r.selectNodeContents(block);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        container.focus();
+        lastWikiCaretRangeRef.current = null;
+        onWikiQueryChange(null);
+        serialize();
+      },
+
+      insertImage: (url: string) => {
+        const container = containerRef.current;
+        if (!container) return;
+        const sel = window.getSelection();
+        const block = sel && sel.rangeCount > 0 ? findTopLevelBlock(container, sel.getRangeAt(0).startContainer) : null;
+        const imgBlock = createBlockElement({ type: "image", text: "", src: url });
+        if (block) block.after(imgBlock);
+        else container.appendChild(imgBlock);
+        serialize();
+      },
     };
-  }, [bodyRef]);
+    (bodyRef as React.MutableRefObject<BodyEditorHandle | null>).current = handle;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyRef, serialize, onWikiQueryChange]);
 
   // Rebuild the DOM only for external changes (note switch, remote sync) —
   // not for the echo of our own edits.
@@ -136,15 +246,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body]);
 
-  const serialize = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const md = serializeContainer(container);
-    lastSerializedRef.current = md;
-    onChangeBody(md);
-  }, [onChangeBody]);
-
-  const handleInput = useCallback(() => { serialize(); }, [serialize]);
+  const handleInput = useCallback(() => { serialize(); updateWikiQuery(); }, [serialize, updateWikiQuery]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
@@ -168,6 +270,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
   }, [serialize]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Escape") { onWikiQueryChange(null); return; }
     if (e.key !== "Enter" || e.shiftKey) return;
     const container = containerRef.current;
     const sel = window.getSelection();
@@ -187,7 +290,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     sel.removeAllRanges();
     sel.addRange(range);
     serialize();
-  }, [serialize]);
+  }, [serialize, onWikiQueryChange]);
 
   const setCurrentBlockType = useCallback((type: BlockType) => {
     const container = containerRef.current;

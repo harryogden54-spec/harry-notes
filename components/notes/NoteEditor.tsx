@@ -12,9 +12,9 @@ import { useToast } from "@/lib/ToastContext";
 import { getTodayStr } from "@/lib/utils";
 import { blocksToMarkdown } from "@/lib/migrateBlocksToBody";
 import { pickAndUploadNoteImage } from "@/lib/storageImages";
-import { insertBlock, type Sel } from "./MarkdownToolbar";
+import { type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions } from "./WikiLinkSuggestions";
-import { NoteBodyEditor, type BodyFocusHandle } from "./editor/NoteBodyEditor";
+import { NoteBodyEditor, type BodyEditorHandle } from "./editor/NoteBodyEditor";
 import { timeAgo } from "./utils";
 
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
@@ -97,7 +97,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const { showToast } = useToast();
   const today = getTodayStr();
   const titleRef = useRef<TextInput | null>(null);
-  const bodyRef  = useRef<BodyFocusHandle | null>(null);
+  const bodyRef  = useRef<BodyEditorHandle | null>(null);
   const selRef   = useRef<Sel>({ start: 0, end: 0 });
   const [cursor, setCursor]       = useState<Sel | undefined>(undefined);
   const [preview, setPreview]     = useState(false);
@@ -132,9 +132,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
       showToast(result.message ?? "Couldn't add photo");
       return;
     }
-    const r = insertBlock(note.body, selRef.current, `![](${result.url})`);
-    updateNote(note.id, { body: r.text });
-    setCursor(r.cursor);
+    bodyRef.current?.insertImage(result.url);
   }
 
   // Toggle a `- [ ]` / `- [x]` line from the rendered preview.
@@ -175,12 +173,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   }
 
   function handleWikiSelect(title: string) {
-    const pos = selRef.current.start;
-    const replaced = note.body.slice(0, pos).replace(/\[\[([^\][]*)$/, `[[${title}]]`);
-    const newBody = replaced + note.body.slice(pos);
-    updateNote(note.id, { body: newBody });
-    setCursor({ start: replaced.length, end: replaced.length });
-    setWikiQuery(null);
+    bodyRef.current?.insertWikiLink(title);
   }
 
   const handleOpenNote = useCallback((id: string) => {

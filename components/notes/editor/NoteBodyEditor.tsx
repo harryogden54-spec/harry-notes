@@ -1,21 +1,25 @@
 import React, { useRef, useEffect } from "react";
 import { View, TextInput } from "react-native";
-import { MarkdownToolbar, type Sel } from "../MarkdownToolbar";
+import { MarkdownToolbar, insertBlock, type Sel } from "../MarkdownToolbar";
 import { getWikiQuery } from "../WikiLinkSuggestions";
 import { MarkdownView } from "../MarkdownView";
 import type { REPLContext } from "../replEval";
 
 type Colors = ReturnType<typeof import("@/lib/useTheme").useTheme>["colors"];
 
-/** Minimal imperative contract NoteEditor uses to focus the body from the
- *  title field's "next" key — satisfied by a real TextInput on native and
- *  by the contentEditable container on web. */
-export type BodyFocusHandle = { focus: () => void };
+/** Imperative contract NoteEditor uses to drive body edits that need
+ *  platform-specific handling — a real TextInput + raw text splicing on
+ *  native, DOM/Range manipulation on web's contentEditable container. */
+export type BodyEditorHandle = {
+  focus: () => void;
+  insertWikiLink: (title: string) => void;
+  insertImage: (url: string) => void;
+};
 
 export type NoteBodyEditorProps = {
   body: string;
   onChangeBody: (body: string) => void;
-  bodyRef: React.RefObject<BodyFocusHandle | null>;
+  bodyRef: React.RefObject<BodyEditorHandle | null>;
   selRef: React.MutableRefObject<Sel>;
   cursor: Sel | undefined;
   setCursor: (c: Sel | undefined) => void;
@@ -40,10 +44,28 @@ export function NoteBodyEditor({
   onPickImage, uploading,
 }: NoteBodyEditorProps) {
   const inputRef = useRef<TextInput | null>(null);
+  const bodyStateRef = useRef(body);
+  bodyStateRef.current = body;
+
   useEffect(() => {
-    (bodyRef as React.MutableRefObject<BodyFocusHandle | null>).current = {
+    (bodyRef as React.MutableRefObject<BodyEditorHandle | null>).current = {
       focus: () => inputRef.current?.focus(),
+      insertWikiLink: (title: string) => {
+        const text = bodyStateRef.current;
+        const pos = selRef.current.start;
+        const replaced = text.slice(0, pos).replace(/\[\[([^\][]*)$/, `[[${title}]]`);
+        const newBody = replaced + text.slice(pos);
+        onChangeBody(newBody);
+        setCursor({ start: replaced.length, end: replaced.length });
+        onWikiQueryChange(null);
+      },
+      insertImage: (url: string) => {
+        const r = insertBlock(bodyStateRef.current, selRef.current, `![](${url})`);
+        onChangeBody(r.text);
+        setCursor(r.cursor);
+      },
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bodyRef]);
 
   function handleChangeText(next: string) {

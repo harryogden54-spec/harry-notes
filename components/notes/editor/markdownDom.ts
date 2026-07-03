@@ -13,12 +13,13 @@
  * plain text while editing, unchanged in storage).
  */
 
-export type BlockType = "h1" | "h2" | "h3" | "bullet" | "checkbox" | "divider" | "paragraph" | "empty";
+export type BlockType = "h1" | "h2" | "h3" | "bullet" | "checkbox" | "divider" | "image" | "paragraph" | "empty";
 
 export type Block = {
   type: BlockType;
   text: string;
   checked?: boolean;
+  src?: string;
 };
 
 export function parseMarkdownToBlocks(body: string): Block[] {
@@ -26,6 +27,8 @@ export function parseMarkdownToBlocks(body: string): Block[] {
 }
 
 function parseLine(line: string): Block {
+  const imgMatch = line.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/);
+  if (imgMatch) return { type: "image", text: "", src: imgMatch[1] };
   const cbMatch = line.match(/^[-*] \[([ xX])\]\s?(.*)$/);
   if (cbMatch) return { type: "checkbox", text: cbMatch[2], checked: cbMatch[1].toLowerCase() === "x" };
   if (line.startsWith("### ")) return { type: "h3", text: line.slice(4) };
@@ -40,6 +43,7 @@ function parseLine(line: string): Block {
 
 export function blockToMarkdownLine(b: Block): string {
   switch (b.type) {
+    case "image":     return `![](${b.src ?? ""})`;
     case "checkbox":  return `- [${b.checked ? "x" : " "}] ${b.text}`;
     case "h1":        return `# ${b.text}`;
     case "h2":        return `## ${b.text}`;
