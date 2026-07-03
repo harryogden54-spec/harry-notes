@@ -13,6 +13,55 @@ import { useDumpsData, useDumpsActions, useDumpsSync, type DumpTag } from "@/lib
 import { useToast } from "@/lib/ToastContext";
 import { getLocalDateStr } from "@/lib/utils";
 
+function getYesterdayStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return getLocalDateStr(d);
+}
+
+// Compact date row — quick chips for the common cases (today, yesterday)
+// with the full month-grid DatePicker only shown on demand. A dump capture
+// is meant to be frictionless; a ~360x495px calendar by default undercut
+// that.
+function CompactDateSelector({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const { colors } = useTheme();
+  const [showPicker, setShowPicker] = useState(false);
+  const today     = getLocalDateStr();
+  const yesterday = getYesterdayStr();
+  const presets = [
+    { label: "Today", date: today },
+    { label: "Yesterday", date: yesterday },
+  ];
+  const isPreset = presets.some(p => p.date === value);
+
+  return (
+    <View style={{ gap: spacing[1.5] }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
+        {presets.map(p => (
+          <Pressable
+            key={p.date}
+            onPress={() => { onChange(p.date); setShowPicker(false); }}
+            style={{
+              paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+              borderRadius: radius["2xl"], borderWidth: 1,
+              borderColor: value === p.date ? colors.accent : colors.bgBorder,
+              backgroundColor: value === p.date ? `${colors.accent}18` : "transparent",
+            }}
+          >
+            <Text size="xs" style={{ color: value === p.date ? colors.accent : colors.textSecondary }}>{p.label}</Text>
+          </Pressable>
+        ))}
+        <Pressable onPress={() => setShowPicker(v => !v)}>
+          <Text size="xs" style={{ color: !isPreset ? colors.accent : colors.textTertiary }}>
+            {!isPreset ? value : "Pick date…"}
+          </Text>
+        </Pressable>
+      </View>
+      {showPicker && <DatePicker value={value} onChange={d => { onChange(d ?? today); setShowPicker(false); }} />}
+    </View>
+  );
+}
+
 const TAG_LABELS: Record<DumpTag, string> = {
   journal:   "Journal",
   media:     "Media",
@@ -93,9 +142,9 @@ function DumpEditModal({
             ))}
           </View>
 
-          {/* Date picker */}
+          {/* Date */}
           <View style={{ marginBottom: spacing[4] }}>
-            <DatePicker value={date} onChange={d => setDate(d ?? getLocalDateStr())} />
+            <CompactDateSelector value={date} onChange={setDate} />
           </View>
 
           {/* Text input */}

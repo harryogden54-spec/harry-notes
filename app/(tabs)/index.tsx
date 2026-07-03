@@ -142,6 +142,11 @@ function DashboardScreen() {
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
   const handleGoToNotes   = useCallback(() => router.push("/(tabs)/notes"), [router]);
   const handleGoToPostIts = useCallback(() => router.push("/(tabs)/postits"), [router]);
+  const handleGoToDump    = useCallback(() => router.push("/(tabs)/dump"), [router]);
+
+  // Genuinely fresh install — no tasks or notes at all (not just none open),
+  // so the dashboard doesn't end up with a lot of empty vertical space.
+  const isFreshInstall = tasksLoaded && notesLoaded && tasks.length === 0 && notes.length === 0;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -389,6 +394,37 @@ function DashboardScreen() {
     </View>
   ) : null;
 
+  // ─── Getting started (fresh installs only — fills the empty space below
+  // the empty tasks/today cards with something actionable instead of blank
+  // scroll) ──────────────────────────────────────────────────────────────────
+
+  const gettingStarted = isFreshInstall ? (
+    <View style={{ marginBottom: spacing[6] }}>
+      <SectionHeader label="Get started" />
+      <GlassCard style={{ overflow: "hidden" }}>
+        {[
+          { icon: "checkbox-outline" as const, label: "Add your first task", onPress: () => searchRef.current?.focus() },
+          { icon: "document-text-outline" as const, label: "Write a note", onPress: handleGoToNotes },
+          { icon: "cloud-upload-outline" as const, label: "Dump a quick thought", onPress: handleGoToDump },
+        ].map((item, i, arr) => (
+          <Pressable
+            key={item.label}
+            onPress={item.onPress}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: spacing[3],
+              paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+              borderBottomWidth: i === arr.length - 1 ? 0 : 1, borderBottomColor: colors.bgBorder,
+            }}
+          >
+            <Ionicons name={item.icon} size={17} color={colors.accent} />
+            <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+          </Pressable>
+        ))}
+      </GlassCard>
+    </View>
+  ) : null;
+
   // ─── Main content ─────────────────────────────────────────────────────────────
 
   const mainContent = (
@@ -407,6 +443,7 @@ function DashboardScreen() {
       )}
       {postItsRow}
       {notesRow}
+      {gettingStarted}
     </>
   );
 

@@ -117,6 +117,19 @@ export default function TabLayout() {
             <Tabs.Screen name="lists" options={{ href: null }} />
           </Tabs>
         </View>
+        {/* Quick-add — desktop's only add-from-anywhere affordance was the search bar; this mirrors the mobile FAB. */}
+        <Pressable
+          onPress={() => setShowQuickAdd(true)}
+          accessibilityLabel="Quick add"
+          style={{
+            position: "absolute", bottom: spacing[5], right: spacing[5], zIndex: 50,
+            width: 48, height: 48, borderRadius: 99,
+            backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
+            ...getShadow("md", scheme, { color: colors.accent, opacity: 0.4 }),
+          }}
+        >
+          <Ionicons name="add" size={24} color={colors.textInverse} />
+        </Pressable>
         <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
         {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
         <GlobalSearchModal visible={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />

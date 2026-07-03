@@ -27,6 +27,10 @@ Inter + Ionicons `.ttf` files are committed at `public/fonts/` and referenced by
 
 One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Error: ENOENT: ... scandir 'fonts'` once per page load on web. Root cause wasn't isolated — it's unrelated to the `/fonts/` static files (those load fine; checked via `document.fonts` reporting `"loaded"` for all five). Safe to ignore.
 
+### Known accepted warning — RN-Web `<Modal>` deprecated `pointerEvents`
+
+`react-native-web`'s own internal `<Modal>` implementation (`ModalAnimation.js`) still triggers the deprecated-`pointerEvents`-as-a-prop console warning on web. All of *our* call sites were fixed (they use the `style.pointerEvents` form) — this residual warning comes from inside the library itself, not app code, and isn't fixable without a `patch-package` override or an RN-Web upgrade. The deploy pipeline has no patch step, so **accepted as a known, harmless, cosmetic console warning** rather than patched. Revisit if/when RN-Web is upgraded.
+
 ## Architecture
 
 **Stack:** Expo SDK 54 · expo-router v6 · React Native 0.81 · NativeWind v4 (Tailwind CSS) · expo-sqlite · Supabase (sync)
