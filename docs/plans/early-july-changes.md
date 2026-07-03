@@ -20,7 +20,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | 1 | Accent palette expansion (C1) | shipped | 2026-07-03 |
 | 2 | Tasks redesign — desktop web | shipped | 2026-07-03 |
 | 3 | Task composer modal + mobile tasks | shipped | 2026-07-03 |
-| 4 | Notes list/grid redesign | not started | — |
+| 4 | Notes list/grid redesign | shipped | 2026-07-03 |
 | 5 | WYSIWYG note editor (A + C2) | not started | — |
 | 6 | Polish sweep (remaining B items) | not started | — |
 
@@ -83,3 +83,12 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] Commit + deploy — https://ace7a0f2.harry-notes.pages.dev
 
 **Known minor gap:** keyboard j/k navigation and deep-link scroll-to-task no longer auto-scroll for tasks rendered via `TaskCard`/`CategoryColumns` (only `Section`/`TaskItem`-based lists like Focus/Completed still report position via `onMeasureY`). Selection still works correctly — this only affects the auto-scroll-into-view nicety. Flagged for a future polish pass, not blocking.
+
+## Phase 4 checklist
+
+- [x] `app/(tabs)/notes.tsx` — `sortedNotes` split into `pinnedNotes`/`restNotes`; both mobile grid and desktop index list now show "Pinned" then "All notes" sections with count badges (local `SectionLabel` component)
+- [x] Mobile grid switched from `FlatList`+`numColumns` to `ScrollView` + flexWrap `NoteCardGrid` — needed to interleave section headers with a 2-col grid, which FlatList doesn't support cleanly; acceptable tradeoff at personal-notes scale (not virtualizing hundreds/thousands of rows)
+- [x] Desktop index pane switched from `FlatList` to `ScrollView` + mapped `NoteIndexRow`s for the same reason
+- [x] `npm run typecheck` green
+- [x] Verified in browser preview (desktop + mobile): created a note, pinned it, created a second — both "Pinned · 1" and "All notes · 1" sections rendered correctly on both platforms; test notes cleaned up after each check
+- [x] Commit + deploy — https://64074869.harry-notes.pages.dev
