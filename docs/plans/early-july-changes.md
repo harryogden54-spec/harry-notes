@@ -21,7 +21,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | 2 | Tasks redesign — desktop web | shipped | 2026-07-03 |
 | 3 | Task composer modal + mobile tasks | shipped | 2026-07-03 |
 | 4 | Notes list/grid redesign | shipped | 2026-07-03 |
-| 5 | WYSIWYG note editor (A + C2) | 5a shipped, 5b/5c remaining | 2026-07-03 |
+| 5 | WYSIWYG note editor (A + C2) | 5a+5b shipped, 5c remaining | 2026-07-03 |
 | 6 | Polish sweep (remaining B items) | not started | — |
 
 ## Decision log
@@ -104,5 +104,15 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] `npm run typecheck` green (tsc resolves the shared import to the native `.tsx` for typechecking; Metro resolves `.web.tsx` correctly at bundle time — confirmed both files typecheck independently since `tsconfig.json` has no `moduleSuffixes` override)
 - [x] Commit + deploy — https://032e67ca.harry-notes.pages.dev
 
-**Deferred to 5b (next session):** wikilink autocomplete on web (native still works), image upload insertion on web (`handlePickImage` still assumes native `selRef`, so on web it always inserts at position 0 — non-crashing but not cursor-aware yet), paste-as-rich-content handling beyond the current force-plain-text intercept, checkbox interaction parity in native's Preview mode vs web's live mode.
-**Deferred to 5c:** visual polish pass, round-trip validation script run against every existing note body in the database (only spot-checked manually this session), mobile-web toolbar visual parity with design 1g (Aa/checklist/B/I/image/mic — current web toolbar is B/I/H/H2/bullet/checklist/image, matching design 1f's desktop set exactly but not yet 1g's mobile set).
+**Deferred to 5c:** visual polish pass, mobile-web toolbar visual parity with design 1g (Aa/checklist/B/I/image/mic — current web toolbar is B/I/H/H2/bullet/checklist/image, matching design 1f's desktop set exactly but not yet 1g's mobile set), paste-as-rich-content handling beyond the current force-plain-text intercept.
+
+## Phase 5b checklist — wikilinks + image blocks on web
+
+- [x] `markdownDom.ts` — `"image"` added to `BlockType`, with `src` field; `parseLine`/`blockToMarkdownLine` handle `![](url)` lines (previously fell through to lossless-fallback plain text)
+- [x] `NoteBodyEditor.web.tsx` — `createBlockElement`/`serializeContainer` render/serialise image blocks as a real `contentEditable=false <img>` island
+- [x] Wikilink autocomplete on web: caret-relative `[[query` detection (`updateWikiQuery`, mirrors `getWikiQuery`'s regex against the current block's pre-caret text via `Range.toString()`); selecting a suggestion splices the block's markdown using `Range.cloneContents()` + `inlineNodeToMarkdown` on both sides of the caret so **existing bold/italic formatting elsewhere in the same line survives** (a plain-text splice would have silently stripped it)
+- [x] **Bug found and fixed during verification:** clicking a suggestion chip moves focus off the contentEditable container first, clearing the live `window.getSelection()` before the click handler runs — `insertWikiLink` was reading a stale/empty selection and emptying the block. Fixed by stashing the caret `Range` in a ref the moment a `[[query` match is detected, and using that stashed range instead of live selection state in `insertWikiLink`.
+- [x] `BodyFocusHandle` renamed `BodyEditorHandle`, gained `insertWikiLink`/`insertImage`; native's `handleWikiSelect`/image-insert raw-text-splice logic moved into native `NoteBodyEditor.tsx` behind the same interface — `NoteEditor.tsx` no longer branches on platform for either
+- [x] `npm run typecheck` green
+- [x] Verified in browser preview: wikilink suggestion → correct byte-exact markdown + visible clickable span; typed image line → survives reload → renders as real `<img>` → serialises back byte-exact (30 chars, unchanged)
+- [x] Commit + deploy — https://fae65f06.harry-notes.pages.dev
