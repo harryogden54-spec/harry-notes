@@ -19,7 +19,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | 0 | Programme setup + C3 icon cache-bust | shipped | 2026-07-03 |
 | 1 | Accent palette expansion (C1) | shipped | 2026-07-03 |
 | 2 | Tasks redesign — desktop web | shipped | 2026-07-03 |
-| 3 | Task composer modal + mobile tasks | not started | — |
+| 3 | Task composer modal + mobile tasks | shipped | 2026-07-03 |
 | 4 | Notes list/grid redesign | not started | — |
 | 5 | WYSIWYG note editor (A + C2) | not started | — |
 | 6 | Polish sweep (remaining B items) | not started | — |
@@ -70,3 +70,16 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] Commit + deploy — https://71dde3f4.harry-notes.pages.dev
 
 **Deferred to Phase 3** (per original plan): quick-add expand-to-modal icon, task composer modal, mobile category-sectioned view redesign.
+
+## Phase 3 checklist
+
+- [x] `components/tasks/TaskComposerModal.tsx` — `TaskComposerForm` (fields-only, self-sufficient via `useTasksActions`) + `TaskComposerModal` (standalone popup chrome). Reuses `DueDateSelector`, `CategorySelector`, `PrioritySelector`, `SubtasksList` — no new field-picker code needed.
+- [x] `AddTaskRow.tsx` — expand icon opens `TaskComposerModal`; `onTaskCreated` callback lets the Tasks screen select/expand the new task, mirroring `handleAdd`'s existing behaviour
+- [x] `QuickAddModal.tsx` — old `TaskCreateForm` deleted, `add-task` mode now renders `TaskComposerForm` (richer: adds description/priority/subtasks that the old form didn't have). Direct Enter-to-add from the palette search box unchanged.
+- [x] `CategoryColumns.tsx` — new `stacked` prop: side-by-side on desktop, single column on mobile (design 1c); empty categories hidden entirely when stacked to save space
+- [x] Mobile tasks screen now shares the same board as desktop instead of the old status-grouped (Overdue/Today/Scheduled/Someday) list; the Flat/Grouped toggle and `tasks_grouped` pref were removed as dead weight
+- [x] `npm run typecheck` green
+- [x] Verified in browser preview (desktop + mobile viewport): composer modal fills/submits correctly (title, due date, category+course, priority) and opens the new task's drawer; mobile stacked board renders single-column with empty category hidden; test data cleaned up after each check
+- [x] Commit + deploy — https://ace7a0f2.harry-notes.pages.dev
+
+**Known minor gap:** keyboard j/k navigation and deep-link scroll-to-task no longer auto-scroll for tasks rendered via `TaskCard`/`CategoryColumns` (only `Section`/`TaskItem`-based lists like Focus/Completed still report position via `onMeasureY`). Selection still works correctly — this only affects the auto-scroll-into-view nicety. Flagged for a future polish pass, not blocking.
