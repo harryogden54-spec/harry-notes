@@ -17,7 +17,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | Phase | Description | Status | Deployed |
 |---|---|---|---|
 | 0 | Programme setup + C3 icon cache-bust | shipped | 2026-07-03 |
-| 1 | Accent palette expansion (C1) | not started | — |
+| 1 | Accent palette expansion (C1) | shipped | 2026-07-03 |
 | 2 | Tasks redesign — desktop web | not started | — |
 | 3 | Task composer modal + mobile tasks | not started | — |
 | 4 | Notes list/grid redesign | not started | — |
@@ -44,3 +44,12 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] `npm run typecheck` green
 - [x] Commit + deploy + verify live icon URLs (`?v=2`) — deployed to https://4020144c.harry-notes.pages.dev, verified `/manifest.json` and index.html both serve versioned icon URLs
 - [ ] Harry re-pins the PWA shortcut to pick up the new icon (user action, outside repo)
+
+## Phase 1 checklist
+
+- [x] `lib/color.ts` — `hexToHsl`/`hslToHex`/`deriveAccent`/`deriveAccentFromHsl` utilities
+- [x] `lib/theme.ts` — `ACCENT_OPTIONS` expanded 6 → 30 (original 6 kept verbatim, 24 new derived + pasted as static literals)
+- [x] `app/settings/appearance.tsx` — swatch grid resized to 30px, wrapped layout, active label shown once above grid
+- [x] `npm run typecheck` green
+- [x] Verified in browser preview: all 30 swatches render without overflow, selecting a swatch updates the checkmark/label/`--accent` CSS var correctly, dark/light mode both fine
+- [x] Commit + deploy — https://7fbb8dbd.harry-notes.pages.dev
