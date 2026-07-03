@@ -12,9 +12,9 @@ import { useToast } from "@/lib/ToastContext";
 import { getTodayStr } from "@/lib/utils";
 import { blocksToMarkdown } from "@/lib/migrateBlocksToBody";
 import { pickAndUploadNoteImage } from "@/lib/storageImages";
-import { MarkdownView } from "./MarkdownView";
-import { MarkdownToolbar, insertBlock, type Sel } from "./MarkdownToolbar";
-import { WikiLinkSuggestions, getWikiQuery } from "./WikiLinkSuggestions";
+import { insertBlock, type Sel } from "./MarkdownToolbar";
+import { WikiLinkSuggestions } from "./WikiLinkSuggestions";
+import { NoteBodyEditor, type BodyFocusHandle } from "./editor/NoteBodyEditor";
 import { timeAgo } from "./utils";
 
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
@@ -97,7 +97,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const { showToast } = useToast();
   const today = getTodayStr();
   const titleRef = useRef<TextInput | null>(null);
-  const bodyRef  = useRef<TextInput | null>(null);
+  const bodyRef  = useRef<BodyFocusHandle | null>(null);
   const selRef   = useRef<Sel>({ start: 0, end: 0 });
   const [cursor, setCursor]       = useState<Sel | undefined>(undefined);
   const [preview, setPreview]     = useState(false);
@@ -174,12 +174,6 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
     if (count > 0) showToast(`Updated ${count} link${count !== 1 ? "s" : ""}`);
   }
 
-  function handleBodyChange(body: string) {
-    updateNote(note.id, { body });
-    setCursor(undefined);
-    setWikiQuery(getWikiQuery(body, selRef.current.start));
-  }
-
   function handleWikiSelect(title: string) {
     const pos = selRef.current.start;
     const replaced = note.body.slice(0, pos).replace(/\[\[([^\][]*)$/, `[[${title}]]`);
@@ -240,15 +234,17 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           )}
           <View style={{ flex: 1 }} />
           <Text size="xs" secondary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
-          <Pressable
-            onPress={() => setPreview(v => !v)}
-            hitSlop={12}
-            style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.sm, borderWidth: 1, borderColor: preview ? colors.accent : colors.bgBorder, backgroundColor: preview ? `${colors.accent}14` : "transparent" }}
-          >
-            <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
-              {preview ? "Edit" : "Preview"}
-            </Text>
-          </Pressable>
+          {Platform.OS !== "web" && (
+            <Pressable
+              onPress={() => setPreview(v => !v)}
+              hitSlop={12}
+              style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: radius.sm, borderWidth: 1, borderColor: preview ? colors.accent : colors.bgBorder, backgroundColor: preview ? `${colors.accent}14` : "transparent" }}
+            >
+              <Text size="xs" weight={preview ? "semibold" : "regular"} style={{ color: preview ? colors.accent : colors.textTertiary }}>
+                {preview ? "Edit" : "Preview"}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={() => setFocusMode(true)}
             hitSlop={12}
@@ -286,19 +282,6 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         </View>
         )}
 
-        {/* Formatting bar — pinned at the top (iOS Notes style), edit mode only */}
-        {!preview && !focusMode && (
-          <View style={{ borderBottomWidth: 1, borderBottomColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
-            <MarkdownToolbar
-              body={note.body}
-              selRef={selRef}
-              onApply={(text, cur) => { updateNote(note.id, { body: text }); setCursor(cur); setWikiQuery(null); }}
-              onPickImage={handlePickImage}
-              uploading={uploading}
-            />
-          </View>
-        )}
-
         {/* Body */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[6], paddingTop: spacing[6], paddingBottom: spacing[16], gap: spacing[3] }} keyboardShouldPersistTaps="handled">
           <TextInput
@@ -312,24 +295,21 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             onSubmitEditing={() => { handleTitleCommit(); setPreview(false); bodyRef.current?.focus(); }}
             style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
-          {preview ? (
-            note.body.trim()
-              ? <MarkdownView body={note.body} colors={colors} replCtx={replCtx} onToggleCheckbox={toggleCheckboxLine} />
-              : <Text size="sm" tertiary style={{ fontStyle: "italic" }}>Nothing to preview yet.</Text>
-          ) : (
-            <TextInput
-              ref={bodyRef}
-              value={note.body}
-              onChangeText={handleBodyChange}
-              onSelectionChange={e => { selRef.current = e.nativeEvent.selection; }}
-              selection={cursor}
-              placeholder="Start writing…"
-              placeholderTextColor={colors.textTertiary}
-              multiline
-              textAlignVertical="top"
-              style={[{ color: colors.textSecondary, fontSize: 15, lineHeight: 26, minHeight: 300 }, { outlineStyle: "none", minHeight: "60vh" } as any]}
-            />
-          )}
+          <NoteBodyEditor
+            body={note.body}
+            onChangeBody={body => updateNote(note.id, { body })}
+            bodyRef={bodyRef}
+            selRef={selRef}
+            cursor={cursor}
+            setCursor={setCursor}
+            preview={preview}
+            colors={colors}
+            replCtx={replCtx}
+            onToggleCheckboxLine={toggleCheckboxLine}
+            onWikiQueryChange={setWikiQuery}
+            onPickImage={handlePickImage}
+            uploading={uploading}
+          />
         </ScrollView>
 
         {/* Backlinks */}
