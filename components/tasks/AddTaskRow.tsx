@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, TextInput, Pressable } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, DatePicker, Surface } from "@/components/ui";
 import { spacing, radius, categoryColors } from "@/lib/theme";
@@ -8,16 +9,19 @@ import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate } from "@
 import { UNI_COURSES, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { Chip } from "./Chip";
 import { formatDate } from "./constants";
+import { TaskComposerModal } from "./TaskComposerModal";
 
 type Props = {
   onAdd: (title: string, date?: string, category?: TaskCategory, uniCourse?: UniCourse) => void;
   inputRef: React.RefObject<TextInput | null>;
+  onTaskCreated?: (id: string) => void;
 };
 
-export function AddTaskRow({ onAdd, inputRef }: Props) {
+export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
   const { colors } = useTheme();
   const [value, setValue]               = useState("");
   const [focused, setFocused]           = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
   const [quickDate, setQuickDate]       = useState<string | undefined>();
   const [quickCat, setQuickCat]         = useState<TaskCategory | undefined>();
   const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
@@ -76,6 +80,9 @@ export function AddTaskRow({ onAdd, inputRef }: Props) {
               <Text size="xs" weight="medium" style={{ color: colors.textInverse }}>Add</Text>
             </Pressable>
           )}
+          <Pressable onPress={() => setShowComposer(true)} hitSlop={8} accessibilityLabel="More task options">
+            <Ionicons name="expand-outline" size={15} color={colors.textTertiary} />
+          </Pressable>
         </View>
 
         {nlpDate && !quickDate && value.trim().length > 0 && (
@@ -182,6 +189,12 @@ export function AddTaskRow({ onAdd, inputRef }: Props) {
           </Animated.View>
         )}
       </View>
+      <TaskComposerModal
+        visible={showComposer}
+        onClose={() => setShowComposer(false)}
+        initialTitle={value}
+        onCreated={id => { setValue(""); onTaskCreated?.(id); }}
+      />
     </Surface>
   );
 }

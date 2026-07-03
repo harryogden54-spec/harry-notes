@@ -15,16 +15,18 @@ type Props = {
   selectedIds: Set<string>;
   onBulkSelect: (id: string) => void;
   highlightId?: string | null;
+  /** Mobile (design 1c): stack Personal/Uni as sections in one column instead of side-by-side. */
+  stacked?: boolean;
 };
 
 /**
- * Desktop tasks board: an "Unsorted" strip for tasks with no category
- * (category is optional in the data model, but the design only has 2
- * columns), followed by side-by-side Personal / Uni columns.
+ * Tasks board: an "Unsorted" strip for tasks with no category (category
+ * is optional in the data model, but the design only has 2 columns),
+ * followed by Personal / Uni — side-by-side on desktop, stacked on mobile.
  */
 export function CategoryColumns({
   tasks, selectedTaskId, onSelectTask, onToggleDone,
-  selectMode, selectedIds, onBulkSelect, highlightId,
+  selectMode, selectedIds, onBulkSelect, highlightId, stacked = false,
 }: Props) {
   const unsorted = tasks.filter(t => !t.category);
   const personal = tasks.filter(t => t.category === "personal");
@@ -45,6 +47,18 @@ export function CategoryColumns({
     );
   }
 
+  function renderColumn(label: string, color: string, items: Task[]) {
+    // On mobile, skip empty categories entirely to save space; on desktop
+    // keep the column (with a quiet hint) so the 2-column structure holds.
+    if (items.length === 0 && stacked) return null;
+    return (
+      <View style={stacked ? undefined : { flex: 1, minWidth: 0 }}>
+        <ColumnHeader label={label} count={items.length} color={color} />
+        {items.length === 0 ? <ColumnEmptyHint /> : <View>{items.map(renderCard)}</View>}
+      </View>
+    );
+  }
+
   return (
     <View style={{ gap: spacing[5] }}>
       {unsorted.length > 0 && (
@@ -53,16 +67,17 @@ export function CategoryColumns({
           <View>{unsorted.map(renderCard)}</View>
         </View>
       )}
-      <View style={{ flexDirection: "row", gap: spacing[4] }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ColumnHeader label="Personal" count={personal.length} color={categoryColors.personal} />
-          {personal.length === 0 ? <ColumnEmptyHint /> : <View>{personal.map(renderCard)}</View>}
+      {stacked ? (
+        <View style={{ gap: spacing[5] }}>
+          {renderColumn("Personal", categoryColors.personal, personal)}
+          {renderColumn("Uni", categoryColors.uni, uni)}
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ColumnHeader label="Uni" count={uni.length} color={categoryColors.uni} />
-          {uni.length === 0 ? <ColumnEmptyHint /> : <View>{uni.map(renderCard)}</View>}
+      ) : (
+        <View style={{ flexDirection: "row", gap: spacing[4] }}>
+          {renderColumn("Personal", categoryColors.personal, personal)}
+          {renderColumn("Uni", categoryColors.uni, uni)}
         </View>
-      </View>
+      )}
     </View>
   );
 }

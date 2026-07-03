@@ -11,6 +11,7 @@ export { TaskCard } from "./TaskCard";
 export { CategoryColumns } from "./CategoryColumns";
 export { TaskDetailPanel } from "./TaskDetailPanel";
 export { AddTaskRow } from "./AddTaskRow";
+export { TaskComposerForm, TaskComposerModal } from "./TaskComposerModal";
 export { Section } from "./Section";
 export { EmptyDetailPane } from "./EmptyDetailPane";
 export { PRIORITY_CONFIG, PRIORITY_ORDER, type SortBy, formatDate, isOverdue, isToday, isScheduled, isSomeday, applySort, matchesSearch } from "./constants";

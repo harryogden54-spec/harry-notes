@@ -45,7 +45,6 @@ function TasksScreen() {
   const [selectedIds, setSelectedIds]           = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId]           = useState<string | null>(null);
   const [sortBy, setSortBy]                     = useState<SortBy>("priority");
-  const [grouped, setGrouped]                   = useState(false);
   // Default compact on mobile — the meta line wraps awkwardly on small screens.
   const [compact, setCompact]                   = useState(Platform.OS !== "web");
   const [showArchive, setShowArchive]           = useState(false);
@@ -68,12 +67,10 @@ function TasksScreen() {
   // Load persisted task-view prefs on mount
   useEffect(() => {
     Promise.all([
-      storage.get<boolean>("tasks_grouped"),
       storage.get<boolean>("tasks_compact"),
       storage.get<string>("tasks_sort_by"),
       storage.get<boolean>("tasks_completed_collapsed"),
-    ]).then(([g, c, s, cc]) => {
-      if (g !== null && g !== undefined) setGrouped(g);
+    ]).then(([c, s, cc]) => {
       if (c !== null && c !== undefined) setCompact(c);
       if (s !== null && s !== undefined) setSortBy(s as SortBy);
       if (cc !== null && cc !== undefined) setCompletedCollapsed(cc);
@@ -82,7 +79,6 @@ function TasksScreen() {
   }, []);
 
   // Persist prefs when changed (after initial load)
-  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_grouped", grouped); }, [grouped]);
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_compact", compact); }, [compact]);
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_sort_by", sortBy); }, [sortBy]);
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_completed_collapsed", completedCollapsed); }, [completedCollapsed]);
@@ -147,6 +143,13 @@ function TasksScreen() {
     if (isDesktop) setSelectedTaskId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [addTask, updateTask, isDesktop]);
+
+  // Called after TaskComposerModal creates a task itself (it owns addTask/updateTask
+  // directly) — just needs to select/expand the new task the same way handleAdd does.
+  const handleTaskCreated = useCallback((id: string) => {
+    setExpandedId(id);
+    if (isDesktop) setSelectedTaskId(id);
+  }, [isDesktop]);
 
   const handleToggleExpand = useCallback((id: string) => {
     if (isDesktop) {
@@ -336,7 +339,7 @@ function TasksScreen() {
                 </Text>
               </View>
 
-              <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} />
+              <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} onTaskCreated={handleTaskCreated} />
 
               {/* Filters — collapsed by default so an uncluttered list is the norm */}
               {tasks.length > 0 && (
@@ -364,13 +367,6 @@ function TasksScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
                         {!focusMode && !isDesktop && (
                           <>
-                            <Pressable onPress={() => setGrouped(v => !v)} style={{
-                              paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                              borderRadius: radius.sm, borderWidth: 1,
-                              borderColor: colors.bgBorder, backgroundColor: colors.bgTertiary,
-                            }}>
-                              <Text size="xs" style={{ color: colors.textSecondary }}>{grouped ? "Grouped" : "Flat"}</Text>
-                            </Pressable>
                             <Pressable onPress={() => setCompact(v => !v)} style={{
                               paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
                               borderRadius: radius.sm, borderWidth: 1,
@@ -406,11 +402,12 @@ function TasksScreen() {
                 )
               ) : tasks.length === 0 ? (
                 <EmptyState type="tasks" title="No tasks yet" subtitle={'Tap the field above or press "N" to add your first task.'} />
-              ) : isDesktop ? (
+              ) : (
                 <>
                   <CategoryColumns
                     tasks={applySort(visible.filter(t => !t.done), sortBy)}
-                    selectedTaskId={selectedTaskId}
+                    stacked={!isDesktop}
+                    selectedTaskId={effectiveExpandedId}
                     onSelectTask={handleToggleExpand}
                     onToggleDone={toggleTask}
                     selectMode={selectMode}
@@ -442,19 +439,6 @@ function TasksScreen() {
                       )}
                     </View>
                   )}
-                </>
-              ) : !grouped ? (
-                <>
-                  <Section label="All tasks" tasks={applySort(visible.filter(t => !t.done), sortBy)} {...sectionProps} />
-                  {done.length > 0 && <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" defaultCollapsed={true} />}
-                </>
-              ) : (
-                <>
-                  {overdue.length > 0    && <Section label="Overdue"    tasks={overdue}    {...sectionProps} />}
-                  {todayTasks.length > 0 && <Section label="Today"      tasks={todayTasks} {...sectionProps} />}
-                  <Section label="Scheduled" tasks={scheduled} {...sectionProps} />
-                  <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
-                  {done.length > 0       && <Section label="Completed"  tasks={done}       {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" defaultCollapsed={true} />}
                 </>
               )}
 
