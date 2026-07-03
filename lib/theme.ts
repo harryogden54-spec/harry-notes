@@ -305,6 +305,12 @@ export const priorityColorKey = {
 } as const satisfies Record<string, keyof ThemeTokens>;
 
 // ─── Accent options (override accent within any theme) ────────────────────────
+// The first 6 are the original hand-authored set — kept verbatim (same ids,
+// same hex values) so `accent_id_v2` storage never needs a migration. The
+// remaining ~24 were generated with lib/color.ts's deriveAccentFromHsl() from
+// a curated (hue, saturation, lightness) triple per swatch, then pasted here
+// as static values (keeps ACCENT_OPTIONS a literal `as const` array, so
+// AccentId stays a real union type instead of collapsing to `string`).
 
 export const ACCENT_OPTIONS = [
   { id: "indigo",  label: "Indigo",  color: "#6B77D9", hover: "#7B87E9", subtle: "#1A1D3A", lightSubtle: "#ECEFFE" },
@@ -313,6 +319,30 @@ export const ACCENT_OPTIONS = [
   { id: "moss",    label: "Moss",    color: "#A3BE8C", hover: "#B3CE9C", subtle: "#1E2B1A", lightSubtle: "#E8F0E2" },
   { id: "orchid",  label: "Orchid",  color: "#B48EAD", hover: "#C49EBD", subtle: "#271C27", lightSubtle: "#EDE3EC" },
   { id: "amber",   label: "Amber",   color: "#D08770", hover: "#E09780", subtle: "#301A12", lightSubtle: "#F5E5DF" },
+  { id: "red",         label: "Red",         color: "#D96868", hover: "#E18989", subtle: "#341E1E", lightSubtle: "#F6EEEE" },
+  { id: "coral",        label: "Coral",        color: "#E0836C", hover: "#E79F8E", subtle: "#35221D", lightSubtle: "#F7EFEE" },
+  { id: "terracotta",   label: "Terracotta",   color: "#C67953", hover: "#D09172", subtle: "#322620", lightSubtle: "#F6F1EF" },
+  { id: "orange",       label: "Orange",       color: "#DB9957", hover: "#E2AD79", subtle: "#35291D", lightSubtle: "#F7F2EE" },
+  { id: "gold",         label: "Gold",         color: "#CFAB59", hover: "#D8BB79", subtle: "#332D1F", lightSubtle: "#F6F4EE" },
+  { id: "yellow",       label: "Yellow",       color: "#D8C564", hover: "#E0D185", subtle: "#34301E", lightSubtle: "#F6F5EE" },
+  { id: "olive",        label: "Olive",        color: "#909B4B", hover: "#A6B15E", subtle: "#2D2F22", lightSubtle: "#F4F5F0" },
+  { id: "lime",         label: "Lime",         color: "#9AC059", hover: "#ACCB77", subtle: "#2B3121", lightSubtle: "#F3F5EF" },
+  { id: "chartreuse",   label: "Chartreuse",   color: "#8CBA5E", hover: "#A0C67B", subtle: "#293021", lightSubtle: "#F2F5EF" },
+  { id: "green",        label: "Green",        color: "#49AB5A", hover: "#61BC71", subtle: "#213024", lightSubtle: "#EFF5F0" },
+  { id: "jade",         label: "Jade",         color: "#49AB7A", hover: "#61BC8E", subtle: "#213029", lightSubtle: "#EFF5F2" },
+  { id: "mint",         label: "Mint",         color: "#72CAB4", hover: "#90D5C4", subtle: "#20312D", lightSubtle: "#EFF5F4" },
+  { id: "teal",         label: "Teal",         color: "#3FA6A3", hover: "#51BDBA", subtle: "#213131", lightSubtle: "#EFF5F5" },
+  { id: "cyan",         label: "Cyan",         color: "#59BBCF", hover: "#79C8D8", subtle: "#1F2F33", lightSubtle: "#EEF5F6" },
+  { id: "azure",        label: "Azure",        color: "#61A2D1", hover: "#81B5DA", subtle: "#1F2A33", lightSubtle: "#EEF3F6" },
+  { id: "cobalt",       label: "Cobalt",       color: "#4D73CB", hover: "#6D8CD4", subtle: "#1F2533", lightSubtle: "#EEF1F6" },
+  { id: "blue",         label: "Blue",         color: "#6477D8", hover: "#8594E0", subtle: "#1E2134", lightSubtle: "#EEEFF6" },
+  { id: "periwinkle",   label: "Periwinkle",   color: "#8881DA", hover: "#A6A1E3", subtle: "#201F33", lightSubtle: "#EFEEF6" },
+  { id: "violet",       label: "Violet",       color: "#8E6ECF", hover: "#A68DD9", subtle: "#262032", lightSubtle: "#F1EFF6" },
+  { id: "purple",       label: "Purple",       color: "#8946B9", hover: "#9C64C4", subtle: "#2A2131", lightSubtle: "#F3EFF5" },
+  { id: "plum",         label: "Plum",         color: "#9445A1", hover: "#AA58B7", subtle: "#2E2130", lightSubtle: "#F4EFF5" },
+  { id: "magenta",      label: "Magenta",      color: "#C95EC1", hover: "#D37DCD", subtle: "#322031", lightSubtle: "#F6EFF5" },
+  { id: "pink",         label: "Pink",         color: "#DA81AD", hover: "#E3A1C2", subtle: "#331F29", lightSubtle: "#F6EEF2" },
+  { id: "wine",         label: "Wine",         color: "#9B3B4B", hover: "#B94659", subtle: "#312123", lightSubtle: "#F5EFF0" },
 ] as const;
 
 export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
