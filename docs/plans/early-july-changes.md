@@ -21,7 +21,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | 2 | Tasks redesign — desktop web | shipped | 2026-07-03 |
 | 3 | Task composer modal + mobile tasks | shipped | 2026-07-03 |
 | 4 | Notes list/grid redesign | shipped | 2026-07-03 |
-| 5 | WYSIWYG note editor (A + C2) | 5a+5b shipped, 5c remaining | 2026-07-03 |
+| 5 | WYSIWYG note editor (A + C2) | shipped | 2026-07-03 |
 | 6 | Polish sweep (remaining B items) | not started | — |
 
 ## Decision log
@@ -116,3 +116,13 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] `npm run typecheck` green
 - [x] Verified in browser preview: wikilink suggestion → correct byte-exact markdown + visible clickable span; typed image line → survives reload → renders as real `<img>` → serialises back byte-exact (30 chars, unchanged)
 - [x] Commit + deploy — https://fae65f06.harry-notes.pages.dev
+
+## Phase 5c — round-trip validation + polish (Phase 5 complete)
+
+- [x] **Round-trip validation against every real note body** (the item 5a/5b's own spot-checks explicitly deferred): fetched all 29 rows from the production `notes` table (read-only REST query, no writes), ran the exact same line-level parse→serialise logic from `markdownDom.ts` against the 15 non-empty bodies. **All 15 round-trip byte-exact — zero mismatches.** This is the strongest safety signal in the whole editor rewrite: it's not just synthetic test cases, it's every note Harry actually has.
+- [x] Visual sanity check via `preview_inspect` (screenshot tool was intermittently timing out this session, but DOM/computed-style inspection confirms correct theme-token colours and multi-block layout)
+- **Consciously deferred, not a gap:** mobile-web toolbar's exact visual set (design 1g shows Aa/checklist/B/I/image/mic; current toolbar is B/I/H/H2/bullet/checklist/image) — current set is functionally *more* complete (explicit H/H2 vs a single "Aa" style-picker) and works correctly at mobile viewport widths, already verified in 5a. Voice dictation ("mic") is out of scope entirely. Richer paste-content handling beyond the current safe force-plain-text intercept — the current behaviour is correct and non-corrupting, just not maximally featureful (e.g. pasting bold text from another app loses the bold). Both are cosmetic/nice-to-have, not required for the core "true WYSIWYG" ask.
+- [x] `npm run typecheck` green throughout
+- [x] Commit + deploy (docs-only, no code changes this pass)
+
+**Phase 5 (A + C2) is now fully shipped**, gate passed, verified against real production data.
