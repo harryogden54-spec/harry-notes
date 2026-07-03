@@ -16,7 +16,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 
 | Phase | Description | Status | Deployed |
 |---|---|---|---|
-| 0 | Programme setup + C3 icon cache-bust | in progress | — |
+| 0 | Programme setup + C3 icon cache-bust | shipped | 2026-07-03 |
 | 1 | Accent palette expansion (C1) | not started | — |
 | 2 | Tasks redesign — desktop web | not started | — |
 | 3 | Task composer modal + mobile tasks | not started | — |
@@ -39,8 +39,8 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] Copy design file into `docs/design/`
 - [x] Create this tracker
 - [x] Cache-bust PWA icon hrefs (`scripts/inject-pwa-head.js`, `public/manifest.json`)
-- [ ] Update `CLAUDE.md` "In progress"
-- [ ] Update memory (`flagged_findings.md` note + project pointer to this doc)
-- [ ] `npm run typecheck` green
-- [ ] Commit + deploy + verify live icon URLs (`?v=2`)
-- [ ] Harry re-pins the PWA shortcut to pick up the new icon
+- [x] Update `CLAUDE.md` "In progress"
+- [x] Update memory (`flagged_findings.md` note + project pointer to this doc)
+- [x] `npm run typecheck` green
+- [x] Commit + deploy + verify live icon URLs (`?v=2`) — deployed to https://4020144c.harry-notes.pages.dev, verified `/manifest.json` and index.html both serve versioned icon URLs
+- [ ] Harry re-pins the PWA shortcut to pick up the new icon (user action, outside repo)
