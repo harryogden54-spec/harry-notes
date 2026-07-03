@@ -22,7 +22,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | 3 | Task composer modal + mobile tasks | shipped | 2026-07-03 |
 | 4 | Notes list/grid redesign | shipped | 2026-07-03 |
 | 5 | WYSIWYG note editor (A + C2) | shipped | 2026-07-03 |
-| 6 | Polish sweep (remaining B items) | not started | — |
+| 6 | Polish sweep (remaining B items) | shipped | 2026-07-03 |
 
 ## Decision log
 
@@ -126,3 +126,24 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] Commit + deploy (docs-only, no code changes this pass)
 
 **Phase 5 (A + C2) is now fully shipped**, gate passed, verified against real production data.
+
+## Phase 6 checklist — polish sweep (Programme complete)
+
+- [x] Theme-cycler pill: palette icon + `accessibilityLabel` + web `title` tooltip (`components/nav/PersistentHeader.tsx`)
+- [x] Dump date field: Today/Yesterday chips + on-demand "Pick date…" full calendar, replacing the always-shown month grid (`app/(tabs)/dump.tsx`, new `CompactDateSelector`)
+- [x] Desktop quick-add FAB in the sidebar layout branch (`app/(tabs)/_layout.tsx`) — previously the only add-from-anywhere path was the search bar
+- [x] Mobile Settings gear in `PersistentHeader` (`showTitle` mobile-only branch, so no duplicate on desktop where Sidebar already pins it) — reachable from every screen now, not just Dashboard
+- [x] Dashboard "Get started" checklist for genuinely fresh installs (zero tasks AND zero notes, not just zero *open* tasks) — 3 action rows (add task / write note / dump a thought)
+- [x] RN-Web `<Modal>` `pointerEvents` warning documented in `CLAUDE.md` as an accepted, cosmetic, library-internal issue (no patch-package step to justify patching)
+- [x] `npm run typecheck` green
+- [x] Verified in browser preview: theme pill icon + tooltip, Dump chips + on-demand calendar (both tested — calendar correctly appears on "Pick date…"), desktop FAB opens QuickAddModal, mobile Settings gear navigates from Tasks screen (not just Dashboard), Get-started card renders with all 3 rows when the account is empty
+- [x] Commit + deploy — https://50ed5cd1.harry-notes.pages.dev
+
+---
+
+# Programme complete (2026-07-03)
+
+All 7 phases (0 through 6) shipped and deployed to production in this session. Summary:
+- **C3** icon cache-bust, **C1** accent palette (6→30), **A** Tasks + Notes redesign (category board, composer modal, mobile board, Pinned/All Notes sections), **A+C2** WYSIWYG note editor (web, gate-passed, round-trip validated against every real note), **B** all 8 flagged UI polish items.
+- Deferred, not forgotten (see [[flagged-findings]] in memory): tech debt items (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal, calendar screen memoization) were explicitly excluded from this programme's scope per Harry's decision — still tracked separately for a future session.
+- Minor known gaps, none blocking: keyboard j/k nav doesn't auto-scroll for `TaskCard`-rendered tasks (Phase 2); web editor's rich-paste handling is safe but not maximally featureful, and its toolbar doesn't yet match design 1g's exact mobile icon set (Phase 5c).
