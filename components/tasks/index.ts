@@ -7,6 +7,8 @@ export { CategorySelector } from "./CategorySelector";
 export { RecurrenceSelector } from "./RecurrenceSelector";
 export { SubtasksList } from "./SubtasksList";
 export { TaskItem } from "./TaskItem";
+export { TaskCard } from "./TaskCard";
+export { CategoryColumns } from "./CategoryColumns";
 export { TaskDetailPanel } from "./TaskDetailPanel";
 export { AddTaskRow } from "./AddTaskRow";
 export { Section } from "./Section";
