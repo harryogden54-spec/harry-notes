@@ -18,7 +18,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 |---|---|---|---|
 | 0 | Programme setup + C3 icon cache-bust | shipped | 2026-07-03 |
 | 1 | Accent palette expansion (C1) | shipped | 2026-07-03 |
-| 2 | Tasks redesign — desktop web | not started | — |
+| 2 | Tasks redesign — desktop web | shipped | 2026-07-03 |
 | 3 | Task composer modal + mobile tasks | not started | — |
 | 4 | Notes list/grid redesign | not started | — |
 | 5 | WYSIWYG note editor (A + C2) | not started | — |
@@ -53,3 +53,20 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] `npm run typecheck` green
 - [x] Verified in browser preview: all 30 swatches render without overflow, selecting a swatch updates the checkmark/label/`--accent` CSS var correctly, dark/light mode both fine
 - [x] Commit + deploy — https://7fbb8dbd.harry-notes.pages.dev
+
+## Phase 2 checklist
+
+- [x] `components/tasks/TaskCard.tsx` — floating card bubble (checkbox, title, due date w/ red overdue, priority pill, subtask count, course badge for Uni)
+- [x] `components/tasks/CategoryColumns.tsx` — Unsorted strip + Personal/Uni columns, empty-column hint
+- [x] `app/(tabs)/tasks.tsx` desktop branch rewritten: full-width board instead of 40/60 split; task detail is now a 420px slide-over drawer (`position: absolute`, backdrop-dismiss) over the board, not a permanent column
+- [x] Header subtitle shows "N open · M due this week"
+- [x] Completed → full-width collapsible strip with "Clear completed" (wired to existing `clearCompleted` action)
+- [x] Search/priority chips/sort controls collapsed behind a "Filters" toggle, hidden entirely when there are no tasks at all
+- [x] `grouped` (Flat/Grouped) toggle now mobile-only; desktop always shows the category board
+- [x] Mobile/native rendering left untouched (separate render branch, not touched this phase)
+- [x] `npm run typecheck` green
+- [x] Verified in browser preview: created Personal + Uni(course) tasks, confirmed due-date/overdue styling, checkbox → Completed section → Clear completed → Archive → permanent delete all work; slide-over drawer opens/closes correctly (backdrop click dismisses); no console errors
+- [x] Test tasks created during verification were fully deleted afterward (dev `.env` points at the real production Supabase project, so nothing was left behind)
+- [x] Commit + deploy — https://71dde3f4.harry-notes.pages.dev
+
+**Deferred to Phase 3** (per original plan): quick-add expand-to-modal icon, task composer modal, mobile category-sectioned view redesign.
