@@ -21,7 +21,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 | 2 | Tasks redesign — desktop web | shipped | 2026-07-03 |
 | 3 | Task composer modal + mobile tasks | shipped | 2026-07-03 |
 | 4 | Notes list/grid redesign | shipped | 2026-07-03 |
-| 5 | WYSIWYG note editor (A + C2) | not started | — |
+| 5 | WYSIWYG note editor (A + C2) | 5a shipped, 5b/5c remaining | 2026-07-03 |
 | 6 | Polish sweep (remaining B items) | not started | — |
 
 ## Decision log
@@ -30,7 +30,7 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - **C2 = true WYSIWYG.** Bold/italic/headers render live; no visible markdown markers; no Preview toggle on web. Markdown remains the underlying storage/sync format — the editor serialises to/from it.
 - **Uncategorised tasks** render in a full-width "Unsorted" strip above the Personal/Uni columns (design only shows 2 columns; `category` is optional in the data model).
 - **Accent IDs are preserved** — the 6 existing accent entries keep their ids/values verbatim; ~24-28 new entries are derived via HSL math. No storage migration needed for `accent_id_v2`.
-- **WYSIWYG editor has an explicit fallback gate** (end of Phase 5a): if contentEditable proves too unstable, fall back to a styled markdown editor (syntax highlighting overlay, markers still visible) rather than shipping something broken.
+- **WYSIWYG editor has an explicit fallback gate** (end of Phase 5a): if contentEditable proves too unstable, fall back to a styled markdown editor (syntax highlighting overlay, markers still visible) rather than shipping something broken. **Gate passed 2026-07-03** — contentEditable core verified stable (see Phase 5a checklist); proceeding with 5b/5c rather than falling back.
 - **Tech debt items from flagged_findings.md are excluded** from this programme (sync drill, deprecated context aliases, calendar memoization) — still tracked separately in memory for a future session.
 - **RN-web Modal `pointerEvents` warning**: accepted as a known cosmetic issue, documented in CLAUDE.md rather than patched (no patch-package step in the deploy pipeline).
 
@@ -92,3 +92,17 @@ Design reference: `docs/design/tasks-notes-redesign.dc.html` (Claude Design expo
 - [x] `npm run typecheck` green
 - [x] Verified in browser preview (desktop + mobile): created a note, pinned it, created a second — both "Pinned · 1" and "All notes · 1" sections rendered correctly on both platforms; test notes cleaned up after each check
 - [x] Commit + deploy — https://64074869.harry-notes.pages.dev
+
+## Phase 5a checklist — WYSIWYG editor core (GATE PASSED)
+
+- [x] `components/notes/editor/markdownDom.ts` — block-level parse/serialise (mirrors `MarkdownView.tsx`'s exact line rules) + inline markdown⇄HTML (bold/italic/code/wikilink)
+- [x] `components/notes/editor/NoteBodyEditor.tsx` — native: original TextInput + MarkdownToolbar + Preview toggle, moved out of `NoteEditor.tsx` verbatim (unchanged behaviour), bridged to a shared `BodyFocusHandle` focus contract
+- [x] `components/notes/editor/NoteBodyEditor.web.tsx` — web: single contentEditable container, true WYSIWYG (bold/italic render live, no markdown markers, no Preview toggle). Toolbar: B/I via `execCommand`, H/H2/bullet/checklist swap the current block's element type. Checkboxes are a `contentEditable=false` toggle span + editable label.
+- [x] `NoteEditor.tsx` updated: delegates all body editing to `<NoteBodyEditor/>`; Preview/Edit header button now native-only (`Platform.OS !== "web"`); dead code removed (`handleBodyChange`, unused `getWikiQuery`/`MarkdownView`/`MarkdownToolbar` imports)
+- [x] **GATE decision: contentEditable core is stable — proceeding, no fallback needed.** Verified: DOM only rebuilds on note switch/external change (not every keystroke, so typing doesn't fight the caret); bold+H1 conversion preserves inline formatting; checkbox creation + click-to-toggle + strikethrough works; multi-block markdown serialises byte-exact (checked via word/char counts against hand-computed expected lengths); content survives navigate-away-and-back; same editor works at mobile viewport width; **verified on the actual production deploy, not just dev server**
+- [x] Lossless-fallback invariant verified: typed an unhandled `![](url)` image line — no crash, no corruption, round-tripped as verbatim text (exact char count matched)
+- [x] `npm run typecheck` green (tsc resolves the shared import to the native `.tsx` for typechecking; Metro resolves `.web.tsx` correctly at bundle time — confirmed both files typecheck independently since `tsconfig.json` has no `moduleSuffixes` override)
+- [x] Commit + deploy — https://032e67ca.harry-notes.pages.dev
+
+**Deferred to 5b (next session):** wikilink autocomplete on web (native still works), image upload insertion on web (`handlePickImage` still assumes native `selRef`, so on web it always inserts at position 0 — non-crashing but not cursor-aware yet), paste-as-rich-content handling beyond the current force-plain-text intercept, checkbox interaction parity in native's Preview mode vs web's live mode.
+**Deferred to 5c:** visual polish pass, round-trip validation script run against every existing note body in the database (only spot-checked manually this session), mobile-web toolbar visual parity with design 1g (Aa/checklist/B/I/image/mic — current web toolbar is B/I/H/H2/bullet/checklist/image, matching design 1f's desktop set exactly but not yet 1g's mobile set).
