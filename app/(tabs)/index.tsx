@@ -296,8 +296,6 @@ function DashboardScreen() {
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
           const pi = getNotePastelIndex(note.id);
-          const bg = notePastels.bg[pi];
-          const border = notePastels.border[pi];
           const preview = notePreview(note, 80);
           return (
             <Pressable
@@ -308,35 +306,40 @@ function DashboardScreen() {
                 minWidth: 140,
               }}
             >
+              {/* Neutral card + pastel identity dot — same recipe as NoteCard */}
               <View style={{
-                backgroundColor: bg,
-                borderWidth: 1, borderColor: border,
-                borderRadius: 12,
+                backgroundColor: `${colors.bgSecondary}D0`,
+                borderWidth: 1, borderColor: `${colors.bgBorder}88`,
+                borderRadius: 18,
                 padding: spacing[3],
                 gap: spacing[1],
                 minHeight: 100,
+                ...getShadow("sm", scheme),
               }}>
-                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
+                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: note.title ? colors.textPrimary : colors.textTertiary }}>
                   {note.title || "Untitled"}
                 </Text>
                 {preview ? (
-                  <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
+                  <Text size="xs" numberOfLines={3} style={{ color: colors.textSecondary, lineHeight: 16 }}>
                     {preview}
                   </Text>
                 ) : null}
                 {mounted && (
-                  <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
-                    {(() => {
-                      const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
-                      const mins = Math.floor(diff / 60000);
-                      const hours = Math.floor(diff / 3600000);
-                      const days = Math.floor(diff / 86400000);
-                      if (mins < 1) return "just now";
-                      if (mins < 60) return `${mins}m ago`;
-                      if (hours < 24) return `${hours}h ago`;
-                      return `${days}d ago`;
-                    })()}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: "auto" as any }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: notePastels.bg[pi], borderWidth: 1, borderColor: notePastels.border[pi] }} />
+                    <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11 }}>
+                      {(() => {
+                        const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        const hours = Math.floor(diff / 3600000);
+                        const days = Math.floor(diff / 86400000);
+                        if (mins < 1) return "just now";
+                        if (mins < 60) return `${mins}m ago`;
+                        if (hours < 24) return `${hours}h ago`;
+                        return `${days}d ago`;
+                      })()}
+                    </Text>
+                  </View>
                 )}
               </View>
             </Pressable>

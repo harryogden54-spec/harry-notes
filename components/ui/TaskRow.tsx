@@ -76,7 +76,7 @@ function RowContent({ task, onPress }: Props) {
         opacity: task.done ? 0.45 : 1,
       }}
     >
-      <Checkbox checked={task.done} onToggle={() => toggleTask(task.id)} accessibilityLabel={task.title} />
+      <Checkbox shape="circle" size={20} checked={task.done} onToggle={() => toggleTask(task.id)} accessibilityLabel={task.title} />
       {/* Priority dot beside the checkbox */}
       {priorityColor && (
         <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: priorityColor, marginLeft: -spacing[1] }} />
@@ -127,8 +127,8 @@ function RowContent({ task, onPress }: Props) {
         )}
       </View>
       {due && (
-        <View style={{ backgroundColor: `${due.color}18`, borderRadius: radius.md, paddingHorizontal: spacing[2], paddingVertical: 3, borderWidth: 1, borderColor: `${due.color}40` }}>
-          <Text size="xs" weight="medium" style={{ color: due.color }}>{due.label}</Text>
+        <View style={{ backgroundColor: `${due.color}18`, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+          <Text size="xs" weight="medium" style={{ color: due.color, fontSize: 11.5 }}>{due.label}</Text>
         </View>
       )}
     </Pressable>

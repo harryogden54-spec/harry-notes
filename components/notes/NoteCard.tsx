@@ -41,9 +41,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
         minHeight: 100,
         ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
         ...(Platform.OS === "web" ? {
-          // @ts-ignore web-only CSS — smooth hover lift
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
+          // @ts-ignore web-only CSS — smooth hover lift (no backdrop blur; see TaskCard)
           transitionProperty: "transform, box-shadow, background-color",
           transitionDuration: "150ms",
           transitionTimingFunction: "ease-out",

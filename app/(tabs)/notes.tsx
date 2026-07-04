@@ -167,7 +167,7 @@ function NotesScreen() {
               {/* Header */}
               <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[4] }}>
                 <View>
-                  <Text size="2xl" weight="bold">Notes</Text>
+                  <Text size="title" weight="bold">Notes</Text>
                   <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
                     {allNotes.length} note{allNotes.length !== 1 ? "s" : ""}
                   </Text>

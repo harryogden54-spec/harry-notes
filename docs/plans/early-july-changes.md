@@ -175,3 +175,23 @@ Follow-up session at Harry's request: "make it look more like the claude design 
 **Verification:** typecheck green; dev-server browser pass at 1280×800 and 420×850 — board columns, card computed styles (18px radius, `0 2px 8px rgba(0,0,0,0.08)` shadow, 999px pills, 11px checkbox radius), completion flow (open-count 4→3, Completed strip + Clear completed), drawer open, notes index-row transition, mobile NoteCard pastel dot + inverse pill. All UI-created test tasks/notes deleted through the UI afterwards (preview profile had no sync key, so nothing ever touched production data). Hover behaviour not synthetically testable (RNW tracks real input modality) — pattern identical to Sidebar's production-proven `onHoverIn` usage.
 
 **Note:** dev-only React 19 `element.ref` deprecation warnings observed during note-editor interactions — pre-existing (editor untouched this session), library-level, stripped in production builds. Not actioned.
+
+## Consistency + performance sweep (same day, follow-up)
+
+Second pass at Harry's request: "focus on the design, layout and performance and ensure consistency with the design throughout." No features.
+
+**Layout:**
+- Tasks board container was capped at 720px (`webContentStyle`) — two columns squeezed to ~340px each. New `webWideContentStyle` (1100px) in `lib/webLayout.ts`; other list screens (Today/Settings/Calendar) correctly stay at 720.
+- New `typography.title` token (28/34/−0.5, the design's page-title spec) — applied to Tasks and mobile Notes headers ("2xl"=24 was undersized vs the mockup).
+
+**Consistency (one card language everywhere):**
+- `GlassCard` default shadow md→sm — md was tuned when web shadows never rendered (see the `#000` hex bug above); post-fix it read heavier than the design's 0-2-8 language. Modals keep "overlay".
+- `TaskRow` (dashboard): circular 20px checkbox, due chip → borderless 999px tinted pill.
+- `TaskItem` (Focus/Completed lists): circular checkboxes, 18px card radius matching `TaskCard`.
+- Dashboard note tiles: neutral surface + pastel identity dot (same recipe as the redesigned `NoteCard`) — were still full-pastel.
+
+**Performance:**
+- Removed per-card `backdrop-filter: blur(14px)` from `Surface`, `TaskCard`, `NoteCard` — dozens of live blur layers per screen for an imperceptible effect over the smooth gradient. `GlassCard` (true overlays, few instances) keeps blur.
+- `tasks.tsx`: the whole filter chain (visible/done/open/archived/focus/dueThisWeek/board-sort) now one `useMemo` keyed on [tasks, search, filterPriority, sortBy] — was recomputed every render. Removed dead `scheduled`/`someday` computations.
+
+**Verified:** typecheck green; fresh-load browser pass — title 28px/−0.5, board container ~1060px, GlassCard sm shadow, circular checkboxes in TaskRow, dashboard tile 18px/soft-shadow/pastel-dot, no backdrop-filters, no console errors. Test task + note deleted through the UI after.

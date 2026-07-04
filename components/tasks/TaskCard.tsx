@@ -80,9 +80,9 @@ export const TaskCard = React.memo(function TaskCard({
         opacity: selected && selectMode ? 0.85 : 1,
         ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
         ...(Platform.OS === "web" ? {
-          // @ts-ignore web-only CSS — smooth hover lift
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
+          // @ts-ignore web-only CSS — smooth hover lift. No backdrop blur:
+          // dozens of live blur layers hurt paint perf for no visible gain
+          // over the smooth gradient background.
           transitionProperty: "transform, box-shadow, background-color, border-color",
           transitionDuration: "150ms",
           transitionTimingFunction: "ease-out",

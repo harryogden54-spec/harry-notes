@@ -103,6 +103,7 @@ export const TaskItem = React.memo(function TaskItem({
           onMouseLeave={() => setHovered(false)}
           variant="elevated"
           style={{
+            borderRadius: 18, // match TaskCard's card language
             borderColor: highlighted ? colors.accent : selected ? colors.accent : isExpanded ? (priorityColor ?? colors.accent) : undefined,
             borderWidth: highlighted ? 2 : 1,
             marginBottom: spacing[1.5],
@@ -115,9 +116,11 @@ export const TaskItem = React.memo(function TaskItem({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: compact ? spacing[1] : spacing[2] }}>
             {selectMode ? (
-              <Checkbox checked={selected} onToggle={onSelect} size={16} />
+              <Checkbox shape="circle" checked={selected} onToggle={onSelect} size={16} />
             ) : (
               <Checkbox
+                shape="circle"
+                size={20}
                 checked={task.done}
                 onToggle={() => {
                   if (!task.done && Platform.OS !== "web") {

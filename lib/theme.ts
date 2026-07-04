@@ -223,6 +223,8 @@ export const typography = {
   // Atelier editorial styles
   /** Screen greetings / hero titles — confident, tightly-tracked. */
   display: { fontSize: 34, lineHeight: 40, letterSpacing: -0.5 },
+  /** Page titles (Tasks/Notes headers) — design spec: 28/700/−0.5. */
+  title:   { fontSize: 28, lineHeight: 34, letterSpacing: -0.5 },
   /** Uppercase section labels — small, wide-tracked, textTertiary. */
   label:   { fontSize: 12, lineHeight: 16, letterSpacing: 0.8 },
 } as const;

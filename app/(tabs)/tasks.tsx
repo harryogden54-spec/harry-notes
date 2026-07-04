@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, TextInput, Pressable, ScrollView, SafeAreaView,
@@ -13,7 +13,7 @@ import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-na
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius, getShadow } from "@/lib/theme";
-import { webContentStyle } from "@/lib/webLayout";
+import { webWideContentStyle } from "@/lib/webLayout";
 import { useTasksData, useTasksActions, useTasksSync, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { storage } from "@/lib/storage";
@@ -22,7 +22,7 @@ import { getTodayStr, getNextWeekStr } from "@/lib/utils";
 import {
   Chip, AddTaskRow, Section, TaskDetailPanel, EmptyDetailPane, CategoryColumns,
   PRIORITY_CONFIG, type SortBy,
-  isOverdue, isToday, isScheduled, isSomeday, applySort, matchesSearch,
+  isOverdue, isToday, applySort, matchesSearch,
 } from "@/components/tasks";
 
 function TasksScreen() {
@@ -204,19 +204,22 @@ function TasksScreen() {
     showToast("Completed tasks cleared");
   }
 
-  const visible    = tasks.filter(t => !t.archived && matchesSearch(t, search) && (filterPriority ? t.priority === filterPriority : true));
-  const overdue    = visible.filter(isOverdue);
-  const todayTasks = visible.filter(isToday);
-  const scheduled  = visible.filter(isScheduled);
-  const someday    = visible.filter(isSomeday);
-  const done       = visible.filter(t => t.done);
-  const open       = tasks.filter(t => !t.done && !t.archived);
-  const archived   = tasks.filter(t => t.archived);
-  const focusTasks = [...overdue, ...todayTasks];
-
-  const today7  = getTodayStr();
-  const nextWk  = getNextWeekStr();
-  const dueThisWeekCount = open.filter(t => t.due_date && t.due_date >= today7 && t.due_date <= nextWk).length;
+  const { visible, done, open, archived, focusTasks, dueThisWeekCount, boardTasks } = useMemo(() => {
+    const visible    = tasks.filter(t => !t.archived && matchesSearch(t, search) && (filterPriority ? t.priority === filterPriority : true));
+    const overdue    = visible.filter(isOverdue);
+    const todayTasks = visible.filter(isToday);
+    const done       = visible.filter(t => t.done);
+    const open       = tasks.filter(t => !t.done && !t.archived);
+    const archived   = tasks.filter(t => t.archived);
+    const today7  = getTodayStr();
+    const nextWk  = getNextWeekStr();
+    return {
+      visible, done, open, archived,
+      focusTasks: [...overdue, ...todayTasks],
+      dueThisWeekCount: open.filter(t => t.due_date && t.due_date >= today7 && t.due_date <= nextWk).length,
+      boardTasks: applySort(visible.filter(t => !t.done), sortBy),
+    };
+  }, [tasks, search, filterPriority, sortBy]);
 
   // Keep refs in sync for the stable keyboard handler below.
   navTasksRef.current   = focusMode ? focusTasks : visible.filter(t => !t.done);
@@ -295,7 +298,7 @@ function TasksScreen() {
             <ScrollView
               ref={scrollViewRef}
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
+              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webWideContentStyle }}
               keyboardShouldPersistTaps="handled"
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
@@ -304,7 +307,7 @@ function TasksScreen() {
               {/* Header */}
               <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Text size="2xl" weight="bold">Tasks</Text>
+                  <Text size="title" weight="bold">Tasks</Text>
                   <View style={{ flexDirection: "row", gap: spacing[2] }}>
                     {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
                         ["select", selectMode, () => { setSelectMode(v => !v); setSelectedIds(new Set()); }, selectMode ? "Cancel" : "Select"],
@@ -402,7 +405,7 @@ function TasksScreen() {
               ) : (
                 <>
                   <CategoryColumns
-                    tasks={applySort(visible.filter(t => !t.done), sortBy)}
+                    tasks={boardTasks}
                     stacked={!isDesktop}
                     selectedTaskId={effectiveExpandedId}
                     onSelectTask={handleToggleExpand}
