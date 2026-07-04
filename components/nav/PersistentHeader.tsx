@@ -70,11 +70,17 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
         accessibilityLabel={`Cycle theme (currently ${THEMES[themeId].label})`}
         // @ts-ignore web-only tooltip
         title={Platform.OS === "web" ? "Click to cycle theme" : undefined}
-        style={{
+        style={({ hovered, pressed }: any) => ({
           flexDirection: "row", alignItems: "center", gap: 4,
           paddingHorizontal: spacing[2], paddingVertical: 3,
           borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
-        }}
+          backgroundColor: hovered ? colors.bgTertiary : "transparent",
+          ...(Platform.OS === "web" ? {
+            transitionProperty: "background-color, transform",
+            transitionDuration: "120ms",
+            transform: [{ scale: pressed ? 0.96 : 1 }],
+          } : {}),
+        } as any)}
       >
         <Ionicons name="color-palette-outline" size={11} color={colors.textTertiary} />
         <Text style={{ fontSize: 10, fontFamily: fontFamily.medium, color: colors.textSecondary }}>

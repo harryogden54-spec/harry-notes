@@ -121,12 +121,19 @@ export default function TabLayout() {
         <Pressable
           onPress={() => setShowQuickAdd(true)}
           accessibilityLabel="Quick add"
-          style={{
+          style={({ hovered, pressed }: any) => ({
             position: "absolute", bottom: spacing[5], right: spacing[5], zIndex: 50,
             width: 48, height: 48, borderRadius: 99,
-            backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
-            ...getShadow("md", scheme, { color: colors.accent, opacity: 0.4 }),
-          }}
+            backgroundColor: hovered ? colors.accentHover : colors.accent,
+            alignItems: "center", justifyContent: "center",
+            ...getShadow("md", scheme, { color: colors.accent, opacity: hovered && !pressed ? 0.55 : 0.4 }),
+            ...(Platform.OS === "web" ? {
+              transitionProperty: "transform, background-color, box-shadow",
+              transitionDuration: "150ms",
+              transitionTimingFunction: "ease-out",
+              transform: [{ scale: pressed ? 0.94 : hovered ? 1.06 : 1 }],
+            } : {}),
+          } as any)}
         >
           <Ionicons name="add" size={24} color={colors.textInverse} />
         </Pressable>

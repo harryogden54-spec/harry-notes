@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Pressable } from "react-native";
+import React, { useState } from "react";
+import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
@@ -11,10 +11,28 @@ type Props = { note: Note; isSelected: boolean; onSelect: () => void };
 
 export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect }: Props) {
   const { colors, notePastels } = useTheme();
+  const [hovered, setHovered] = useState(false);
   const accentColor = notePastels.bg[getNotePastelIndex(note.id)];
   const preview = notePreview(note);
   return (
-    <Pressable onPress={onSelect} style={{ paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: isSelected ? colors.bgTertiary : "transparent", borderLeftWidth: 2, borderLeftColor: isSelected ? accentColor : "transparent", gap: spacing[0.5] }}>
+    <Pressable
+      onPress={onSelect}
+      // @ts-ignore web hover events
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={{
+        paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+        backgroundColor: isSelected ? colors.bgTertiary : hovered ? `${colors.bgTertiary}88` : "transparent",
+        borderLeftWidth: 2, borderLeftColor: isSelected ? accentColor : "transparent",
+        gap: spacing[0.5],
+        ...(Platform.OS === "web" ? {
+          // @ts-ignore web-only CSS transition
+          transitionProperty: "background-color",
+          transitionDuration: "120ms",
+          cursor: "pointer",
+        } : {}),
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
         {note.pinned && <Ionicons name="pin" size={10} color={colors.accent} />}
         <Text size="sm" weight={isSelected ? "semibold" : "regular"} numberOfLines={1} style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}>

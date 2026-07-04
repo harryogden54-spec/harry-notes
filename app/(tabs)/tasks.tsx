@@ -8,7 +8,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-native-reanimated";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
@@ -308,28 +308,25 @@ function TasksScreen() {
                   <View style={{ flexDirection: "row", gap: spacing[2] }}>
                     {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
                         ["select", selectMode, () => { setSelectMode(v => !v); setSelectedIds(new Set()); }, selectMode ? "Cancel" : "Select"],
+                        ...(archived.length > 0
+                          ? [["archive", showArchive, () => setShowArchive(v => !v), `Archive · ${archived.length}`] as [string, boolean, () => void, string]]
+                          : []),
                     ] as [string, boolean, () => void, string][]).map(([key, active, onPress, label]) => (
-                      <Pressable key={key} onPress={onPress} style={{
-                        paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-                        borderRadius: 99, borderWidth: 1,
-                        borderColor: active ? colors.accent : colors.bgBorder,
-                        backgroundColor: active ? `${colors.accent}18` : "transparent",
-                      }}>
+                      <Pressable key={key} onPress={onPress} style={({ hovered, pressed }: any) => ({
+                        paddingHorizontal: 15, paddingVertical: spacing[2],
+                        borderRadius: 999, borderWidth: 1,
+                        borderColor: active ? `${colors.accent}66` : `${colors.bgBorder}66`,
+                        backgroundColor: active ? `${colors.accent}18` : hovered ? colors.bgTertiary : colors.bgSecondary,
+                        ...getShadow("xs", scheme),
+                        ...(Platform.OS === "web" ? {
+                          transitionProperty: "background-color, border-color, transform",
+                          transitionDuration: "150ms",
+                          transform: [{ scale: pressed ? 0.97 : 1 }],
+                        } : {}),
+                      } as any)}>
                         <Text size="xs" weight="medium" style={{ color: active ? colors.accent : colors.textSecondary }}>{label}</Text>
                       </Pressable>
                     ))}
-                    {archived.length > 0 && (
-                      <Pressable onPress={() => setShowArchive(v => !v)} style={{
-                        paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-                        borderRadius: 99, borderWidth: 1,
-                        borderColor: showArchive ? colors.accent : colors.bgBorder,
-                        backgroundColor: showArchive ? `${colors.accent}18` : "transparent",
-                      }}>
-                        <Text size="xs" weight="medium" style={{ color: showArchive ? colors.accent : colors.textSecondary }}>
-                          Archive · {archived.length}
-                        </Text>
-                      </Pressable>
-                    )}
                   </View>
                 </View>
                 <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
@@ -435,7 +432,9 @@ function TasksScreen() {
                         </Pressable>
                       </View>
                       {!completedCollapsed && (
-                        <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" />
+                        <Animated.View entering={FadeIn.duration(180)}>
+                          <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" />
+                        </Animated.View>
                       )}
                     </View>
                   )}
@@ -508,13 +507,19 @@ function TasksScreen() {
         {/* Desktop task detail — slide-over drawer on top of the board, not a permanent split */}
         {isDesktop && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (
           <View style={{ position: "absolute", inset: 0 } as any}>
-            <Pressable
-              onPress={() => setSelectedTaskId(null)}
-              style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any}
-            />
             <Animated.View
-              entering={FadeIn.duration(150)}
-              exiting={FadeOut.duration(100)}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+              style={{ position: "absolute", inset: 0 } as any}
+            >
+              <Pressable
+                onPress={() => setSelectedTaskId(null)}
+                style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any}
+              />
+            </Animated.View>
+            <Animated.View
+              entering={SlideInRight.duration(220)}
+              exiting={SlideOutRight.duration(180)}
               style={{
                 position: "absolute", top: 0, right: 0, bottom: 0, width: 420,
                 backgroundColor: colors.bgPrimary,

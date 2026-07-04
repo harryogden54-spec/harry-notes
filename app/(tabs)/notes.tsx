@@ -5,10 +5,11 @@ import {
   KeyboardAvoidingView, Platform, RefreshControl, useWindowDimensions,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
-import { spacing } from "@/lib/theme";
+import { spacing, getShadow } from "@/lib/theme";
 import { cmpRecentDesc } from "@/lib/utils";
 import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/NotesContext";
 import {
@@ -31,9 +32,9 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
 
 function NoteCardGrid({ notes, onOpen }: { notes: Note[]; onOpen: (id: string) => void }) {
   return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[4] }}>
       {notes.map(note => (
-        <View key={note.id} style={{ width: "48%" as any }}>
+        <View key={note.id} style={{ width: "47%" as any, flexGrow: 1 }}>
           <NoteCard note={note} onOpen={() => onOpen(note.id)} />
         </View>
       ))}
@@ -42,7 +43,7 @@ function NoteCardGrid({ notes, onOpen }: { notes: Note[]; onOpen: (id: string) =
 }
 
 function NotesScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
 
@@ -173,14 +174,18 @@ function NotesScreen() {
                 </View>
                 <Pressable
                   onPress={handleNewNote}
-                  style={{
-                    flexDirection: "row", alignItems: "center", gap: spacing[1.5],
-                    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-                    borderRadius: 99, backgroundColor: colors.accent,
-                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: "row", alignItems: "center", gap: spacing[2],
+                    paddingHorizontal: spacing[4] + 2, paddingVertical: spacing[2.5],
+                    borderRadius: 999,
+                    // Inverse pill per design 1d — dark on light themes, light on dark.
+                    backgroundColor: colors.textPrimary,
+                    ...getShadow("md", scheme),
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  })}
                 >
-                  <Text style={{ color: colors.textInverse, fontSize: 18, lineHeight: 22 }}>+</Text>
-                  <Text size="sm" weight="medium" style={{ color: "#fff" }}>New</Text>
+                  <Ionicons name="add" size={14} color={colors.bgPrimary} />
+                  <Text size="sm" weight="semibold" style={{ color: colors.bgPrimary }}>New note</Text>
                 </Pressable>
               </View>
 

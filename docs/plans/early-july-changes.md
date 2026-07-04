@@ -147,3 +147,31 @@ All 7 phases (0 through 6) shipped and deployed to production in this session. S
 - **C3** icon cache-bust, **C1** accent palette (6→30), **A** Tasks + Notes redesign (category board, composer modal, mobile board, Pinned/All Notes sections), **A+C2** WYSIWYG note editor (web, gate-passed, round-trip validated against every real note), **B** all 8 flagged UI polish items.
 - Deferred, not forgotten (see [[flagged-findings]] in memory): tech debt items (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal, calendar screen memoization) were explicitly excluded from this programme's scope per Harry's decision — still tracked separately for a future session.
 - Minor known gaps, none blocking: keyboard j/k nav doesn't auto-scroll for `TaskCard`-rendered tasks (Phase 2); web editor's rich-paste handling is safe but not maximally featureful, and its toolbar doesn't yet match design 1g's exact mobile icon set (Phase 5c).
+
+---
+
+# Post-programme polish pass (2026-07-04)
+
+Follow-up session at Harry's request: "make it look more like the claude design prompt and ensure fluidity throughout." Design-fidelity + motion sweep against the same design file (`docs/design/tasks-notes-redesign.dc.html`).
+
+**Root-cause fix worth remembering:** `getShadow()` in `lib/theme.ts` defaulted its shadow colour to 3-digit `#000` and appended a 2-digit alpha on web, producing invalid 5-digit hex (`#00014`) — browsers silently dropped the declaration, so **no default shadow anywhere in the web app had ever rendered**. Only explicitly-coloured shadows (6-digit, e.g. the accent FAB) worked. One-line fix (`#000000`); the entire app's floating-card shadow language switched on at once.
+
+**Design fidelity (matching the mockup's card DNA):**
+- `TaskCard` rewritten: 18px radius, 15/17 padding, circular 22px checkbox (new `shape="circle"` prop on `Checkbox`), tinted pill meta-chips (calendar-icon due pill, red-tinted when overdue / amber when due today; priority dot pill; subtask count pill), red-tinted card border when overdue, hover lift (translateY −1px + deeper shadow) with real CSS transitions.
+- `CategoryColumns`: 10px card gaps, 20px column gap, category-tinted count badges, 9px header dots; every card wrapped in Reanimated `FadeIn`/`FadeOut`/`LinearTransition` so completing/adding/moving tasks animates the board reflow.
+- Tasks header pills (Focus/Select/Archive): surface pills with xs shadow + hover + press-scale, Archive folded into the same map.
+- `AddTaskRow`: 16px radius + design padding.
+- `NoteCard` rewritten per artboard 1d: **neutral frosted surface with an 8px pastel identity dot** in the meta row (was: full-pastel background), 18px radius, hover lift. Pastel dot preserves each note's colour identity.
+- Mobile notes header: inverse "New note" pill (dark-on-light / light-on-dark) with md shadow, per design.
+- `NoteIndexRow`: hover background + 120ms transition.
+- Note grid gap 8→16px.
+
+**Fluidity:**
+- Desktop task drawer now slides in from the right (`SlideInRight` 220ms) with separately-fading backdrop (was: whole thing faded).
+- Completed-section expand animates (`FadeIn`).
+- Theme-cycler pill + desktop quick-add FAB: hover/press feedback with CSS transitions (FAB scales 1.06 on hover, deepens its accent shadow).
+- `Checkbox` background/border colour transitions on web.
+
+**Verification:** typecheck green; dev-server browser pass at 1280×800 and 420×850 — board columns, card computed styles (18px radius, `0 2px 8px rgba(0,0,0,0.08)` shadow, 999px pills, 11px checkbox radius), completion flow (open-count 4→3, Completed strip + Clear completed), drawer open, notes index-row transition, mobile NoteCard pastel dot + inverse pill. All UI-created test tasks/notes deleted through the UI afterwards (preview profile had no sync key, so nothing ever touched production data). Hover behaviour not synthetically testable (RNW tracks real input modality) — pattern identical to Sidebar's production-proven `onHoverIn` usage.
+
+**Note:** dev-only React 19 `element.ref` deprecation warnings observed during note-editor interactions — pre-existing (editor untouched this session), library-level, stripped in production builds. Not actioned.

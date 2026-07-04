@@ -1,5 +1,6 @@
 import React from "react";
 import { View } from "react-native";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, categoryColors } from "@/lib/theme";
@@ -34,16 +35,22 @@ export function CategoryColumns({
 
   function renderCard(t: Task) {
     return (
-      <TaskCard
+      <Animated.View
         key={t.id}
-        task={t}
-        selected={selectMode ? selectedIds.has(t.id) : selectedTaskId === t.id}
-        selectMode={selectMode}
-        highlighted={highlightId === t.id}
-        onPress={() => onSelectTask(t.id)}
-        onToggleDone={() => onToggleDone(t.id)}
-        onSelect={() => onBulkSelect(t.id)}
-      />
+        entering={FadeIn.duration(180)}
+        exiting={FadeOut.duration(140)}
+        layout={LinearTransition.duration(200)}
+      >
+        <TaskCard
+          task={t}
+          selected={selectMode ? selectedIds.has(t.id) : selectedTaskId === t.id}
+          selectMode={selectMode}
+          highlighted={highlightId === t.id}
+          onPress={() => onSelectTask(t.id)}
+          onToggleDone={() => onToggleDone(t.id)}
+          onSelect={() => onBulkSelect(t.id)}
+        />
+      </Animated.View>
     );
   }
 
@@ -54,7 +61,9 @@ export function CategoryColumns({
     return (
       <View style={stacked ? undefined : { flex: 1, minWidth: 0 }}>
         <ColumnHeader label={label} count={items.length} color={color} />
-        {items.length === 0 ? <ColumnEmptyHint /> : <View>{items.map(renderCard)}</View>}
+        {items.length === 0
+          ? <ColumnEmptyHint />
+          : <View style={{ gap: spacing[2.5] }}>{items.map(renderCard)}</View>}
       </View>
     );
   }
@@ -64,7 +73,7 @@ export function CategoryColumns({
       {unsorted.length > 0 && (
         <View>
           <ColumnHeader label="Unsorted" count={unsorted.length} />
-          <View>{unsorted.map(renderCard)}</View>
+          <View style={{ gap: spacing[2.5] }}>{unsorted.map(renderCard)}</View>
         </View>
       )}
       {stacked ? (
@@ -73,7 +82,7 @@ export function CategoryColumns({
           {renderColumn("Uni", categoryColors.uni, uni)}
         </View>
       ) : (
-        <View style={{ flexDirection: "row", gap: spacing[4] }}>
+        <View style={{ flexDirection: "row", gap: spacing[5] }}>
           {renderColumn("Personal", categoryColors.personal, personal)}
           {renderColumn("Uni", categoryColors.uni, uni)}
         </View>
@@ -86,14 +95,17 @@ function ColumnHeader({ label, count, color }: { label: string; count: number; c
   const { colors } = useTheme();
   const dot = color ?? colors.textTertiary;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: spacing[3] }}>
-      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dot }} />
-      <Text size="xs" weight="semibold" style={{ letterSpacing: 1, color: colors.textSecondary, textTransform: "uppercase" }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginBottom: spacing[3], paddingHorizontal: 6 }}>
+      <View style={{ width: 9, height: 9, borderRadius: 99, backgroundColor: dot }} />
+      <Text size="xs" weight="semibold" style={{ letterSpacing: 0.8, color: colors.textSecondary, textTransform: "uppercase" }}>
         {label}
       </Text>
       {count > 0 && (
-        <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
-          <Text size="xs" style={{ color: colors.textTertiary }}>{count}</Text>
+        <View style={{
+          backgroundColor: color ? `${color}2E` : colors.bgTertiary,
+          borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1,
+        }}>
+          <Text size="xs" weight="semibold" style={{ color: color ?? colors.textTertiary, fontSize: 11.5 }}>{count}</Text>
         </View>
       )}
     </View>

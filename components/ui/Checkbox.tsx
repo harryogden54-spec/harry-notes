@@ -11,10 +11,12 @@ interface CheckboxProps extends Omit<PressableProps, "onPress"> {
   checked: boolean;
   onToggle: () => void;
   size?: number;
+  /** "circle" matches the task-card design language; "square" is the default elsewhere. */
+  shape?: "square" | "circle";
   accessibilityLabel?: string;
 }
 
-export function Checkbox({ checked, onToggle, size = 18, accessibilityLabel, ...props }: CheckboxProps) {
+export function Checkbox({ checked, onToggle, size = 18, shape = "square", accessibilityLabel, ...props }: CheckboxProps) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -44,12 +46,17 @@ export function Checkbox({ checked, onToggle, size = 18, accessibilityLabel, ...
           {
             width: size,
             height: size,
-            borderRadius: size / 4,
+            borderRadius: shape === "circle" ? size / 2 : size / 4,
             borderWidth: 1.5,
             borderColor: checked ? colors.accent : colors.bgBorder,
             backgroundColor: checked ? colors.accent : "transparent",
             alignItems: "center",
             justifyContent: "center",
+            ...(Platform.OS === "web" ? {
+              // @ts-ignore web-only CSS transition
+              transitionProperty: "background-color, border-color",
+              transitionDuration: "150ms",
+            } : {}),
           },
           animatedStyle,
         ]}
