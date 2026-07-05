@@ -216,7 +216,7 @@ function WebTaskRow({ task, onPress }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Task actions"
             >
-              <Text size="xs" style={{ color: colors.textSecondary }}>⋯</Text>
+              <Ionicons name="ellipsis-horizontal" size={13} color={colors.textSecondary} />
             </Pressable>
           )}
         </View>

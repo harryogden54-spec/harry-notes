@@ -311,7 +311,7 @@ function DumpScreen() {
                 borderRadius: radius.lg, backgroundColor: colors.accent,
               }}
             >
-              <Text style={{ color: colors.textInverse, fontSize: 16, lineHeight: 20 }}>+</Text>
+              <Ionicons name="add" size={15} color={colors.textInverse} />
               <Text size="sm" weight="medium" style={{ color: colors.textInverse }}>New</Text>
             </Pressable>
           </View>

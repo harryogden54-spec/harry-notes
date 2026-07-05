@@ -57,7 +57,7 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
     <Surface variant="elevated" style={{ borderRadius: radius.xl, borderColor: focused ? colors.accent : undefined, marginBottom: spacing[4] }}>
       <View style={{ paddingVertical: spacing[3], paddingHorizontal: spacing[4], gap: spacing[2] }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
-          <Text style={{ color: colors.accent, fontSize: 18, lineHeight: 22, marginTop: -1 }}>+</Text>
+          <Ionicons name="add" size={17} color={colors.accent} />
           <TextInput
             ref={inputRef}
             value={value}

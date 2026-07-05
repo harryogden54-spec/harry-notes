@@ -73,7 +73,7 @@ function ThemeCard({
         </Text>
         {active && (
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: cardAccent, alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name="checkmark" size={10} color="#fff" />
+            <Ionicons name="checkmark" size={10} color={tokens.textInverse} />
           </View>
         )}
       </View>
@@ -152,7 +152,7 @@ export default function AppearanceScreen() {
                     alignItems: "center", justifyContent: "center",
                   }}
                 >
-                  {active && <Ionicons name="checkmark" size={13} color="#fff" />}
+                  {active && <Ionicons name="checkmark" size={13} color={colors.textInverse} />}
                 </Pressable>
               );
             })}
@@ -183,7 +183,7 @@ export default function AppearanceScreen() {
                 value={scheme === "dark"}
                 onValueChange={toggle}
                 trackColor={{ false: colors.bgBorder, true: colors.accent }}
-                thumbColor="#fff"
+                thumbColor={colors.textInverse}
               />
             </View>
           </View>

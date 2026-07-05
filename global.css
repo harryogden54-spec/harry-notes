@@ -56,3 +56,14 @@
 :root { --accent: #5B6AD0; }
 *:focus { outline: none; }
 *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ── Type rendering + selection polish (web) ────────────────────────────── */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+/* Accent-tinted text selection instead of the browser default blue. */
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+/* No rubber-band overscroll flash behind the app shell. */
+html, body { overscroll-behavior-y: none; }

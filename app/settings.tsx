@@ -310,7 +310,7 @@ export default function SettingsScreen() {
                   value={scheme === "dark"}
                   onValueChange={toggle}
                   trackColor={{ false: colors.bgBorder, true: colors.accent }}
-                  thumbColor="#fff"
+                  thumbColor={colors.textInverse}
                 />
               }
             />
@@ -411,7 +411,7 @@ export default function SettingsScreen() {
                     backgroundColor: colors.accent, alignItems: "center",
                   }}
                 >
-                  <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Save key</Text>
+                  <Text size="sm" weight="semibold" style={{ color: colors.textInverse }}>Save key</Text>
                 </Pressable>
               </View>
             </View>
@@ -440,7 +440,7 @@ export default function SettingsScreen() {
                 alignItems: "center",
               }}
             >
-              <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Sync now</Text>
+              <Text size="sm" weight="semibold" style={{ color: colors.textInverse }}>Sync now</Text>
             </Pressable>
           </View>
 
