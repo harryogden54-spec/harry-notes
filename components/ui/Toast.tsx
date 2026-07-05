@@ -17,8 +17,11 @@ export function ToastContainer() {
       style={{
         position: "absolute",
         bottom: Platform.OS === "ios" ? layout.fabBottom.ios + 4 : layout.fabBottom.default - 4,
-        left: spacing[4],
-        right: spacing[4],
+        // Desktop web: bottom-right stack (a full-width toast on a 1280px
+        // window reads as a system banner, not a toast). Mobile: full width.
+        ...(Platform.OS === "web"
+          ? { right: spacing[5], left: undefined, width: 380, maxWidth: "90%" as any }
+          : { left: spacing[4], right: spacing[4] }),
         gap: spacing[2],
         zIndex: 9999,
         // @ts-ignore

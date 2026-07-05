@@ -205,3 +205,17 @@ Harry supplied a hand-drawn mockup for the desktop Notes page: a prominent "New 
 - Editor wrapped in a 24px-radius floating panel (border + md shadow, overflow hidden) with breathing room around it; empty state got an icon.
 
 **Noted but not built (needs data-model work, out of "no new features" scope):** the mockup's button also says "add tags" — notes have no tags field in the model today. Flagged for a future session.
+
+## Editor typography + professional details (2026-07-04, cont.)
+
+Harry flagged the notes-page fonts. Root cause: the WYSIWYG contentEditable container set a size but **no font-family**, so the editor body rendered in the browser default (Times serif on Windows) — the only surface in the app not using Inter. Fixed with an injected theme-aware scoped stylesheet (`.note-editor-body`, re-injected on theme change) since blocks are created imperatively:
+
+- Body: Inter 16px/1.7, textPrimary, **accent caret**
+- Headings: real Inter Bold/SemiBold files (24/19/16.5) with proper margins, replacing browser-default serif heading styles
+- Bold runs render in the actual Inter_700Bold file instead of faux-bold; code spans get a tinted monospace chip; wikilinks accent-colored
+- Checkboxes: circular, app-language (accent fill + CSS tick when checked, label strikes + dims) — replacing the ☑/☐ text glyphs
+- Toolbar: proper SVG icons (list/checklist/image — the image button was an emoji), hover states, tooltips, aria-labels
+
+Also: toasts are now a 380px bottom-right stack on web (were full-window-width banners on desktop); browser tab title follows the active screen ("Tasks · harry."); previously-dead `RouteFade` component wired into the desktop sidebar layout so tab switches get a 180ms content fade.
+
+**Verification note:** checkbox check-state colors verified via computed styles with transitions disabled — the headless preview tab freezes CSS transitions at 0% (`getAnimations()` showed all stuck at currentTime 0), so transition-target values never appear in computed styles there. Not an app bug.

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from "react";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, fontFamily } from "@/lib/theme";
 import {
   parseMarkdownToBlocks, blocksToMarkdown, inlineMarkdownToHtml, inlineNodeToMarkdown,
   type Block, type BlockType,
@@ -44,7 +44,6 @@ function createBlockElement(b: Block): HTMLElement {
     const li = document.createElement("li");
     li.setAttribute("data-md-type", "bullet");
     li.style.display = "list-item";
-    li.style.marginLeft = "22px";
     li.innerHTML = inlineMarkdownToHtml(b.text) || "<br/>";
     return li;
   }
@@ -55,22 +54,17 @@ function createBlockElement(b: Block): HTMLElement {
     row.setAttribute("data-checked", String(!!b.checked));
     row.style.display = "flex";
     row.style.alignItems = "flex-start";
-    row.style.gap = "8px";
-    row.style.margin = "2px 0";
+    row.style.gap = "9px";
 
+    // Visuals (circle, tick, checked label strike/dim) all come from the
+    // injected .note-editor-body stylesheet, keyed off data-checked.
     const toggle = document.createElement("span");
     toggle.contentEditable = "false";
     toggle.className = "md-checkbox-toggle";
-    toggle.textContent = b.checked ? "☑" : "☐";
-    (toggle.style as any).cursor = "pointer";
-    (toggle.style as any).userSelect = "none";
-    toggle.style.flexShrink = "0";
-    toggle.style.marginTop = "2px";
 
     const label = document.createElement("span");
     label.setAttribute("data-md-checkbox-label", "true");
     label.style.flex = "1";
-    label.style.textDecoration = b.checked ? "line-through" : "none";
     label.innerHTML = inlineMarkdownToHtml(b.text) || "<br/>";
 
     row.appendChild(toggle);
@@ -143,6 +137,85 @@ function serializeContainer(container: HTMLElement): string {
 export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImage, uploading, onWikiQueryChange }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastSerializedRef = useRef<string | null>(null);
+
+  // Editor typography lives in an injected scoped stylesheet rather than
+  // inline styles: blocks are created imperatively (createBlockElement), so a
+  // class-scoped sheet is the only way to give every current AND future block
+  // the same type system. Re-injected whenever the theme changes.
+  useEffect(() => {
+    const STYLE_ID = "note-editor-body-styles";
+    let tag = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+    if (!tag) {
+      tag = document.createElement("style");
+      tag.id = STYLE_ID;
+      document.head.appendChild(tag);
+    }
+    tag.textContent = `
+      .note-editor-body {
+        font-family: 'Inter_400Regular', -apple-system, 'Segoe UI', sans-serif;
+        font-size: 16px;
+        line-height: 1.7;
+        color: ${colors.textPrimary};
+        caret-color: ${colors.accent};
+      }
+      .note-editor-body > div { margin: 3px 0; }
+      .note-editor-body h1 {
+        font-family: 'Inter_700Bold', -apple-system, sans-serif; font-weight: normal;
+        font-size: 24px; line-height: 1.3; letter-spacing: -0.3px;
+        margin: 18px 0 6px; color: ${colors.textPrimary};
+      }
+      .note-editor-body > h1:first-child { margin-top: 2px; }
+      .note-editor-body h2 {
+        font-family: 'Inter_600SemiBold', -apple-system, sans-serif; font-weight: normal;
+        font-size: 19px; line-height: 1.35; letter-spacing: -0.2px;
+        margin: 14px 0 4px; color: ${colors.textPrimary};
+      }
+      .note-editor-body h3 {
+        font-family: 'Inter_600SemiBold', -apple-system, sans-serif; font-weight: normal;
+        font-size: 16.5px; line-height: 1.4; margin: 10px 0 2px; color: ${colors.textPrimary};
+      }
+      .note-editor-body li { margin: 3px 0 3px 22px; }
+      .note-editor-body li::marker { color: ${colors.textTertiary}; }
+      .note-editor-body hr { border: none; border-top: 1px solid ${colors.bgBorder}; margin: 16px 0; }
+      .note-editor-body b, .note-editor-body strong { font-family: 'Inter_700Bold', -apple-system, sans-serif; font-weight: normal; }
+      .note-editor-body code {
+        font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+        font-size: 0.85em; background: ${colors.bgTertiary};
+        padding: 1.5px 6px; border-radius: 5px;
+      }
+      .note-editor-body .wikilink { color: ${colors.accent}; }
+      .note-editor-body .md-checkbox-toggle {
+        display: inline-flex; width: 17px; height: 17px; flex-shrink: 0;
+        border-radius: 50%; border: 1.5px solid ${colors.bgBorder};
+        margin-top: 4px; position: relative; cursor: pointer; user-select: none;
+        transition: background-color 150ms, border-color 150ms;
+      }
+      .note-editor-body [data-checked="true"] .md-checkbox-toggle {
+        background: ${colors.accent}; border-color: ${colors.accent};
+      }
+      .note-editor-body .md-checkbox-toggle::after {
+        content: ""; position: absolute; left: 3.5px; top: 4px;
+        width: 7px; height: 3.5px;
+        border-left: 1.5px solid ${colors.textInverse};
+        border-bottom: 1.5px solid ${colors.textInverse};
+        transform: rotate(-45deg); opacity: 0; transition: opacity 120ms;
+      }
+      .note-editor-body [data-checked="true"] .md-checkbox-toggle::after { opacity: 1; }
+      .note-editor-body [data-checked="true"] [data-md-checkbox-label] {
+        text-decoration: line-through; color: ${colors.textTertiary};
+      }
+      .note-toolbar-btn {
+        border: none; background: transparent; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 30px; height: 28px; padding: 0 8px; border-radius: 6px;
+        color: ${colors.textSecondary}; font-size: 13.5px;
+        transition: background-color 120ms, color 120ms;
+      }
+      .note-toolbar-btn:hover { background: ${colors.bgTertiary}; color: ${colors.textPrimary}; }
+      .note-toolbar-btn:disabled { opacity: 0.5; cursor: default; }
+    `;
+    return () => { tag?.remove(); };
+  }, [colors]);
   // Clicking a wikilink suggestion chip moves focus away from the
   // contentEditable container first, which clears/collapses the live
   // selection — so we stash the caret range whenever a "[[query" match is
@@ -260,11 +333,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
       const row = target.closest('[data-md-type="checkbox"]') as HTMLElement | null;
       if (!row) return;
       const checked = row.getAttribute("data-checked") === "true";
-      const next = !checked;
-      row.setAttribute("data-checked", String(next));
-      target.textContent = next ? "☑" : "☐";
-      const label = row.querySelector('[data-md-checkbox-label]') as HTMLElement | null;
-      if (label) label.style.textDecoration = next ? "line-through" : "none";
+      row.setAttribute("data-checked", String(!checked));
       serialize();
     }
   }, [serialize]);
@@ -313,70 +382,75 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     serialize();
   }, [serialize]);
 
-  const tools: { label: string; bold?: boolean; italic?: boolean; onPress: () => void }[] = [
-    { label: "B", bold: true,   onPress: () => document.execCommand("bold") },
-    { label: "I", italic: true, onPress: () => document.execCommand("italic") },
-    { label: "H",                onPress: () => setCurrentBlockType("h1") },
-    { label: "H2",               onPress: () => setCurrentBlockType("h2") },
-    { label: "•",                onPress: () => setCurrentBlockType("bullet") },
-    { label: "☑",                onPress: () => setCurrentBlockType("checkbox") },
+  const strokeProps = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const tools: { key: string; title: string; content: React.ReactNode; onPress: () => void }[] = [
+    { key: "bold",   title: "Bold",          content: <span style={{ fontFamily: fontFamily.bold }}>B</span>,                       onPress: () => document.execCommand("bold") },
+    { key: "italic", title: "Italic",        content: <span style={{ fontFamily: fontFamily.regular, fontStyle: "italic" }}>I</span>, onPress: () => document.execCommand("italic") },
+    { key: "h1",     title: "Heading",       content: <span style={{ fontFamily: fontFamily.semibold }}>H</span>,                   onPress: () => setCurrentBlockType("h1") },
+    { key: "h2",     title: "Subheading",    content: <span style={{ fontFamily: fontFamily.semibold, fontSize: 12 }}>H2</span>,    onPress: () => setCurrentBlockType("h2") },
+    { key: "bullet", title: "Bulleted list", content: (
+        <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>
+          <circle cx="4" cy="6" r="0.5" /><circle cx="4" cy="12" r="0.5" /><circle cx="4" cy="18" r="0.5" />
+          <path d="M9 6h11M9 12h11M9 18h11" />
+        </svg>
+      ), onPress: () => setCurrentBlockType("bullet") },
+    { key: "check",  title: "Checklist",     content: (
+        <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <path d="m8.5 12 2.5 2.5 5-5" />
+        </svg>
+      ), onPress: () => setCurrentBlockType("checkbox") },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
       <div
         style={{
-          display: "flex", flexDirection: "row", alignItems: "center", gap: spacing[1],
+          display: "flex", flexDirection: "row", alignItems: "center", gap: 2,
           borderBottom: `1px solid ${colors.bgBorder}`, background: colors.bgSecondary,
           padding: `${spacing[2]}px ${spacing[3]}px`, marginBottom: spacing[3],
         }}
       >
         {tools.map(t => (
           <button
-            key={t.label}
+            key={t.key}
+            className="note-toolbar-btn"
+            title={t.title}
+            aria-label={t.title}
             onMouseDown={e => e.preventDefault()}
             onClick={t.onPress}
-            style={{
-              border: "none", background: "transparent", cursor: "pointer",
-              color: colors.textSecondary, fontSize: 14,
-              fontFamily: t.bold ? fontFamily.bold : fontFamily.regular,
-              fontStyle: t.italic ? "italic" : "normal",
-              padding: `${spacing[2]}px ${spacing[3]}px`, borderRadius: radius.sm,
-            }}
           >
-            {t.label}
+            {t.content}
           </button>
         ))}
+        <span style={{ width: 1, height: 16, background: colors.bgBorder, margin: `0 ${spacing[1]}px` }} />
         <button
+          className="note-toolbar-btn"
+          title="Insert image"
+          aria-label="Insert image"
           onMouseDown={e => e.preventDefault()}
           onClick={onPickImage}
           disabled={uploading}
-          style={{
-            border: "none", background: "transparent", cursor: uploading ? "default" : "pointer",
-            color: colors.textSecondary, fontSize: 13,
-            padding: `${spacing[2]}px ${spacing[3]}px`, borderRadius: radius.sm,
-            opacity: uploading ? 0.5 : 1,
-          }}
         >
-          {uploading ? "…" : "🖼"}
+          {uploading ? "…" : (
+            <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <circle cx="9" cy="10" r="1.6" />
+              <path d="m3.5 17.5 5-5 4 4 3.5-3.5 4.5 4.5" />
+            </svg>
+          )}
         </button>
       </div>
       <div
         ref={containerRef}
+        className="note-editor-body"
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
         onPaste={handlePaste}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
-        style={{
-          flex: 1,
-          outline: "none",
-          color: colors.textSecondary,
-          fontSize: 15,
-          lineHeight: "26px",
-          minHeight: "60vh",
-        }}
+        style={{ flex: 1, outline: "none", minHeight: "60vh" }}
       />
     </div>
   );

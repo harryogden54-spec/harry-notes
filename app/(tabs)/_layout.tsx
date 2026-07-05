@@ -8,6 +8,7 @@ import { spacing, fontFamily, getShadow, layout } from "@/lib/theme";
 import { useTasksActions } from "@/lib/TasksContext";
 import { useNotesActions } from "@/lib/NotesContext";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
+import { RouteFade } from "@/components/ui";
 import {
   PersistentHeader, OfflineBanner, Sidebar, ShortcutsHelp, GlobalSearchModal, NAV_ITEMS,
 } from "@/components/nav";
@@ -47,6 +48,17 @@ export default function TabLayout() {
   const [showQuickAdd, setShowQuickAdd]         = useState(false);
   const [showShortcuts, setShowShortcuts]       = useState(false);
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+
+  // Browser tab title follows the active screen (web only).
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const item = NAV_ITEMS.find(i =>
+      i.name === "index"
+        ? (pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/")
+        : pathname?.includes(`/${i.name}`)
+    );
+    document.title = item && item.name !== "index" ? `${item.label} · harry.` : "harry.";
+  }, [pathname]);
 
   // Global keyboard shortcuts (web only)
   useEffect(() => {
@@ -111,11 +123,13 @@ export default function TabLayout() {
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PersistentHeader showTitle={false} />
           <OfflineBanner />
-          <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
-            {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
-            <Tabs.Screen name="calendar" options={{ href: null }} />
-            <Tabs.Screen name="lists" options={{ href: null }} />
-          </Tabs>
+          <RouteFade>
+            <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
+              {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
+              <Tabs.Screen name="calendar" options={{ href: null }} />
+              <Tabs.Screen name="lists" options={{ href: null }} />
+            </Tabs>
+          </RouteFade>
         </View>
         {/* Quick-add — desktop's only add-from-anywhere affordance was the search bar; this mirrors the mobile FAB. */}
         <Pressable
