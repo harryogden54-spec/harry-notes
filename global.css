@@ -67,3 +67,14 @@ html {
 ::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 /* No rubber-band overscroll flash behind the app shell. */
 html, body { overscroll-behavior-y: none; }
+
+/* ── Mobile zoom guards ─────────────────────────────────────────────────── */
+/* Kill the 300ms double-tap-to-zoom gesture (app UI, not a document) and
+   stop iOS/Android inflating text on orientation change. The input-focus
+   auto-zoom is handled by maximum-scale=1 in the viewport meta, injected at
+   export time by scripts/inject-pwa-head.js. */
+html, body {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

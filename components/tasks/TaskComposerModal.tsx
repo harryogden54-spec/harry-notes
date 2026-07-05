@@ -154,7 +154,7 @@ export function TaskComposerModal({ visible, onClose, initialTitle, onCreated }:
 
   const content = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0 } as any} />
+      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any} />
       <Animated.View
         entering={FadeIn.duration(150)}
         exiting={FadeOut.duration(100)}
@@ -173,9 +173,10 @@ export function TaskComposerModal({ visible, onClose, initialTitle, onCreated }:
     </View>
   );
 
-  if (Platform.OS === "web") {
-    return <View style={{ position: "absolute", inset: 0, zIndex: 100 } as any}>{content}</View>;
-  }
+  // Real <Modal> on every platform — RNW portals it to the document root, so
+  // it can't lose the paint-order fight with animated cards later in the DOM
+  // (the previous inline position:absolute overlay was anchored to whatever
+  // component mounted it and rendered UNDER the task board).
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       {content}

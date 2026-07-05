@@ -139,7 +139,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
 
   const content = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0 } as any} />
+      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any} />
       <Animated.View
         entering={FadeIn.duration(150)}
         exiting={FadeOut.duration(100)}
@@ -302,13 +302,11 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     </View>
   );
 
-  if (Platform.OS === "web") {
-    if (!visible) return null;
-    return <View style={{ position: "absolute", inset: 0, zIndex: 100 } as any}>{content}</View>;
-  }
-
+  // Real <Modal> on every platform — see TaskComposerModal for the rationale
+  // (RNW portals it to the document root, immune to stacking-context fights).
+  if (!visible) return null;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       {content}
     </Modal>
   );

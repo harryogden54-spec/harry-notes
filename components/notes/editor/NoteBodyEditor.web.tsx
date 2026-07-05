@@ -346,18 +346,65 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     if (!container || !sel || sel.rangeCount === 0) return;
     const block = findTopLevelBlock(container, sel.getRangeAt(0).startContainer);
     if (!block) return;
-    const isSpecial = block.tagName === "H1" || block.tagName === "H2" || block.tagName === "H3"
-      || block.getAttribute("data-md-type") === "bullet" || block.getAttribute("data-md-type") === "checkbox";
-    if (!isSpecial) return; // let the browser's default Enter create a plain sibling div
+    const mdType = block.getAttribute("data-md-type");
+    const isHeading = block.tagName === "H1" || block.tagName === "H2" || block.tagName === "H3";
+    const isList = mdType === "bullet" || mdType === "checkbox";
+    if (!isHeading && !isList) return; // let the browser's default Enter create a plain sibling div
+
     e.preventDefault();
-    const next = document.createElement("div");
-    next.innerHTML = "<br/>";
-    block.after(next);
-    const range = document.createRange();
-    range.setStart(next, 0);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
+    const placeCaret = (el: HTMLElement) => {
+      const range = document.createRange();
+      range.setStart(el, 0);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+
+    if (isList) {
+      const contentEl = mdType === "checkbox"
+        ? block.querySelector('[data-md-checkbox-label]') as HTMLElement | null
+        : block;
+      const text = contentEl?.textContent ?? "";
+
+      // Enter on an empty item exits the list (iOS Notes behaviour).
+      if (text.trim() === "") {
+        const plain = document.createElement("div");
+        plain.innerHTML = "<br/>";
+        block.replaceWith(plain);
+        placeCaret(plain);
+        serialize();
+        return;
+      }
+
+      // Continue the list: new item of the same type; anything after the
+      // caret moves into it (standard mid-line split).
+      const next = createBlockElement({ type: mdType as BlockType, text: "", checked: false });
+      const nextContent = mdType === "checkbox"
+        ? next.querySelector('[data-md-checkbox-label]') as HTMLElement
+        : next;
+      if (contentEl) {
+        const caret = sel.getRangeAt(0);
+        const tail = document.createRange();
+        tail.selectNodeContents(contentEl);
+        try { tail.setStart(caret.startContainer, caret.startOffset); } catch { /* caret outside label */ }
+        const frag = tail.extractContents();
+        if (frag.textContent && frag.textContent.length > 0) {
+          nextContent.innerHTML = "";
+          nextContent.appendChild(frag);
+        }
+        if (contentEl.textContent === "" && !contentEl.querySelector("br")) contentEl.innerHTML = "<br/>";
+      }
+      block.after(next);
+      placeCaret(nextContent);
+      serialize();
+      return;
+    }
+
+    // Headings: Enter creates a plain paragraph below.
+    const nextDiv = document.createElement("div");
+    nextDiv.innerHTML = "<br/>";
+    block.after(nextDiv);
+    placeCaret(nextDiv);
     serialize();
   }, [serialize, onWikiQueryChange]);
 
