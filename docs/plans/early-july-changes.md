@@ -195,3 +195,13 @@ Second pass at Harry's request: "focus on the design, layout and performance and
 - `tasks.tsx`: the whole filter chain (visible/done/open/archived/focus/dueThisWeek/board-sort) now one `useMemo` keyed on [tasks, search, filterPriority, sortBy] — was recomputed every render. Removed dead `scheduled`/`someday` computations.
 
 **Verified:** typecheck green; fresh-load browser pass — title 28px/−0.5, board container ~1060px, GlassCard sm shadow, circular checkboxes in TaskRow, dashboard tile 18px/soft-shadow/pastel-dot, no backdrop-filters, no console errors. Test task + note deleted through the UI after.
+
+## Notes page — Harry's mockup layout (2026-07-04)
+
+Harry supplied a hand-drawn mockup for the desktop Notes page: a prominent "New note" button at the top of the left column, the note list as floating bubble cards below it, and the editor in a large rounded panel ("similar feel to iOS Notes"). Implemented:
+
+- `NoteIndexRow` rebuilt as a bubble card — 18px radius frosted surface, soft shadow, hover lift, pastel identity dot; selection = accent border + accent-tinted fill (replaces the old flat row with left-border indicator).
+- Notes desktop column: full-width inverse "New note" button (18px radius, md shadow) as the primary action, search below it, Pinned/All sections of bubbles with 10px gaps; the divider between column and editor is gone — bubbles float on the gradient.
+- Editor wrapped in a 24px-radius floating panel (border + md shadow, overflow hidden) with breathing room around it; empty state got an icon.
+
+**Noted but not built (needs data-model work, out of "no new features" scope):** the mockup's button also says "add tags" — notes have no tags field in the model today. Flagged for a future session.
