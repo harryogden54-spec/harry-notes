@@ -11,7 +11,9 @@ const SHORTCUTS: [string, string][] = [
   ["G then H", "Go to Home"],
   ["G then T", "Go to Tasks"],
   ["G then N", "Go to Notes"],
+  ["G then C", "Go to Courses"],
   ["G then P", "Go to Post Its"],
+  ["G then D", "Go to Dump"],
   ["?",     "Show this panel"],
   ["Esc",   "Close / cancel"],
 ];
