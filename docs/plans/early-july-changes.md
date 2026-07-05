@@ -219,3 +219,25 @@ Harry flagged the notes-page fonts. Root cause: the WYSIWYG contentEditable cont
 Also: toasts are now a 380px bottom-right stack on web (were full-window-width banners on desktop); browser tab title follows the active screen ("Tasks · harry."); previously-dead `RouteFade` component wired into the desktop sidebar layout so tab switches get a 180ms content fade.
 
 **Verification note:** checkbox check-state colors verified via computed styles with transitions disabled — the headless preview tab freezes CSS transitions at 0% (`getAnimations()` showed all stuck at currentTime 0), so transition-target values never appear in computed styles there. Not an app bug.
+
+## Courses page, mobile nav declutter, modal/zoom/editor fixes (2026-07-05)
+
+Next batch from Harry (with mockup for a "Courses" page). Decisions asked & answered up front: mobile bar = **Home · Today · Tasks · Notes · More**; Courses **synced** via Supabase; tables **fully custom** (choose column count/names, per-column type text|tickbox, ring = % of that table's tickboxes ticked).
+
+**Bug fix — New task modal rendered under the board (Harry's screenshot):** `TaskComposerModal`'s web branch was an inline `position:absolute` overlay, mounted inside `AddTaskRow` — so "inset: 0" anchored to the quick-add bar, and the Reanimated card wrappers (own stacking contexts, later in DOM) painted over it. Now a real `<Modal>` on all platforms (RNW portals to document root) + dim scrim. `QuickAddModal` given the same treatment. Verified: portaled outside #root, title input hit-testable, autofocus works.
+
+**Notes editor — Enter continues checklists/bullets:** previously any Enter created a plain div. Now: Enter in a checklist/bullet item creates a new item of the same type; mid-line Enter splits the text into the new item; Enter on an **empty** item exits the list to a plain paragraph (iOS Notes behaviour). Headings still Enter→paragraph.
+
+**Mobile zoom:** Expo's exported viewport meta lacked `maximum-scale`, so iOS auto-zoomed on focusing any sub-16px input and stayed zoomed. `inject-pwa-head.js` now normalizes the viewport tag at export (`maximum-scale=1, user-scalable=no, viewport-fit=cover` — pinch still works in the browser tab; installed PWA behaves app-like). Plus `touch-action: manipulation` + `text-size-adjust: 100%` in global.css.
+
+**Courses (new synced domain):**
+- `lib/CoursesContext.tsx` — `CourseTable { title, columns[{id,name,type}], rows[{id, cells}] }`, data/sync/actions split on `useSyncedCollection` ("courses" table/storage key). `tableProgress()` = ticked/total across checkbox-type cells.
+- SQLite v9 + `dbLoad/dbSaveCourses`; `migrations/004_courses.sql` applied to production via MCP. **Gotcha:** a legacy `courses` table already existed remotely (pre-sync-key era: id/data/updated_at, one row `cd-main` from 2026-03) — migration is additive (ALTER adds sync_key/deleted); the legacy row stays sync_key NULL → invisible to sync, intentionally left.
+- `app/(tabs)/courses.tsx` + `components/courses/`: full-width inverse "New table" button (mockup), table cards (18px frosted recipe) with editable text cells, circular tickboxes, add/delete row, edit-columns modal (stable column ids → cell data survives edits; removed columns pruned), delete with undo toast. Desktop: ring panel beside each table (mockup); mobile: small ring in header. ProgressRing = SVG arc on web, circle fallback native (no react-native-svg dep).
+- Settings "Sync now" was only syncing tasks+notes — now all five domains; `useSyncStatus` + settings pill include courses. `g c` shortcut; ShortcutsHelp updated (also added missing `g d`).
+
+**Mobile nav:** custom `MobileTabBar` (4 tabs + More) replaces the six-tab default; More = slide-up sheet with Post Its / Dump / Courses / Settings, active-route highlighting, safe-area padding. Desktop sidebar untouched — shows everything incl. Courses (Harry: sidebar clutter is not an issue). Dead `useFadeTab`/`TabIcon` deleted from the tab layout.
+
+**Verified (dev, all green console):** composer modal over populated board; checklist continue/split/exit; table create→rows→ticks→ring math (1/2=50%, then 1/4=25% after adding a tickbox column via edit); localStorage persistence; mobile 375px pass (5 tabs, sheet nav, active states); per-route titles on all 7 screens. Prod: viewport meta confirmed via curl; feature markers present in deployed bundle. Test note/tasks/table deleted through the UI after.
+
+**Supabase advisory (pre-existing, surfaced to Harry):** RLS is disabled on all public tables by design (no-login sync-key namespacing) — anyone with the anon key can read/write. Known architectural tradeoff, not introduced by this change.

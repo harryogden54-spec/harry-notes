@@ -91,12 +91,15 @@ Always prefer these over raw RN primitives to keep styling consistent.
 
 ## Current state
 Built: tasks (category board + composer modal), notes (Pinned/All Notes, WYSIWYG editor on web),
-lists, calendar tabs, postits, dump (frictionless capture, migration 003),
+courses (custom checkbox-progress tables + rings, migration 004), lists, calendar tabs, postits,
+dump (frictionless capture, migration 003),
 settings screen, theme system (30-swatch accent palette), Supabase sync,
 Atelier design system (shadow/type/layout/motion tokens + per-theme kits in `lib/theme.ts`),
-split data/sync/actions contexts, delta-cursor sync with tombstones.
+split data/sync/actions contexts, delta-cursor sync with tombstones,
+mobile nav = 4 tabs + More sheet (custom `MobileTabBar`; desktop sidebar shows everything).
 "Early July Changes" programme (Claude Design redesign, WYSIWYG editor, accent palette, PWA icon
-fix, UI polish sweep) shipped 2026-07-03 — full history + decisions in `docs/plans/early-july-changes.md`.
+fix, UI polish sweep) shipped 2026-07-03; Courses page + nav declutter + modal/zoom/editor fixes
+shipped 2026-07-05 — full history + decisions in `docs/plans/early-july-changes.md`.
 In progress: —
 Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
 memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal) —
