@@ -8,8 +8,7 @@ import { Platform } from "react-native";
 // ─── Theme types ──────────────────────────────────────────────────────────────
 
 export type ThemeId =
-  | "obsidian" | "nord" | "graphite" | "rose" | "evergreen"
-  | "mocha" | "midnight" | "dune" | "solar" | "ember";
+  | "obsidian" | "nord" | "graphite" | "evergreen" | "solar" | "ember";
 
 export type ThemeTokens = {
   bgPrimary: string;
@@ -31,7 +30,7 @@ export type ThemeTokens = {
 const SEMANTIC_DARK  = { success: "#3DD68C", warning: "#F5A623", danger: "#F26464" } as const;
 const SEMANTIC_LIGHT = { success: "#1E8A5A", warning: "#B86E00", danger: "#C0392B" } as const;
 
-// ─── Named themes (10) ────────────────────────────────────────────────────────
+// ─── Named themes (6) ─────────────────────────────────────────────────────────
 
 export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: ThemeTokens }> = {
   obsidian: {
@@ -79,21 +78,6 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       ...SEMANTIC_LIGHT,
     },
   },
-  rose: {
-    label: "Rosé",
-    dark: {
-      bgPrimary: "#1E1518", bgSecondary: "#251B1F", bgTertiary: "#2E2228", bgBorder: "#3D2D34",
-      textPrimary: "#F2E8EC", textSecondary: "#C4A0B0", textTertiary: "#7A5A68", textInverse: "#1E1518",
-      accent: "#D4849A", accentHover: "#E494AA", accentSubtle: "#2E1A22",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#FDF4F6", bgSecondary: "#F5E8ED", bgTertiary: "#EDD8E0", bgBorder: "#DFC8D2",
-      textPrimary: "#2A1520", textSecondary: "#6B3A4A", textTertiary: "#9A7080", textInverse: "#FDF4F6",
-      accent: "#C0607A", accentHover: "#D0708A", accentSubtle: "#FAE8ED",
-      ...SEMANTIC_LIGHT,
-    },
-  },
   evergreen: {
     label: "Evergreen",
     dark: {
@@ -106,51 +90,6 @@ export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: 
       bgPrimary: "#F2F8F3", bgSecondary: "#E4F0E6", bgTertiary: "#D4E8D8", bgBorder: "#BDD8C4",
       textPrimary: "#0D2A14", textSecondary: "#2A5A34", textTertiary: "#5A8A64", textInverse: "#F2F8F3",
       accent: "#3A8A4A", accentHover: "#4A9A5A", accentSubtle: "#DFF0E2",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  mocha: {
-    label: "Mocha",
-    dark: {
-      bgPrimary: "#1E1E2E", bgSecondary: "#252537", bgTertiary: "#2D2D44", bgBorder: "#3A3A55",
-      textPrimary: "#CDD6F4", textSecondary: "#A6ADC8", textTertiary: "#6C7086", textInverse: "#1E1E2E",
-      accent: "#CBA6F7", accentHover: "#DBB6FF", accentSubtle: "#2C1F3D",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#EFF1F5", bgSecondary: "#E6E9EF", bgTertiary: "#DCE0E8", bgBorder: "#BCC0CC",
-      textPrimary: "#4C4F69", textSecondary: "#6C6F85", textTertiary: "#8C8FA1", textInverse: "#EFF1F5",
-      accent: "#8839EF", accentHover: "#9849FF", accentSubtle: "#F0E5FA",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  midnight: {
-    label: "Midnight",
-    dark: {
-      bgPrimary: "#050810", bgSecondary: "#080C18", bgTertiary: "#0C1220", bgBorder: "#141C30",
-      textPrimary: "#E8F0FF", textSecondary: "#6080B8", textTertiary: "#2A3A5A", textInverse: "#050810",
-      accent: "#3A7AFF", accentHover: "#4A8AFF", accentSubtle: "#0A1428",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F0F4FF", bgSecondary: "#E4ECFF", bgTertiary: "#D4E0FF", bgBorder: "#B8CCFF",
-      textPrimary: "#080C28", textSecondary: "#1A2A60", textTertiary: "#4A60A0", textInverse: "#F0F4FF",
-      accent: "#1A54FF", accentHover: "#2A64FF", accentSubtle: "#E0E8FF",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  dune: {
-    label: "Dune",
-    dark: {
-      bgPrimary: "#1C1810", bgSecondary: "#242016", bgTertiary: "#2C281C", bgBorder: "#3C3428",
-      textPrimary: "#F0EAD8", textSecondary: "#C8B890", textTertiary: "#7A6848", textInverse: "#1C1810",
-      accent: "#C8A86A", accentHover: "#D8B87A", accentSubtle: "#2C2010",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#FAF6EE", bgSecondary: "#F2ECD8", bgTertiary: "#EAE2C8", bgBorder: "#D8CEB0",
-      textPrimary: "#2A2010", textSecondary: "#5A4A28", textTertiary: "#8A7A58", textInverse: "#FAF6EE",
-      accent: "#9A7A40", accentHover: "#AA8A50", accentSubtle: "#F5EDD8",
       ...SEMANTIC_LIGHT,
     },
   },
@@ -313,6 +252,11 @@ export const ACCENT_OPTIONS = [
   { id: "moss",    label: "Moss",    color: "#A3BE8C", hover: "#B3CE9C", subtle: "#1E2B1A", lightSubtle: "#E8F0E2" },
   { id: "orchid",  label: "Orchid",  color: "#B48EAD", hover: "#C49EBD", subtle: "#271C27", lightSubtle: "#EDE3EC" },
   { id: "amber",   label: "Amber",   color: "#D08770", hover: "#E09780", subtle: "#301A12", lightSubtle: "#F5E5DF" },
+  { id: "crimson", label: "Crimson", color: "#DC5A6A", hover: "#EC6A7A", subtle: "#331418", lightSubtle: "#FBE4E7" },
+  { id: "gold",    label: "Gold",    color: "#D4A72C", hover: "#E4B73C", subtle: "#2E2508", lightSubtle: "#F8EFD4" },
+  // Grayscale accents — for a fully monochrome look on any theme.
+  { id: "slate",   label: "Slate",   color: "#7C8698", hover: "#8C96A8", subtle: "#20242C", lightSubtle: "#E6E9EE" },
+  { id: "mono",    label: "Mono",    color: "#9A9A9A", hover: "#AAAAAA", subtle: "#262626", lightSubtle: "#E8E8E8" },
 ] as const;
 
 export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
@@ -397,30 +341,10 @@ const KIT_SPECS: Record<ThemeId, KitSpec> = {
     wash: { dark: ["#98989D", "#6E6E73"], light: ["#8E8E93", "#B0B0B5"] },
     hero: { dark: ["#AEAEB2", "#8E8E93"], light: ["#636366", "#8E8E93"] },
   },
-  rose: { // warm blush paper
-    hues: [340, 320, 10, 25, 285, 350], sat: 0.9,
-    wash: { dark: ["#D4849A", "#B86A9A"], light: ["#C0607A", "#D88AA8"] },
-    hero: { dark: ["#D4849A", "#E8A8B8"], light: ["#C0607A", "#A84878"] },
-  },
   evergreen: { // botanical
     hues: [140, 95, 170, 60, 200, 28], sat: 0.85,
     wash: { dark: ["#6DBF7E", "#3A9A8A"], light: ["#3A8A4A", "#6ABF8E"] },
     hero: { dark: ["#6DBF7E", "#9ACD6A"], light: ["#3A8A4A", "#2A7A6A"] },
-  },
-  mocha: { // catppuccin lavenders
-    hues: [267, 343, 217, 115, 23, 41], sat: 0.95,
-    wash: { dark: ["#CBA6F7", "#F5C2E7"], light: ["#8839EF", "#EA76CB"] },
-    hero: { dark: ["#CBA6F7", "#89B4FA"], light: ["#8839EF", "#1E66F5"] },
-  },
-  midnight: { // deep-water blues
-    hues: [222, 245, 205, 265, 190, 280], sat: 0.95,
-    wash: { dark: ["#3A7AFF", "#7048E8"], light: ["#1A54FF", "#6A8AFF"] },
-    hero: { dark: ["#3A7AFF", "#00C2FF"], light: ["#1A54FF", "#0090E8"] },
-  },
-  dune: { // desert warmth
-    hues: [40, 25, 58, 15, 80, 345], sat: 0.85,
-    wash: { dark: ["#C8A86A", "#A87A4A"], light: ["#9A7A40", "#C8A86A"] },
-    hero: { dark: ["#C8A86A", "#E8C88A"], light: ["#9A7A40", "#B8924A"] },
   },
   solar: { // dawn-lit lagoon
     hues: [45, 18, 175, 205, 68, 331], sat: 0.85,

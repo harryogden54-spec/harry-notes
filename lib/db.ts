@@ -20,7 +20,8 @@ export function getDb(): SQLite.SQLiteDatabase {
 // v7: query indexes on created_at / archived / pinned (created in the
 // always-run block below — CREATE INDEX IF NOT EXISTS covers old installs).
 // v8: dumps table added.
-const SCHEMA_VERSION = 8;
+// v9: notes.archived column (notes archive feature).
+const SCHEMA_VERSION = 9;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -65,6 +66,7 @@ export async function initDb(): Promise<void> {
       title      TEXT NOT NULL DEFAULT '',
       body       TEXT NOT NULL DEFAULT '',
       pinned     INTEGER NOT NULL DEFAULT 0,
+      archived   INTEGER NOT NULL DEFAULT 0,
       type       TEXT NOT NULL DEFAULT 'note',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -159,6 +161,13 @@ export async function initDb(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_dumps_created ON dumps(created_at);
     `);
+  }
+
+  if (current < 9) {
+    // v9: notes archive flag.
+    const nCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(notes)");
+    const nNames = nCols.map(c => c.name);
+    if (!nNames.includes("archived")) await db.execAsync("ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
   }
 
   if (current < SCHEMA_VERSION) {
@@ -335,7 +344,9 @@ export async function dbLoadNotes(): Promise<any[]> {
     title: r.title,
     body: r.body,
     pinned: !!r.pinned,
-    type: (r.type ?? "note") as "note" | "postit",
+    archived: !!r.archived,
+    // Legacy "postit" rows are coerced to "note" by normalizeNote on load.
+    type: (r.type ?? "note") as "note",
     created_at: r.created_at,
     updated_at: r.updated_at,
   }));
@@ -372,9 +383,9 @@ export async function dbSaveDumps(dumps: any[], changes?: SaveChanges): Promise<
 export async function dbSaveNotes(notes: any[], changes?: SaveChanges): Promise<void> {
   enqueue("notes", toReq(notes, changes), (req) => runSave("notes", req, async (db, n) => {
     await db.runAsync(
-      `INSERT OR REPLACE INTO notes (id,title,body,pinned,type,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
+      `INSERT OR REPLACE INTO notes (id,title,body,pinned,archived,type,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
       [
-        n.id, n.title ?? "", n.body ?? "", n.pinned ? 1 : 0,
+        n.id, n.title ?? "", n.body ?? "", n.pinned ? 1 : 0, n.archived ? 1 : 0,
         n.type ?? "note",
         n.created_at, n.updated_at ?? n.created_at,
       ]

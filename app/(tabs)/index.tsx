@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, radius, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
+import { spacing, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
@@ -88,7 +88,7 @@ function TodayPanel() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { colors, notePastels, scheme } = useTheme();
+  const { colors, notePastels } = useTheme();
   const { open: openPalette }  = useCommandPalette();
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
@@ -131,17 +131,13 @@ function DashboardScreen() {
   const overdueTasks = useMemo(() => openTasks.filter(t => !!t.due_date && t.due_date < today), [openTasks, today]);
   const overdueCount = overdueTasks.length;
 
-  const { sortedNotes, sortedPostIts } = useMemo(() => {
-    const allSorted = [...notes].sort(cmpRecentDesc);
-    return {
-      sortedNotes:   allSorted.filter(n => n.type !== "postit"),
-      sortedPostIts: allSorted.filter(n => n.type === "postit"),
-    };
-  }, [notes]);
+  const sortedNotes = useMemo(
+    () => notes.filter(n => !n.archived).sort(cmpRecentDesc),
+    [notes]
+  );
 
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
   const handleGoToNotes   = useCallback(() => router.push("/(tabs)/notes"), [router]);
-  const handleGoToPostIts = useCallback(() => router.push("/(tabs)/postits"), [router]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -341,54 +337,6 @@ function DashboardScreen() {
     </View>
   ) : null;
 
-  // ─── Post Its preview ─────────────────────────────────────────────────────────
-
-  const postItsRow = !notesLoaded ? (
-    <View style={{ marginBottom: spacing[6] }}>
-      <SectionHeader label="Post Its" />
-      <View style={{ flexDirection: "row", gap: spacing[2] }}>
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} width={140} height={72} borderRadius={radius.lg} />
-        ))}
-      </View>
-    </View>
-  ) : sortedPostIts.length > 0 ? (
-    <View style={{ marginBottom: spacing[6] }}>
-      <SectionHeader label="Post Its" count={sortedPostIts.length} action={{ label: "See all", onPress: handleGoToPostIts }} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: spacing[3] }}
-      >
-        {sortedPostIts.slice(0, 6).map(n => {
-          const pi = getNotePastelIndex(n.id);
-          return (
-            <Pressable
-              key={n.id}
-              onPress={handleGoToPostIts}
-              style={{ width: 140, marginRight: spacing[2] }}
-            >
-              <View style={{
-                backgroundColor: notePastels.bg[pi],
-                borderWidth: 1,
-                borderColor: notePastels.border[pi],
-                borderRadius: radius.lg,
-                padding: spacing[3],
-                minHeight: 72,
-                justifyContent: "center",
-                ...getShadow("xs", scheme),
-              }}>
-                <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, lineHeight: 18 }}>
-                  {n.title || "…"}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  ) : null;
-
   // ─── Main content ─────────────────────────────────────────────────────────────
 
   const mainContent = (
@@ -405,7 +353,6 @@ function DashboardScreen() {
           <View style={{ marginBottom: spacing[6] }}>{todayCard}</View>
         </>
       )}
-      {postItsRow}
       {notesRow}
     </>
   );
@@ -435,7 +382,6 @@ function DashboardScreen() {
               onChange={setSearch}
               placeholder="Search tasks, lists, notes…"
               inputRef={searchRef}
-              shortcutKey="/"
               onSubmitEditing={() => {
                 const q = search.trim();
                 if (q) { addTask(q); setSearch(""); showToast(`Added: ${q}`); }

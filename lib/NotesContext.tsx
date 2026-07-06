@@ -20,7 +20,10 @@ export type Note = {
   body: string;
   blocks?: Block[];        // structured block content — takes priority over body when present
   pinned: boolean;
-  type: "note" | "postit";
+  archived?: boolean;
+  // Post-its were retired 2026-07; normalizeNote coerces legacy "postit" rows
+  // to "note" so old post-its show up as regular notes.
+  type: "note";
   created_at: string;
   updated_at?: string;
 };
@@ -38,11 +41,13 @@ type NotesSync = {
 };
 
 type NotesActions = {
-  addNote: (type?: "note" | "postit") => string;
+  addNote: () => string;
   bulkAddNotes: (notes: Note[]) => void;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => void;
   deleteNote: (id: string) => () => void;
   pinNote: (id: string) => void;
+  archiveNote: (id: string) => void;
+  unarchiveNote: (id: string) => void;
   toggleBlockCheck: (noteId: string, blockId: string) => void;
 };
 
@@ -72,7 +77,8 @@ function normalizeNote(n: Note): Note {
     title:  typeof n.title === "string" ? n.title : "",
     body:   typeof n.body  === "string" ? n.body  : "",
     pinned: !!n.pinned,
-    type:   n.type === "postit" ? "postit" : "note",
+    archived: !!n.archived,
+    type:   "note",
     created_at: created,
     updated_at: typeof n.updated_at === "string" && n.updated_at ? n.updated_at : created,
   };
@@ -106,15 +112,17 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     },
     // Coerce remote rows — older rows may be missing type/body/title.
     normalizeRemote: (row) => normalizeNote(row),
+    // Never un-archive a locally-archived note when remote wins.
+    mergeRow: (local, remote) => ({ ...remote, archived: remote.archived ?? local.archived }),
   });
 
-  const addNote = useCallback((type: "note" | "postit" = "note"): string => {
+  const addNote = useCallback((): string => {
     const id  = newId();
     const now = new Date().toISOString();
-    // Both notes and post-its are plain markdown `body` strings — one editable
-    // TextInput, so text is fully selectable/copyable. (Legacy block notes are
-    // converted to markdown by migrateBlocksToBody.)
-    const note: Note = { id, title: "", body: "", pinned: false, type, created_at: now, updated_at: now };
+    // Notes are plain markdown `body` strings — one editable TextInput, so text
+    // is fully selectable/copyable. (Legacy block notes are converted to
+    // markdown by migrateBlocksToBody.)
+    const note: Note = { id, title: "", body: "", pinned: false, type: "note", created_at: now, updated_at: now };
     markDirty(id);
     setNotes(prev => [note, ...prev]);
     return id;
@@ -170,14 +178,24 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, pinned: !n.pinned }) : n));
   }, [markDirty, setNotes]);
 
+  const archiveNote = useCallback((id: string) => {
+    markDirty(id);
+    setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, archived: true }) : n));
+  }, [markDirty, setNotes]);
+
+  const unarchiveNote = useCallback((id: string) => {
+    markDirty(id);
+    setNotes(prev => prev.map(n => n.id === id ? stamp({ ...n, archived: false }) : n));
+  }, [markDirty, setNotes]);
+
   const dataValue = useMemo(() => ({ notes, loaded }), [notes, loaded]);
   const syncValue = useMemo(
     () => ({ syncStatus, lastSynced, syncNow }),
     [syncStatus, lastSynced, syncNow]
   );
   const actionsValue = useMemo(
-    () => ({ addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck }),
-    [addNote, bulkAddNotes, updateNote, deleteNote, pinNote, toggleBlockCheck]
+    () => ({ addNote, bulkAddNotes, updateNote, deleteNote, pinNote, archiveNote, unarchiveNote, toggleBlockCheck }),
+    [addNote, bulkAddNotes, updateNote, deleteNote, pinNote, archiveNote, unarchiveNote, toggleBlockCheck]
   );
 
   return (

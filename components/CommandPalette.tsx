@@ -55,7 +55,7 @@ export function CommandPalette() {
       .slice(0, 5)
       .forEach(t => out.push({ type: "task", task: t }));
     notes
-      .filter(n => (n.title + " " + n.body).toLowerCase().includes(q))
+      .filter(n => !n.archived && (n.title + " " + n.body).toLowerCase().includes(q))
       .slice(0, 3)
       .forEach(n => out.push({
         type: "note", id: n.id,

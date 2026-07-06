@@ -223,7 +223,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     // ── Recent items ──────────────────────────────────────────────────────────
     const recent = [
       ...tasks.filter(t => !t.archived).map(t => ({ label: t.title, sub: "Task", stamp: t.updated_at ?? t.created_at ?? "", run: () => { onClose(); router.push(`/(tabs)/tasks?taskId=${t.id}` as any); } })),
-      ...notes.map(n => ({ label: n.title || "Untitled", sub: "Note", stamp: n.updated_at ?? n.created_at, run: () => { onClose(); router.push(`/(tabs)/notes?openId=${n.id}` as any); } })),
+      ...notes.filter(n => !n.archived).map(n => ({ label: n.title || "Untitled", sub: "Note", stamp: n.updated_at ?? n.created_at, run: () => { onClose(); router.push(`/(tabs)/notes?openId=${n.id}` as any); } })),
     ]
       .sort((a, b) => (b.stamp ?? "").localeCompare(a.stamp ?? ""))
       .filter(r => matches(r.label, q))
@@ -269,7 +269,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
 
   // Feature 4: create a note pre-seeded with [[Task title]] and navigate to it.
   function handleTakeNote(taskTitle: string) {
-    const id = addNote("note");
+    const id = addNote();
     updateNote(id, {
       title: `Notes: ${taskTitle}`,
       body: `[[${taskTitle}]]\n\n`,

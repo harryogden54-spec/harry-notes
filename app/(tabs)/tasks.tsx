@@ -54,9 +54,6 @@ function TasksScreen() {
   const taskYPositions = useRef<Record<string, number>>({});
   // Refs for keyboard navigation (j/k/x) — keep current values accessible
   // inside the stable keyboard-handler closure without re-registering on every render.
-  const navTasksRef      = useRef<Task[]>([]);
-  const selectedIdRef    = useRef<string | null>(null);
-  const isDesktopRef     = useRef(false);
 
   const handleTaskMeasureY = useCallback((id: string, y: number) => {
     taskYPositions.current[id] = y;
@@ -95,44 +92,6 @@ function TasksScreen() {
       }, 350);
     }
   }, [params.create, params.taskId, isDesktop]);
-
-  // Web keyboard shortcuts
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    function onKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "n" || e.key === "N") { e.preventDefault(); addInputRef.current?.focus(); }
-      if (e.key === "Escape") { setExpandedId(null); setSelectedTaskId(null); setSelectMode(false); setSelectedIds(new Set()); }
-      if (e.key === "f" || e.key === "F") { e.preventDefault(); setFocusMode(v => !v); }
-      // j/k navigate task list; x toggles the currently selected task.
-      if (e.key === "j" || e.key === "J" || e.key === "k" || e.key === "K") {
-        e.preventDefault();
-        const tasks = navTasksRef.current;
-        if (tasks.length === 0) return;
-        const currId  = selectedIdRef.current;
-        const currIdx = tasks.findIndex(t => t.id === currId);
-        const nextIdx = e.key === "j" || e.key === "J"
-          ? Math.min(currIdx + 1, tasks.length - 1)
-          : Math.max(currIdx - 1, 0);
-        const nextId = tasks[Math.max(nextIdx, 0)]?.id;
-        if (!nextId) return;
-        if (isDesktopRef.current) setSelectedTaskId(nextId);
-        else { setExpandedId(nextId); setSelectedTaskId(nextId); }
-        // Scroll the newly focused task into view
-        setTimeout(() => {
-          const y = taskYPositions.current[nextId];
-          if (y !== undefined) scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 120), animated: true });
-        }, 0);
-      }
-      if (e.key === "x" || e.key === "X") {
-        const id = selectedIdRef.current;
-        if (id) toggleTask(id);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [toggleTask]); // toggleTask is stable (useCallback with stable deps)
 
   const handleAdd = useCallback((title: string, due_date?: string, category?: TaskCategory, uniCourse?: UniCourse) => {
     const id = addTask(title, due_date);
@@ -199,11 +158,6 @@ function TasksScreen() {
   const open       = tasks.filter(t => !t.done && !t.archived);
   const archived   = tasks.filter(t => t.archived);
   const focusTasks = [...overdue, ...todayTasks];
-
-  // Keep refs in sync for the stable keyboard handler below.
-  navTasksRef.current   = focusMode ? focusTasks : visible.filter(t => !t.done);
-  selectedIdRef.current = isDesktop ? selectedTaskId : expandedId;
-  isDesktopRef.current  = isDesktop;
 
   const effectiveExpandedId = isDesktop ? selectedTaskId : expandedId;
   const sectionProps = {
@@ -374,7 +328,7 @@ function TasksScreen() {
                   <Section label={`Focus · ${focusTasks.length}`} tasks={focusTasks} {...sectionProps} />
                 )
               ) : tasks.length === 0 ? (
-                <EmptyState type="tasks" title="No tasks yet" subtitle={'Tap the field above or press "N" to add your first task.'} />
+                <EmptyState type="tasks" title="No tasks yet" subtitle="Tap the field above to add your first task." />
               ) : !grouped ? (
                 <>
                   <Section label="All tasks" tasks={applySort(visible.filter(t => !t.done), sortBy)} {...sectionProps} />

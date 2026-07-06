@@ -45,7 +45,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const pinnedNotes = notes
-    .filter(n => n.pinned && n.type !== "postit")
+    .filter(n => n.pinned && !n.archived)
     .sort(cmpRecentDesc);
 
 

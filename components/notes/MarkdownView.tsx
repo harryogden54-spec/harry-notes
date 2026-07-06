@@ -33,17 +33,25 @@ function renderInlineUncached(text: string, colors: Colors): React.ReactNode {
   let remaining = text;
   let keyIdx = 0;
 
-  const patterns: [RegExp, (inner: string) => React.ReactNode][] = [
-    [/\*\*(.+?)\*\*/s, (s) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{s}</Text>],
-    [/__(.+?)__/s,     (s) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{s}</Text>],
-    [/_(.+?)_/s,       (s) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{s}</Text>],
-    [/\*(.+?)\*/s,     (s) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{s}</Text>],
-    [/`(.+?)`/s,       (s) => <Text key={keyIdx++} style={{ fontFamily: "monospace" as any, fontSize: 13, color: colors.accent, backgroundColor: colors.bgTertiary }}>{` ${s} `}</Text>],
-    [/\[\[(.+?)\]\]/s, (s) => <Text key={keyIdx++} style={{ color: colors.accent, textDecorationLine: "underline" }}>{s}</Text>],
+  const patterns: [RegExp, (m: RegExpMatchArray) => React.ReactNode][] = [
+    [/\*\*(.+?)\*\*/s, (m) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{m[1]}</Text>],
+    [/__(.+?)__/s,     (m) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{m[1]}</Text>],
+    [/_(.+?)_/s,       (m) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{m[1]}</Text>],
+    [/\*(.+?)\*/s,     (m) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{m[1]}</Text>],
+    [/`(.+?)`/s,       (m) => <Text key={keyIdx++} style={{ fontFamily: "monospace" as any, fontSize: 13, color: colors.accent, backgroundColor: colors.bgTertiary }}>{` ${m[1]} `}</Text>],
+    [/\[\[(.+?)\]\]/s, (m) => <Text key={keyIdx++} style={{ color: colors.accent, textDecorationLine: "underline" }}>{m[1]}</Text>],
+    // Note tags: `//tag` at line start or after whitespace (never protocol
+    // slashes in URLs). m[1] = leading whitespace, m[2] = tag name.
+    [/(^|\s)\/\/([A-Za-z0-9_-]+)/, (m) => (
+      <Text key={keyIdx++} style={{ color: colors.textSecondary }}>
+        {m[1]}
+        <Text style={{ color: colors.accent, backgroundColor: `${colors.accent}1A`, fontFamily: fontFamily.medium }}>{`//${m[2]}`}</Text>
+      </Text>
+    )],
   ];
 
   while (remaining.length > 0) {
-    let earliest: { index: number; match: RegExpMatchArray; render: (s: string) => React.ReactNode } | null = null;
+    let earliest: { index: number; match: RegExpMatchArray; render: (m: RegExpMatchArray) => React.ReactNode } | null = null;
     for (const [regex, render] of patterns) {
       const m = remaining.match(regex);
       if (m && m.index !== undefined) {
@@ -55,7 +63,7 @@ function renderInlineUncached(text: string, colors: Colors): React.ReactNode {
       break;
     }
     if (earliest.index > 0) parts.push(<Text key={keyIdx++} style={{ color: colors.textSecondary }}>{remaining.slice(0, earliest.index)}</Text>);
-    parts.push(earliest.render(earliest.match[1]));
+    parts.push(earliest.render(earliest.match));
     remaining = remaining.slice(earliest.index + earliest.match[0].length);
   }
   return parts;
