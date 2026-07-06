@@ -34,7 +34,7 @@ One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Erro
 ### Routing
 
 expo-router file-based routing. All screens live under `app/`:
-- `app/(tabs)/` — tab bar: `index` (Dashboard), `today`, `tasks`, `notes`, `postits`, `dump`; `lists` and `calendar` also live here but are hidden from the tab bar (`href: null`)
+- `app/(tabs)/` — tab bar: `index` (Dashboard), `today`, `tasks`, `notes`, `dump`; `lists` and `calendar` also live here but are hidden from the tab bar (`href: null`). Post-its were removed 2026-07-06; legacy `type: "postit"` notes are coerced to regular notes on load.
 - `app/settings.tsx` — modal screen
 - `app/_layout.tsx` — root layout: wraps everything in providers, initialises the DB, requests notification permissions
 
@@ -86,11 +86,14 @@ Always prefer these over raw RN primitives to keep styling consistent.
 - Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
 
 ## Current state
-Built: tasks, notes, lists, calendar tabs, postits, dump (frictionless capture, migration 003),
-settings screen, theme system, Supabase sync,
+Built: tasks, notes (sort Recent/Added/A–Z, archive, `//tag` inline tags + filter chips), lists, calendar tabs, dump (frictionless capture, migration 003),
+settings screen, theme system (6 themes: Obsidian/Nord/Graphite/Evergreen/Solar/Ember; 10 accents incl. Slate/Mono grayscale; header button = light/dark toggle), Supabase sync,
 Atelier design system (shadow/type/layout/motion tokens + per-theme kits in `lib/theme.ts`),
-split data/sync/actions contexts, delta-cursor sync with tombstones
-In progress: — (Dump tab shipped + deployed 2026-06-30; dev-server web font loading fixed same day — see "Web fonts" above)
+split data/sync/actions contexts, delta-cursor sync with tombstones.
+Removed 2026-07-06: post-its section (dashboard secondary FAB now creates a note) and ALL web keyboard shortcuts (g-chords / `/` / `?` / tasks n/f/j/k/x — they intercepted letters while typing in the notes editor). Do not reintroduce shortcuts unprompted.
+iOS Safari input-focus auto-zoom fixed via viewport `maximum-scale=1` — set at runtime in `lib/webViewport.ts` and statically by `scripts/inject-pwa-head.js`; keep the two in sync.
+In progress: —
+On hold (user will ask): remake the iOS widget; further themes redesign beyond the 2026-07-06 trim.
 Not started: calendar screen memoization polish (hidden screen, deferred)
 
 > Update "In progress" and "Not started" at the start of each session.

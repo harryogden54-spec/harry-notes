@@ -21,15 +21,37 @@ const TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png" />
     <meta name="apple-mobile-web-app-title" content="harry notes" />
 `;
 
-let html = fs.readFileSync(INDEX, "utf8");
+// Keep in sync with VIEWPORT_CONTENT in lib/webViewport.ts.
+// maximum-scale=1 stops iOS Safari auto-zooming on input focus (font-size
+// <16px); pinch-zoom still works — iOS ignores maximum-scale for gestures.
+const VIEWPORT_CONTENT =
+  "width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, viewport-fit=cover";
 
+let html = fs.readFileSync(INDEX, "utf8");
+let changed = false;
+
+// ── Viewport (iOS input-focus zoom fix) ─────────────────────────────────────
+const viewportTag = `<meta name="viewport" content="${VIEWPORT_CONTENT}" />`;
+if (/<meta name="viewport"[^>]*>/.test(html)) {
+  const updated = html.replace(/<meta name="viewport"[^>]*>/, viewportTag);
+  if (updated !== html) { html = updated; changed = true; }
+} else if (html.includes("</head>")) {
+  html = html.replace("</head>", `    ${viewportTag}\n  </head>`);
+  changed = true;
+}
+
+// ── PWA tags ────────────────────────────────────────────────────────────────
 if (html.includes('rel="apple-touch-icon"') && html.includes('rel="icon"')) {
-  console.log("inject-pwa-head: tags already present — skipping.");
+  console.log("inject-pwa-head: PWA tags already present — skipping.");
 } else if (!html.includes("</head>")) {
   console.error("inject-pwa-head: no </head> found in dist/index.html");
   process.exit(1);
 } else {
   html = html.replace("</head>", TAGS + "  </head>");
+  changed = true;
+}
+
+if (changed) {
   fs.writeFileSync(INDEX, html);
-  console.log("✓ inject-pwa-head: injected apple-touch-icon + manifest into dist/index.html");
+  console.log("✓ inject-pwa-head: updated dist/index.html (viewport + PWA tags)");
 }

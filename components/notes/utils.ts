@@ -18,6 +18,19 @@ export function notePreview(note: Note, max = 120): string {
   return text.slice(0, max);
 }
 
+/**
+ * Inline note tags: `//tag` typed anywhere in the body (start of line or after
+ * whitespace, so protocol slashes in URLs like https://… never match).
+ * The tag text stays in the note; this just extracts the names for filtering.
+ */
+export const TAG_PATTERN = /(^|\s)\/\/([A-Za-z0-9_-]+)/g;
+
+export function extractTags(body: string): string[] {
+  const tags = new Set<string>();
+  for (const m of (body ?? "").matchAll(TAG_PATTERN)) tags.add(m[2].toLowerCase());
+  return [...tags];
+}
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);

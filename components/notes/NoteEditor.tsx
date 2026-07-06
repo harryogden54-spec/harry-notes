@@ -92,7 +92,7 @@ type Props = {
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
   const { notes } = useNotesData();
-  const { updateNote, deleteNote, pinNote } = useNotesActions();
+  const { updateNote, deleteNote, pinNote, archiveNote, unarchiveNote } = useNotesActions();
   const { tasks } = useTasksData();
   const { showToast } = useToast();
   const today = getTodayStr();
@@ -194,7 +194,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   }, [onOpenNote]);
 
   const wordCount = note.body.trim() ? note.body.trim().split(/\s+/).length : 0;
-  const allNotes = notes.filter(n => n.type === "note" || !n.type);
+  const allNotes = notes.filter(n => !n.archived);
 
   const openTasks = tasks.filter(t => !t.done && !t.archived);
   const replCtx = useMemo(() => ({
@@ -270,6 +270,19 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
               size={16}
               color={note.pinned ? colors.accent : colors.textTertiary}
             />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              archiveNote(note.id);
+              onClose();
+              showToast("Note archived", { label: "Undo", onPress: () => unarchiveNote(note.id) });
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            hitSlop={12}
+            accessibilityLabel="Archive note"
+            style={{ padding: spacing[1] }}
+          >
+            <Ionicons name="archive-outline" size={15} color={colors.textTertiary} />
           </Pressable>
           <Pressable
             onPress={() => {

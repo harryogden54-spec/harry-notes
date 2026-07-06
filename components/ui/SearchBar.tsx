@@ -1,20 +1,18 @@
 import React, { useRef } from "react";
-import { View, TextInput, Pressable, Platform } from "react-native";
+import { View, TextInput, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius } from "@/lib/theme";
 
 interface SearchBarProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   inputRef?: React.RefObject<TextInput | null>;
-  shortcutKey?: string;
   onSubmitEditing?: () => void;
 }
 
-export function SearchBar({ value, onChange, placeholder = "Search…", inputRef, shortcutKey, onSubmitEditing }: SearchBarProps) {
+export function SearchBar({ value, onChange, placeholder = "Search…", inputRef, onSubmitEditing }: SearchBarProps) {
   const { colors } = useTheme();
   const localRef = useRef<TextInput>(null);
   const ref = inputRef ?? localRef;
@@ -46,24 +44,11 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
           { outlineStyle: "none" },
         ]}
       />
-      {value.length > 0 ? (
+      {value.length > 0 && (
         <Pressable onPress={() => onChange("")} hitSlop={8}>
           <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
         </Pressable>
-      ) : shortcutKey && Platform.OS === "web" ? (
-        <View style={{
-          backgroundColor: colors.bgTertiary,
-          borderRadius: radius.sm,
-          paddingHorizontal: spacing[1.5],
-          paddingVertical: 2,
-          borderWidth: 1,
-          borderColor: colors.bgBorder,
-        }}>
-          <Text style={{ fontSize: 11, fontFamily: "monospace" as any, color: colors.textTertiary }}>
-            {shortcutKey}
-          </Text>
-        </View>
-      ) : null}
+      )}
     </View>
   );
 }

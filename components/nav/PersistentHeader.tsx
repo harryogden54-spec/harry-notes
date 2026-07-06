@@ -1,13 +1,12 @@
 import React from "react";
 import { View, Text, Pressable, Platform, Image } from "react-native";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily, THEMES, type ThemeId } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { useSyncStatus } from "@/lib/useSyncStatus";
 import { useMounted } from "@/lib/useMounted";
-
-const THEME_IDS = Object.keys(THEMES) as ThemeId[];
 
 function syncChipLabel(status: string, lastSynced: string | null, mounted: boolean): string | null {
   if (!mounted) return null;
@@ -23,14 +22,13 @@ function syncChipLabel(status: string, lastSynced: string | null, mounted: boole
 }
 
 export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) {
-  const { colors } = useTheme();
-  const { themeId, setThemeId } = useThemeContext();
+  const { colors, scheme } = useTheme();
+  const { toggle } = useThemeContext();
   const { status, lastSynced } = useSyncStatus();
   const mounted = useMounted();
 
-  function cycleTheme() {
-    const next = THEME_IDS[(THEME_IDS.indexOf(themeId) + 1) % THEME_IDS.length];
-    setThemeId(next);
+  function toggleScheme() {
+    toggle();
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
@@ -61,13 +59,20 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
           </View>
         )}
       </View>
-      <Pressable onPress={cycleTheme} hitSlop={8} style={{
-        paddingHorizontal: spacing[2], paddingVertical: 3,
-        borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
-      }}>
-        <Text style={{ fontSize: 10, fontFamily: fontFamily.medium, color: colors.textSecondary }}>
-          {THEMES[themeId].label}
-        </Text>
+      <Pressable
+        onPress={toggleScheme}
+        hitSlop={8}
+        accessibilityLabel={scheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        style={{
+          paddingHorizontal: spacing[2], paddingVertical: 3,
+          borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
+        }}
+      >
+        <Ionicons
+          name={scheme === "dark" ? "moon-outline" : "sunny-outline"}
+          size={13}
+          color={colors.textSecondary}
+        />
       </Pressable>
     </View>
   );

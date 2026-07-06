@@ -27,6 +27,10 @@ import { ToastProvider } from "@/lib/ToastContext";
 import { ToastContainer } from "@/components/ui";
 import { CommandPaletteProvider } from "@/lib/CommandPaletteContext";
 import { CommandPalette } from "@/components/CommandPalette";
+import { applyMobileViewport } from "@/lib/webViewport";
+
+// Fix iOS Safari input-focus auto-zoom before first paint (no-op off web).
+applyMobileViewport();
 
 export { ErrorBoundary } from "expo-router";
 
