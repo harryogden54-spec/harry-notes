@@ -11,6 +11,8 @@ import { THEMES } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useListsSync } from "@/lib/ListsContext";
 import { useNotesData, useNotesSync } from "@/lib/NotesContext";
+import { useCoursesSync } from "@/lib/CoursesContext";
+import { useDumpsSync } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -141,8 +143,10 @@ export default function SettingsScreen() {
   const { syncStatus: taskSync, syncNow: syncTasks, lastSynced: taskLastSynced } = useTasksSync();
   const { tasks } = useTasksData();
   const { clearCompleted } = useTasksActions();
-  const { syncStatus: listSync, lastSynced: listLastSynced } = useListsSync();
+  const { syncStatus: listSync, syncNow: syncLists, lastSynced: listLastSynced } = useListsSync();
   const { syncStatus: noteSync, syncNow: syncNotes, lastSynced: noteLastSynced } = useNotesSync();
+  const { syncStatus: courseSync, syncNow: syncCourses, lastSynced: courseLastSynced } = useCoursesSync();
+  const { syncNow: syncDumps } = useDumpsSync();
   const { notes } = useNotesData();
   const { showToast } = useToast();
   const router = useRouter();
@@ -187,12 +191,13 @@ export default function SettingsScreen() {
     }
   }
 
-  const overallSync = taskSync === "error" || listSync === "error" || noteSync === "error" ? "error"
-    : taskSync === "syncing" || listSync === "syncing" || noteSync === "syncing" ? "syncing"
-    : taskSync === "synced" && listSync === "synced" && noteSync === "synced" ? "synced"
+  const domainStatuses = [taskSync, listSync, noteSync, courseSync];
+  const overallSync = domainStatuses.includes("error") ? "error"
+    : domainStatuses.includes("syncing") ? "syncing"
+    : domainStatuses.every(s => s === "synced") ? "synced"
     : "idle";
 
-  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced].filter(Boolean) as string[];
+  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced, courseLastSynced].filter(Boolean) as string[];
   const lastSynced   = allSyncTimes.length > 0
     ? new Date(Math.max(...allSyncTimes.map(t => new Date(t).getTime()))).toISOString()
     : null;
@@ -203,7 +208,11 @@ export default function SettingsScreen() {
   async function handleSyncNow() {
     // Manual sync is the reconciliation path: full fetch, ignoring the delta
     // cursor, so it can repair any divergence the incremental sync missed.
-    await Promise.all([syncTasks({ full: true }), syncNotes({ full: true })]);
+    // Covers every synced domain (lists/dumps/courses were previously missed).
+    await Promise.all([
+      syncTasks({ full: true }), syncNotes({ full: true }),
+      syncLists({ full: true }), syncDumps({ full: true }), syncCourses({ full: true }),
+    ]);
     showToast("Synced successfully");
   }
 
@@ -310,7 +319,7 @@ export default function SettingsScreen() {
                   value={scheme === "dark"}
                   onValueChange={toggle}
                   trackColor={{ false: colors.bgBorder, true: colors.accent }}
-                  thumbColor="#fff"
+                  thumbColor={colors.textInverse}
                 />
               }
             />
@@ -411,7 +420,7 @@ export default function SettingsScreen() {
                     backgroundColor: colors.accent, alignItems: "center",
                   }}
                 >
-                  <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Save key</Text>
+                  <Text size="sm" weight="semibold" style={{ color: colors.textInverse }}>Save key</Text>
                 </Pressable>
               </View>
             </View>
@@ -440,7 +449,7 @@ export default function SettingsScreen() {
                 alignItems: "center",
               }}
             >
-              <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Sync now</Text>
+              <Text size="sm" weight="semibold" style={{ color: colors.textInverse }}>Sync now</Text>
             </Pressable>
           </View>
 

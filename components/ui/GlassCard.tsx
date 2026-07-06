@@ -30,8 +30,9 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
     ? "rgba(255,255,255,0.04)"
     : "rgba(0,0,0,0.03)";
 
-  // Glass is the overlay surface: floating panels get "md", true overlays
-  // (modals, palettes) get "overlay", insets sit flush.
+  // Glass is the overlay surface: content cards get "sm" (the design's soft
+  // 0-2-8 language — "md" was tuned when web shadows silently never rendered),
+  // true overlays (modals, palettes) get "overlay", insets sit flush.
   const scheme = isDark ? "dark" : "light";
   const insetBorder: ViewStyle = {
     borderWidth: 1,
@@ -41,7 +42,7 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
   const shadowStyle: ViewStyle =
     variant === "elevated" ? getShadow("overlay", scheme)
     : variant === "inset"  ? {}
-    : getShadow("md", scheme);
+    : getShadow("sm", scheme);
   const variantBorder = variant === "inset" ? insetBorder : {};
 
   if (Platform.OS === "web") {

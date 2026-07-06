@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, TextInput, Pressable, ScrollView, SafeAreaView,
@@ -8,26 +8,27 @@ import {
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-native-reanimated";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
-import { webContentStyle } from "@/lib/webLayout";
+import { spacing, radius, getShadow } from "@/lib/theme";
+import { webWideContentStyle } from "@/lib/webLayout";
 import { useTasksData, useTasksActions, useTasksSync, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { storage } from "@/lib/storage";
-import { getTodayStr } from "@/lib/utils";
+import { getTodayStr, getNextWeekStr } from "@/lib/utils";
 
 import {
-  Chip, AddTaskRow, Section, TaskDetailPanel, EmptyDetailPane,
+  Chip, AddTaskRow, Section, TaskDetailPanel, EmptyDetailPane, CategoryColumns,
   PRIORITY_CONFIG, type SortBy,
-  isOverdue, isToday, isScheduled, isSomeday, applySort, matchesSearch,
+  isOverdue, isToday, applySort, matchesSearch,
 } from "@/components/tasks";
 
 function TasksScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const { tasks, loaded } = useTasksData();
-  const { addTask, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask } = useTasksActions();
+  const { addTask, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask, clearCompleted } = useTasksActions();
   const { syncStatus, syncNow } = useTasksSync();
   const { showToast } = useToast();
   const params = useLocalSearchParams<{ create?: string; taskId?: string; filter?: string }>();
@@ -44,16 +45,15 @@ function TasksScreen() {
   const [selectedIds, setSelectedIds]           = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId]           = useState<string | null>(null);
   const [sortBy, setSortBy]                     = useState<SortBy>("priority");
-  const [grouped, setGrouped]                   = useState(false);
   // Default compact on mobile — the meta line wraps awkwardly on small screens.
   const [compact, setCompact]                   = useState(Platform.OS !== "web");
   const [showArchive, setShowArchive]           = useState(false);
+  const [showFilters, setShowFilters]           = useState(false);
+  const [completedCollapsed, setCompletedCollapsed] = useState(true);
   const prefsLoaded = useRef(false);
   const addInputRef    = useRef<TextInput | null>(null);
   const scrollViewRef  = useRef<RNScrollView>(null);
   const taskYPositions = useRef<Record<string, number>>({});
-  // Refs for keyboard navigation (j/k/x) — keep current values accessible
-  // inside the stable keyboard-handler closure without re-registering on every render.
 
   const handleTaskMeasureY = useCallback((id: string, y: number) => {
     taskYPositions.current[id] = y;
@@ -62,21 +62,21 @@ function TasksScreen() {
   // Load persisted task-view prefs on mount
   useEffect(() => {
     Promise.all([
-      storage.get<boolean>("tasks_grouped"),
       storage.get<boolean>("tasks_compact"),
       storage.get<string>("tasks_sort_by"),
-    ]).then(([g, c, s]) => {
-      if (g !== null && g !== undefined) setGrouped(g);
+      storage.get<boolean>("tasks_completed_collapsed"),
+    ]).then(([c, s, cc]) => {
       if (c !== null && c !== undefined) setCompact(c);
       if (s !== null && s !== undefined) setSortBy(s as SortBy);
+      if (cc !== null && cc !== undefined) setCompletedCollapsed(cc);
       prefsLoaded.current = true;
     });
   }, []);
 
   // Persist prefs when changed (after initial load)
-  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_grouped", grouped); }, [grouped]);
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_compact", compact); }, [compact]);
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_sort_by", sortBy); }, [sortBy]);
+  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_completed_collapsed", completedCollapsed); }, [completedCollapsed]);
 
   useEffect(() => {
     if (params.filter === "overdue" || params.filter === "today") setFocusMode(true);
@@ -100,6 +100,13 @@ function TasksScreen() {
     if (isDesktop) setSelectedTaskId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [addTask, updateTask, isDesktop]);
+
+  // Called after TaskComposerModal creates a task itself (it owns addTask/updateTask
+  // directly) — just needs to select/expand the new task the same way handleAdd does.
+  const handleTaskCreated = useCallback((id: string) => {
+    setExpandedId(id);
+    if (isDesktop) setSelectedTaskId(id);
+  }, [isDesktop]);
 
   const handleToggleExpand = useCallback((id: string) => {
     if (isDesktop) {
@@ -149,15 +156,27 @@ function TasksScreen() {
     showToast(`${count} task${count !== 1 ? "s" : ""} deleted`, { label: "Undo", onPress: () => undos.forEach(u => u()) });
   }
 
-  const visible    = tasks.filter(t => !t.archived && matchesSearch(t, search) && (filterPriority ? t.priority === filterPriority : true));
-  const overdue    = visible.filter(isOverdue);
-  const todayTasks = visible.filter(isToday);
-  const scheduled  = visible.filter(isScheduled);
-  const someday    = visible.filter(isSomeday);
-  const done       = visible.filter(t => t.done);
-  const open       = tasks.filter(t => !t.done && !t.archived);
-  const archived   = tasks.filter(t => t.archived);
-  const focusTasks = [...overdue, ...todayTasks];
+  function handleClearCompleted() {
+    clearCompleted();
+    showToast("Completed tasks cleared");
+  }
+
+  const { visible, done, open, archived, focusTasks, dueThisWeekCount, boardTasks } = useMemo(() => {
+    const visible    = tasks.filter(t => !t.archived && matchesSearch(t, search) && (filterPriority ? t.priority === filterPriority : true));
+    const overdue    = visible.filter(isOverdue);
+    const todayTasks = visible.filter(isToday);
+    const done       = visible.filter(t => t.done);
+    const open       = tasks.filter(t => !t.done && !t.archived);
+    const archived   = tasks.filter(t => t.archived);
+    const today7  = getTodayStr();
+    const nextWk  = getNextWeekStr();
+    return {
+      visible, done, open, archived,
+      focusTasks: [...overdue, ...todayTasks],
+      dueThisWeekCount: open.filter(t => t.due_date && t.due_date >= today7 && t.due_date <= nextWk).length,
+      boardTasks: applySort(visible.filter(t => !t.done), sortBy),
+    };
+  }, [tasks, search, filterPriority, sortBy]);
 
   const effectiveExpandedId = isDesktop ? selectedTaskId : expandedId;
   const sectionProps = {
@@ -210,6 +229,8 @@ function TasksScreen() {
     );
   }
 
+  const hasActiveFilters = !!filterPriority || search.length > 0;
+
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }}>
@@ -221,21 +242,15 @@ function TasksScreen() {
           </View>
         )}
 
-        <View style={{ flex: 1, flexDirection: isDesktop ? "row" : "column" }}>
+        <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
-            style={{
-              flex: isDesktop ? undefined : 1,
-              width: isDesktop ? "40%" : undefined,
-              borderRightWidth: isDesktop ? 1 : 0,
-              borderRightColor: colors.bgBorder,
-              overflow: "hidden",
-            }}
+            style={{ flex: 1 }}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
             <ScrollView
               ref={scrollViewRef}
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webContentStyle }}
+              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webWideContentStyle }}
               keyboardShouldPersistTaps="handled"
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
@@ -244,82 +259,92 @@ function TasksScreen() {
               {/* Header */}
               <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <Text size="2xl" weight="bold">Tasks</Text>
+                  <Text size="title" weight="bold">Tasks</Text>
                   <View style={{ flexDirection: "row", gap: spacing[2] }}>
                     {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
                         ["select", selectMode, () => { setSelectMode(v => !v); setSelectedIds(new Set()); }, selectMode ? "Cancel" : "Select"],
+                        ...(archived.length > 0
+                          ? [["archive", showArchive, () => setShowArchive(v => !v), `Archive · ${archived.length}`] as [string, boolean, () => void, string]]
+                          : []),
                     ] as [string, boolean, () => void, string][]).map(([key, active, onPress, label]) => (
-                      <Pressable key={key} onPress={onPress} style={{
-                        paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-                        borderRadius: radius.sm, borderWidth: 1,
-                        borderColor: active ? colors.accent : colors.bgBorder,
-                        backgroundColor: active ? `${colors.accent}18` : "transparent",
-                      }}>
+                      <Pressable key={key} onPress={onPress} style={({ hovered, pressed }: any) => ({
+                        paddingHorizontal: 15, paddingVertical: spacing[2],
+                        borderRadius: 999, borderWidth: 1,
+                        borderColor: active ? `${colors.accent}66` : `${colors.bgBorder}66`,
+                        backgroundColor: active ? `${colors.accent}18` : hovered ? colors.bgTertiary : colors.bgSecondary,
+                        ...getShadow("xs", scheme),
+                        ...(Platform.OS === "web" ? {
+                          transitionProperty: "background-color, border-color, transform",
+                          transitionDuration: "150ms",
+                          transform: [{ scale: pressed ? 0.97 : 1 }],
+                        } : {}),
+                      } as any)}>
                         <Text size="xs" weight="medium" style={{ color: active ? colors.accent : colors.textSecondary }}>{label}</Text>
                       </Pressable>
                     ))}
-                    {archived.length > 0 && (
-                      <Pressable onPress={() => setShowArchive(v => !v)} style={{
-                        paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-                        borderRadius: radius.sm, borderWidth: 1,
-                        borderColor: showArchive ? colors.accent : colors.bgBorder,
-                        backgroundColor: showArchive ? `${colors.accent}18` : "transparent",
-                      }}>
-                        <Text size="xs" weight="medium" style={{ color: showArchive ? colors.accent : colors.textSecondary }}>
-                          Archive · {archived.length}
-                        </Text>
-                      </Pressable>
-                    )}
                   </View>
                 </View>
                 <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-                  {open.length > 0 ? `${open.length} open` : "All done"}
+                  {open.length > 0
+                    ? `${open.length} open${dueThisWeekCount > 0 ? ` · ${dueThisWeekCount} due this week` : ""}`
+                    : "All done"}
                 </Text>
               </View>
 
-              <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} />
+              <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} onTaskCreated={handleTaskCreated} />
 
-              <SearchBar value={search} onChange={setSearch} placeholder="Search tasks…" />
-              <View style={{ flexDirection: "row", gap: spacing[1.5], flexWrap: "wrap", marginBottom: spacing[3] }}>
-                {(Object.entries(PRIORITY_CONFIG) as [Priority, { label: string; color: string }][]).map(([key, cfg]) => (
-                  <Chip key={key} label={cfg.label} color={cfg.color} active={filterPriority === key}
-                    onPress={() => setFilterPriority(p => p === key ? null : key)} />
-                ))}
-              </View>
-
-              {/* Sort / Group bar */}
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap", marginBottom: spacing[4] }}>
-                {!focusMode && (
-                  <>
-                    <Pressable onPress={() => setGrouped(v => !v)} style={{
-                      paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                      borderRadius: radius.sm, borderWidth: 1,
-                      borderColor: colors.bgBorder, backgroundColor: colors.bgTertiary,
-                    }}>
-                      <Text size="xs" style={{ color: colors.textSecondary }}>{grouped ? "Grouped" : "Flat"}</Text>
-                    </Pressable>
-                    <Pressable onPress={() => setCompact(v => !v)} style={{
-                      paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                      borderRadius: radius.sm, borderWidth: 1,
-                      borderColor: compact ? colors.accent : colors.bgBorder,
-                      backgroundColor: compact ? `${colors.accent}15` : colors.bgTertiary,
-                    }}>
-                      <Text size="xs" style={{ color: compact ? colors.accent : colors.textSecondary }}>Compact</Text>
-                    </Pressable>
-                    <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
-                  </>
-                )}
-                {([["priority", "Priority"], ["due_date", "Due date"], ["title", "A–Z"], ["created", "Added"]] as [SortBy, string][]).map(([key, label]) => (
-                  <Pressable key={key} onPress={() => setSortBy(key)} style={{
-                    paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                    borderRadius: radius.sm, borderWidth: 1,
-                    borderColor: sortBy === key ? colors.accent : colors.bgBorder,
-                    backgroundColor: sortBy === key ? `${colors.accent}15` : "transparent",
-                  }}>
-                    <Text size="xs" style={{ color: sortBy === key ? colors.accent : colors.textSecondary }}>{label}</Text>
+              {/* Filters — collapsed by default so an uncluttered list is the norm */}
+              {tasks.length > 0 && (
+                <View style={{ marginBottom: spacing[4] }}>
+                  <Pressable
+                    onPress={() => setShowFilters(v => !v)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], alignSelf: "flex-start" }}
+                  >
+                    <Ionicons name="options-outline" size={13} color={hasActiveFilters ? colors.accent : colors.textTertiary} />
+                    <Text size="xs" style={{ color: hasActiveFilters ? colors.accent : colors.textTertiary }}>
+                      Filters{hasActiveFilters ? " · active" : ""}
+                    </Text>
+                    <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={12} color={colors.textTertiary} />
                   </Pressable>
-                ))}
-              </View>
+
+                  {showFilters && (
+                    <Animated.View entering={FadeIn.duration(150)} style={{ marginTop: spacing[3], gap: spacing[3] }}>
+                      <SearchBar value={search} onChange={setSearch} placeholder="Search tasks…" />
+                      <View style={{ flexDirection: "row", gap: spacing[1.5], flexWrap: "wrap" }}>
+                        {(Object.entries(PRIORITY_CONFIG) as [Priority, { label: string; color: string }][]).map(([key, cfg]) => (
+                          <Chip key={key} label={cfg.label} color={cfg.color} active={filterPriority === key}
+                            onPress={() => setFilterPriority(p => p === key ? null : key)} />
+                        ))}
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
+                        {!focusMode && !isDesktop && (
+                          <>
+                            <Pressable onPress={() => setCompact(v => !v)} style={{
+                              paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                              borderRadius: radius.sm, borderWidth: 1,
+                              borderColor: compact ? colors.accent : colors.bgBorder,
+                              backgroundColor: compact ? `${colors.accent}15` : colors.bgTertiary,
+                            }}>
+                              <Text size="xs" style={{ color: compact ? colors.accent : colors.textSecondary }}>Compact</Text>
+                            </Pressable>
+                            <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
+                          </>
+                        )}
+                        {([["priority", "Priority"], ["due_date", "Due date"], ["title", "A–Z"], ["created", "Added"]] as [SortBy, string][]).map(([key, label]) => (
+                          <Pressable key={key} onPress={() => setSortBy(key)} style={{
+                            paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                            borderRadius: radius.sm, borderWidth: 1,
+                            borderColor: sortBy === key ? colors.accent : colors.bgBorder,
+                            backgroundColor: sortBy === key ? `${colors.accent}15` : "transparent",
+                          }}>
+                            <Text size="xs" style={{ color: sortBy === key ? colors.accent : colors.textSecondary }}>{label}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </Animated.View>
+                  )}
+                </View>
+              )}
 
               {focusMode ? (
                 focusTasks.length === 0 ? (
@@ -329,18 +354,45 @@ function TasksScreen() {
                 )
               ) : tasks.length === 0 ? (
                 <EmptyState type="tasks" title="No tasks yet" subtitle="Tap the field above to add your first task." />
-              ) : !grouped ? (
-                <>
-                  <Section label="All tasks" tasks={applySort(visible.filter(t => !t.done), sortBy)} {...sectionProps} />
-                  {done.length > 0 && <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" defaultCollapsed={true} />}
-                </>
               ) : (
                 <>
-                  {overdue.length > 0    && <Section label="Overdue"    tasks={overdue}    {...sectionProps} />}
-                  {todayTasks.length > 0 && <Section label="Today"      tasks={todayTasks} {...sectionProps} />}
-                  <Section label="Scheduled" tasks={scheduled} {...sectionProps} />
-                  <Section label="Someday"   tasks={someday}   {...sectionProps} emptyMessage="No tasks without a due date" />
-                  {done.length > 0       && <Section label="Completed"  tasks={done}       {...sectionProps} sortBy="completed" persistCollapse="tasks_section_collapsed_completed" defaultCollapsed={true} />}
+                  <CategoryColumns
+                    tasks={boardTasks}
+                    stacked={!isDesktop}
+                    selectedTaskId={effectiveExpandedId}
+                    onSelectTask={handleToggleExpand}
+                    onToggleDone={toggleTask}
+                    selectMode={selectMode}
+                    selectedIds={selectedIds}
+                    onBulkSelect={handleSelect}
+                    highlightId={highlightId}
+                  />
+                  {done.length > 0 && (
+                    <View style={{ marginTop: spacing[6] }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: completedCollapsed ? 0 : spacing[3] }}>
+                        <Pressable
+                          onPress={() => setCompletedCollapsed(v => !v)}
+                          style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}
+                        >
+                          <Text size="xs" weight="semibold" style={{ letterSpacing: 1, color: colors.textTertiary, textTransform: "uppercase" }}>
+                            Completed
+                          </Text>
+                          <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+                            <Text size="xs" style={{ color: colors.textTertiary }}>{done.length}</Text>
+                          </View>
+                          <Ionicons name={completedCollapsed ? "chevron-down" : "chevron-up"} size={12} color={colors.textTertiary} />
+                        </Pressable>
+                        <Pressable onPress={handleClearCompleted} hitSlop={8}>
+                          <Text size="xs" style={{ color: colors.accent }}>Clear completed</Text>
+                        </Pressable>
+                      </View>
+                      {!completedCollapsed && (
+                        <Animated.View entering={FadeIn.duration(180)}>
+                          <Section label="Completed" tasks={done} {...sectionProps} sortBy="completed" />
+                        </Animated.View>
+                      )}
+                    </View>
+                  )}
                 </>
               )}
 
@@ -405,18 +457,35 @@ function TasksScreen() {
               </View>
             )}
           </KeyboardAvoidingView>
-
-          {/* Desktop right panel */}
-          {isDesktop && (
-            <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-              {selectedTaskId && tasks.find(t => t.id === selectedTaskId) ? (
-                <TaskDetailPanel task={tasks.find(t => t.id === selectedTaskId)!} onClose={() => setSelectedTaskId(null)} />
-              ) : (
-                <EmptyDetailPane open={open} onFocusAddInput={() => addInputRef.current?.focus()} />
-              )}
-            </View>
-          )}
         </View>
+
+        {/* Desktop task detail — slide-over drawer on top of the board, not a permanent split */}
+        {isDesktop && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (
+          <View style={{ position: "absolute", inset: 0 } as any}>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+              style={{ position: "absolute", inset: 0 } as any}
+            >
+              <Pressable
+                onPress={() => setSelectedTaskId(null)}
+                style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any}
+              />
+            </Animated.View>
+            <Animated.View
+              entering={SlideInRight.duration(220)}
+              exiting={SlideOutRight.duration(180)}
+              style={{
+                position: "absolute", top: 0, right: 0, bottom: 0, width: 420,
+                backgroundColor: colors.bgPrimary,
+                borderLeftWidth: 1, borderLeftColor: colors.bgBorder,
+                ...getShadow("overlay", scheme),
+              }}
+            >
+              <TaskDetailPanel task={tasks.find(t => t.id === selectedTaskId)!} onClose={() => setSelectedTaskId(null)} />
+            </Animated.View>
+          </View>
+        )}
 
         {/* Mobile task detail modal */}
         {!isDesktop && showMobileDetail && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (
@@ -442,4 +511,3 @@ function TasksScreen() {
 export default function TasksScreenBounded() {
   return <ErrorBoundary><TasksScreen /></ErrorBoundary>;
 }
-

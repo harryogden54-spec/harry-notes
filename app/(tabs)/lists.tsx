@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
 import { useLocalSearchParams } from "expo-router";
@@ -42,11 +43,12 @@ const TEMPLATES = [
 // ─── Color Picker ─────────────────────────────────────────────────────────────
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", gap: spacing[1.5], flexWrap: "wrap" }}>
       {LIST_COLORS.map(c => (
         <Pressable key={c} onPress={() => onChange(c)}
-          style={{ width: 26, height: 26, borderRadius: 99, backgroundColor: c, borderWidth: value === c ? 2 : 0, borderColor: "#fff", transform: [{ scale: value === c ? 1.15 : 1 }] }}
+          style={{ width: 26, height: 26, borderRadius: 99, backgroundColor: c, borderWidth: value === c ? 2 : 0, borderColor: colors.textInverse, transform: [{ scale: value === c ? 1.15 : 1 }] }}
         />
       ))}
     </View>
@@ -181,7 +183,7 @@ export function CreateListModal({ visible, onDone }: { visible: boolean; onDone:
                 flex: 2, paddingVertical: spacing[3], borderRadius: radius.lg,
                 backgroundColor: colors.accent, alignItems: "center",
               }}>
-                <Text size="sm" weight="semibold" style={{ color: "#fff" }}>Create list</Text>
+                <Text size="sm" weight="semibold" style={{ color: colors.textInverse }}>Create list</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -337,7 +339,7 @@ function AddItemRow({ listId, defaultType }: { listId: string; defaultType: List
       borderTopWidth: 1, borderTopColor: colors.bgBorder,
       borderRadius: radius.md,
     }}>
-      <Text size="sm" style={{ color: colors.textTertiary, fontWeight: "600" }}>+</Text>
+      <Ionicons name="add" size={15} color={colors.textTertiary} />
       <Pressable onPress={() => setType(t => t === "checkbox" ? "bullet" : "checkbox")} hitSlop={8}>
         {type === "checkbox"
           ? <View style={{ width: 15, height: 15, borderRadius: 3, borderWidth: 1.5, borderColor: colors.bgBorder }} />
@@ -750,7 +752,7 @@ function ListsScreen() {
                     onPress={() => setCreating(true)}
                     style={{ width: 28, height: 28, borderRadius: radius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" }}
                   >
-                    <Text style={{ color: "#fff", fontSize: 18, lineHeight: 22 }}>+</Text>
+                    <Ionicons name="add" size={18} color={colors.textInverse} />
                   </Pressable>
                 </View>
 
@@ -822,8 +824,8 @@ function ListsScreen() {
             </View>
             <Pressable onPress={() => setCreating(true)}
               style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.lg, backgroundColor: colors.accent }}>
-              <Text style={{ color: "#fff", fontSize: 16, lineHeight: 20 }}>+</Text>
-              <Text size="sm" weight="medium" style={{ color: "#fff" }}>New list</Text>
+              <Ionicons name="add" size={15} color={colors.textInverse} />
+              <Text size="sm" weight="medium" style={{ color: colors.textInverse }}>New list</Text>
             </Pressable>
           </View>
 

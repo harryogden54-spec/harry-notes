@@ -1,35 +1,18 @@
-﻿import React, { useRef, useCallback, useState } from "react";
-import { Tabs, useRouter } from "expo-router";
-import { Platform, Animated, View, Pressable, useWindowDimensions } from "react-native";
+import React, { useCallback, useState, useEffect } from "react";
+import { Tabs, useRouter, usePathname } from "expo-router";
+import { Platform, View, Pressable, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, fontFamily, getShadow, layout } from "@/lib/theme";
+import { spacing, getShadow, layout } from "@/lib/theme";
 import { useTasksActions } from "@/lib/TasksContext";
 import { useNotesActions } from "@/lib/NotesContext";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
-import { PersistentHeader, OfflineBanner, Sidebar, NAV_ITEMS } from "@/components/nav";
-import type { IoniconName } from "@/components/nav";
-
-function TabIcon({ focused, color, iconOutline, iconFilled }: {
-  focused: boolean; color: string; iconOutline: IoniconName; iconFilled: IoniconName;
-}) {
-  return <Ionicons name={focused ? iconFilled : iconOutline} size={22} color={color} />;
-}
-
-function useFadeTab() {
-  const opacity = useRef(new Animated.Value(1)).current;
-  const onTabPress = useCallback(() => {
-    if (Platform.OS !== "web") Haptics.selectionAsync();
-    opacity.setValue(0);
-    Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-  }, [opacity]);
-  return { opacity, onTabPress };
-}
+import { RouteFade } from "@/components/ui";
+import { PersistentHeader, OfflineBanner, Sidebar, MobileTabBar, NAV_ITEMS } from "@/components/nav";
 
 export default function TabLayout() {
   const { colors, scheme } = useTheme();
-  const { onTabPress } = useFadeTab();
   const { width } = useWindowDimensions();
   const router = useRouter();
   const { addTask, updateTask } = useTasksActions();
@@ -42,6 +25,18 @@ export default function TabLayout() {
   const collapsed = manualCollapsed !== null ? manualCollapsed : autoCollapsed;
 
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const pathname = usePathname();
+
+  // Browser tab title follows the active screen (web only).
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const item = NAV_ITEMS.find(i =>
+      i.name === "index"
+        ? (pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/")
+        : pathname?.includes(`/${i.name}`)
+    );
+    document.title = item && item.name !== "index" ? `${item.label} · harry.` : "harry.";
+  }, [pathname]);
 
   const handleQuickAddTask = useCallback((
     title: string,
@@ -63,12 +58,34 @@ export default function TabLayout() {
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PersistentHeader showTitle={false} />
           <OfflineBanner />
-          <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
-            {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
-            <Tabs.Screen name="calendar" options={{ href: null }} />
-            <Tabs.Screen name="lists" options={{ href: null }} />
-          </Tabs>
+          <RouteFade>
+            <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
+              {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
+              <Tabs.Screen name="calendar" options={{ href: null }} />
+              <Tabs.Screen name="lists" options={{ href: null }} />
+            </Tabs>
+          </RouteFade>
         </View>
+        {/* Quick-add — desktop's only add-from-anywhere affordance was the search bar; this mirrors the mobile FAB. */}
+        <Pressable
+          onPress={() => setShowQuickAdd(true)}
+          accessibilityLabel="Quick add"
+          style={({ hovered, pressed }: any) => ({
+            position: "absolute", bottom: spacing[5], right: spacing[5], zIndex: 50,
+            width: 48, height: 48, borderRadius: 99,
+            backgroundColor: hovered ? colors.accentHover : colors.accent,
+            alignItems: "center", justifyContent: "center",
+            ...getShadow("md", scheme, { color: colors.accent, opacity: hovered && !pressed ? 0.55 : 0.4 }),
+            ...(Platform.OS === "web" ? {
+              transitionProperty: "transform, background-color, box-shadow",
+              transitionDuration: "150ms",
+              transitionTimingFunction: "ease-out",
+              transform: [{ scale: pressed ? 0.94 : hovered ? 1.06 : 1 }],
+            } : {}),
+          } as any)}
+        >
+          <Ionicons name="add" size={24} color={colors.textInverse} />
+        </Pressable>
         <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
       </View>
     );
@@ -115,26 +132,10 @@ export default function TabLayout() {
       </View>
       <QuickAddModal visible={showQuickAdd} onClose={() => setShowQuickAdd(false)} onAdd={handleQuickAddTask} />
       <Tabs
-        screenOptions={{
-          tabBarActiveTintColor:   colors.accent,
-          tabBarInactiveTintColor: colors.textTertiary,
-          tabBarStyle: {
-            backgroundColor: colors.bgSecondary,
-            borderTopColor:  colors.bgBorder,
-            borderTopWidth:  1,
-            height: Platform.OS === "ios" ? layout.tabBarHeight.ios : layout.tabBarHeight.default,
-            paddingBottom: Platform.OS === "ios" ? 28 : 10,
-            paddingTop: Platform.OS === "ios" ? 8 : 6,
-          } as any,
-          tabBarLabelStyle: { fontSize: 10, fontFamily: fontFamily.medium, marginTop: 2 },
-          headerShown: false,
-        }}
+        tabBar={() => <MobileTabBar />}
+        screenOptions={{ headerShown: false }}
       >
-        <Tabs.Screen name="index"   options={{ title: "Home",     tabBarIcon: p => <TabIcon {...p} iconOutline="home-outline"     iconFilled="home"     /> }} listeners={{ tabPress: onTabPress }} />
-        <Tabs.Screen name="today"   options={{ title: "Today",    tabBarIcon: p => <TabIcon {...p} iconOutline="today-outline"    iconFilled="today"    /> }} listeners={{ tabPress: onTabPress }} />
-        <Tabs.Screen name="tasks"   options={{ title: "Tasks",    tabBarIcon: p => <TabIcon {...p} iconOutline="checkbox-outline" iconFilled="checkbox" /> }} listeners={{ tabPress: onTabPress }} />
-        <Tabs.Screen name="notes"   options={{ title: "Notes",    tabBarIcon: p => <TabIcon {...p} iconOutline="albums-outline"   iconFilled="albums"   /> }} listeners={{ tabPress: onTabPress }} />
-        <Tabs.Screen name="dump"    options={{ title: "Dump",     tabBarIcon: p => <TabIcon {...p} iconOutline="cloud-upload-outline" iconFilled="cloud-upload" /> }} listeners={{ tabPress: onTabPress }} />
+        {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
         <Tabs.Screen name="calendar" options={{ href: null }} />
         <Tabs.Screen name="lists"   options={{ href: null }} />
       </Tabs>

@@ -162,6 +162,8 @@ export const typography = {
   // Atelier editorial styles
   /** Screen greetings / hero titles — confident, tightly-tracked. */
   display: { fontSize: 34, lineHeight: 40, letterSpacing: -0.5 },
+  /** Page titles (Tasks/Notes headers) — design spec: 28/700/−0.5. */
+  title:   { fontSize: 28, lineHeight: 34, letterSpacing: -0.5 },
   /** Uppercase section labels — small, wide-tracked, textTertiary. */
   label:   { fontSize: 12, lineHeight: 16, letterSpacing: 0.8 },
 } as const;
@@ -195,7 +197,9 @@ export function getShadow(
   options?: { color?: string; opacity?: number },
 ) {
   const s = SHADOW_SPECS[level];
-  const color   = options?.color ?? "#000";
+  // Must be 6-digit hex: the web branch appends a 2-digit alpha, and a 3-digit
+  // base ("#000" + "14" → "#00014") is invalid CSS that silently kills the shadow.
+  const color   = options?.color ?? "#000000";
   const opacity = options?.opacity ?? (scheme === "dark" ? s.dark : s.light);
 
   // RN Web warns that shadow*/elevation style props are deprecated in favour

@@ -21,7 +21,8 @@ export function getDb(): SQLite.SQLiteDatabase {
 // always-run block below — CREATE INDEX IF NOT EXISTS covers old installs).
 // v8: dumps table added.
 // v9: notes.archived column (notes archive feature).
-const SCHEMA_VERSION = 9;
+// v10: courses table added (checkbox progress tables).
+const SCHEMA_VERSION = 10;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -89,12 +90,22 @@ export async function initDb(): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS courses (
+      id         TEXT PRIMARY KEY,
+      title      TEXT NOT NULL DEFAULT '',
+      columns    TEXT,
+      rows       TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_created   ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_tasks_archived  ON tasks(archived);
     CREATE INDEX IF NOT EXISTS idx_notes_created   ON notes(created_at);
     CREATE INDEX IF NOT EXISTS idx_notes_pinned    ON notes(pinned);
     CREATE INDEX IF NOT EXISTS idx_lists_created   ON lists(created_at);
     CREATE INDEX IF NOT EXISTS idx_dumps_created   ON dumps(created_at);
+    CREATE INDEX IF NOT EXISTS idx_courses_created ON courses(created_at);
   `);
 
   // ── Migrations ──────────────────────────────────────────────────────────────
@@ -168,6 +179,21 @@ export async function initDb(): Promise<void> {
     const nCols = await db.getAllAsync<{ name: string }>("PRAGMA table_info(notes)");
     const nNames = nCols.map(c => c.name);
     if (!nNames.includes("archived")) await db.execAsync("ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
+  }
+
+  if (current < 10) {
+    // v10: courses table — CREATE TABLE IF NOT EXISTS is a no-op for fresh installs.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS courses (
+        id         TEXT PRIMARY KEY,
+        title      TEXT NOT NULL DEFAULT '',
+        columns    TEXT,
+        rows       TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_courses_created ON courses(created_at);
+    `);
   }
 
   if (current < SCHEMA_VERSION) {
@@ -375,6 +401,34 @@ export async function dbSaveDumps(dumps: any[], changes?: SaveChanges): Promise<
         d.id, d.content ?? "", d.tag ?? "journal", d.note_date ?? "",
         d.filed ? 1 : 0,
         d.created_at, d.updated_at ?? d.created_at,
+      ]
+    );
+  }));
+}
+
+export async function dbLoadCourses(): Promise<any[]> {
+  const rows = await getDb().getAllAsync<Record<string, any>>(
+    "SELECT * FROM courses ORDER BY created_at ASC"
+  );
+  return rows.map(r => ({
+    id: r.id,
+    title: r.title ?? "",
+    columns: r.columns ? tryParse(r.columns) ?? [] : [],
+    rows: r.rows ? tryParse(r.rows) ?? [] : [],
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
+}
+
+export async function dbSaveCourses(tables: any[], changes?: SaveChanges): Promise<void> {
+  enqueue("courses", toReq(tables, changes), (req) => runSave("courses", req, async (db, t) => {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO courses (id,title,columns,rows,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
+      [
+        t.id, t.title ?? "",
+        JSON.stringify(t.columns ?? []),
+        JSON.stringify(t.rows ?? []),
+        t.created_at, t.updated_at ?? t.created_at,
       ]
     );
   }));

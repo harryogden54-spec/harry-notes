@@ -56,3 +56,25 @@
 :root { --accent: #5B6AD0; }
 *:focus { outline: none; }
 *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ── Type rendering + selection polish (web) ────────────────────────────── */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+/* Accent-tinted text selection instead of the browser default blue. */
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+/* No rubber-band overscroll flash behind the app shell. */
+html, body { overscroll-behavior-y: none; }
+
+/* ── Mobile zoom guards ─────────────────────────────────────────────────── */
+/* Kill the 300ms double-tap-to-zoom gesture (app UI, not a document) and
+   stop iOS/Android inflating text on orientation change. The input-focus
+   auto-zoom is handled by maximum-scale=1 in the viewport meta, injected at
+   export time by scripts/inject-pwa-head.js. */
+html, body {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

@@ -343,7 +343,7 @@ function TodayScreen() {
                     onPress={addItem}
                     style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[1], borderRadius: radius.sm, backgroundColor: colors.accent }}
                   >
-                    <Text size="xs" weight="medium" style={{ color: "#fff" }}>Add</Text>
+                    <Text size="xs" weight="medium" style={{ color: colors.textInverse }}>Add</Text>
                   </Pressable>
                 )}
               </View>
@@ -524,7 +524,7 @@ function CompletedRow({ item, onToggle, onDelete, isLast }: {
         <View style={{
           width: 10, height: 5,
           borderLeftWidth: 1.5, borderBottomWidth: 1.5,
-          borderColor: "#fff",
+          borderColor: colors.textInverse,
           transform: [{ rotate: "-45deg" }, { translateY: -1 }],
         }} />
       </Pressable>

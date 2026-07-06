@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, Platform, Image } from "react-native";
+import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
@@ -23,6 +24,7 @@ function syncChipLabel(status: string, lastSynced: string | null, mounted: boole
 
 export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) {
   const { colors, scheme } = useTheme();
+  const router = useRouter();
   const { toggle } = useThemeContext();
   const { status, lastSynced } = useSyncStatus();
   const mounted = useMounted();
@@ -63,10 +65,18 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
         onPress={toggleScheme}
         hitSlop={8}
         accessibilityLabel={scheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-        style={{
+        // @ts-ignore web-only tooltip
+        title={Platform.OS === "web" ? (scheme === "dark" ? "Switch to light mode" : "Switch to dark mode") : undefined}
+        style={({ hovered, pressed }: any) => ({
           paddingHorizontal: spacing[2], paddingVertical: 3,
           borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
-        }}
+          backgroundColor: hovered ? colors.bgTertiary : "transparent",
+          ...(Platform.OS === "web" ? {
+            transitionProperty: "background-color, transform",
+            transitionDuration: "120ms",
+            transform: [{ scale: pressed ? 0.96 : 1 }],
+          } : {}),
+        } as any)}
       >
         <Ionicons
           name={scheme === "dark" ? "moon-outline" : "sunny-outline"}
@@ -74,6 +84,20 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
           color={colors.textSecondary}
         />
       </Pressable>
+      {/* Mobile has no pinned sidebar, so Settings was only reachable from the
+          Dashboard tab's gear icon — give every screen a way there. Desktop's
+          Sidebar already has Settings pinned, so skip it there (showTitle is
+          only true on mobile). */}
+      {showTitle && (
+        <Pressable
+          onPress={() => router.push("/settings")}
+          hitSlop={8}
+          accessibilityLabel="Settings"
+          style={{ marginLeft: spacing[2], padding: spacing[1] }}
+        >
+          <Ionicons name="settings-outline" size={16} color={colors.textSecondary} />
+        </Pressable>
+      )}
     </View>
   );
 }

@@ -73,7 +73,7 @@ function ThemeCard({
         </Text>
         {active && (
           <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: cardAccent, alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name="checkmark" size={10} color="#fff" />
+            <Ionicons name="checkmark" size={10} color={tokens.textInverse} />
           </View>
         )}
       </View>
@@ -121,13 +121,18 @@ export default function AppearanceScreen() {
           </View>
 
           {/* ── Accent colour ─────────────────────────────────────────────── */}
-          <SectionLabel>Accent</SectionLabel>
+          <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: spacing[1] }}>
+            <SectionLabel>Accent</SectionLabel>
+            <Text size="xs" weight="medium" style={{ color: colors.textSecondary, marginBottom: spacing[2.5] }}>
+              {currentAccent.label}
+            </Text>
+          </View>
           <View style={{
             backgroundColor: colors.bgSecondary,
             borderRadius: radius.xl,
             borderWidth: 1, borderColor: colors.bgBorder,
             padding: spacing[4],
-            flexDirection: "row", alignItems: "center", gap: spacing[3], flexWrap: "wrap",
+            flexDirection: "row", flexWrap: "wrap", gap: spacing[2.5],
             marginBottom: spacing[5],
           }}>
             {ACCENT_OPTIONS.map(opt => {
@@ -136,24 +141,18 @@ export default function AppearanceScreen() {
                 <Pressable
                   key={opt.id}
                   onPress={() => setAccentId(opt.id)}
-                  style={{ alignItems: "center", gap: spacing[1] }}
-                >
-                  <View style={{
-                    width: 36, height: 36, borderRadius: 18,
+                  hitSlop={4}
+                  accessibilityLabel={opt.label}
+                  style={{
+                    width: 30, height: 30, borderRadius: 15,
                     backgroundColor: opt.color,
                     borderWidth: active ? 3 : 2,
                     borderColor: active ? colors.textPrimary : `${opt.color}40`,
                     transform: [{ scale: active ? 1.1 : 1 }],
                     alignItems: "center", justifyContent: "center",
-                  }}>
-                    {active && <Ionicons name="checkmark" size={16} color="#fff" />}
-                  </View>
-                  <Text size="xs" style={{
-                    color: active ? colors.textPrimary : colors.textTertiary,
-                    fontFamily: active ? fontFamily.semibold : fontFamily.regular,
-                  }}>
-                    {opt.label}
-                  </Text>
+                  }}
+                >
+                  {active && <Ionicons name="checkmark" size={13} color={colors.textInverse} />}
                 </Pressable>
               );
             })}
@@ -184,7 +183,7 @@ export default function AppearanceScreen() {
                 value={scheme === "dark"}
                 onValueChange={toggle}
                 trackColor={{ false: colors.bgBorder, true: colors.accent }}
-                thumbColor="#fff"
+                thumbColor={colors.textInverse}
               />
             </View>
           </View>

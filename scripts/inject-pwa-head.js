@@ -11,9 +11,9 @@ const path = require("path");
 
 const INDEX = path.join(__dirname, "..", "dist", "index.html");
 
-const TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
+const TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+    <link rel="manifest" href="/manifest.json?v=2" />
     <meta name="theme-color" content="#0D0D0D" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />

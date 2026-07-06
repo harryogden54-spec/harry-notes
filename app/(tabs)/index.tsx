@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
-import { spacing, fontFamily, getNotePastelIndex } from "@/lib/theme";
+import { spacing, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
@@ -88,7 +88,7 @@ function TodayPanel() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { colors, notePastels } = useTheme();
+  const { colors, notePastels, scheme } = useTheme();
   const { open: openPalette }  = useCommandPalette();
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
@@ -138,6 +138,11 @@ function DashboardScreen() {
 
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
   const handleGoToNotes   = useCallback(() => router.push("/(tabs)/notes"), [router]);
+  const handleGoToDump    = useCallback(() => router.push("/(tabs)/dump"), [router]);
+
+  // Genuinely fresh install — no tasks or notes at all (not just none open),
+  // so the dashboard doesn't end up with a lot of empty vertical space.
+  const isFreshInstall = tasksLoaded && notesLoaded && tasks.length === 0 && notes.length === 0;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -287,8 +292,6 @@ function DashboardScreen() {
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>
         {sortedNotes.slice(0, 4).map(note => {
           const pi = getNotePastelIndex(note.id);
-          const bg = notePastels.bg[pi];
-          const border = notePastels.border[pi];
           const preview = notePreview(note, 80);
           return (
             <Pressable
@@ -299,41 +302,77 @@ function DashboardScreen() {
                 minWidth: 140,
               }}
             >
+              {/* Neutral card + pastel identity dot — same recipe as NoteCard */}
               <View style={{
-                backgroundColor: bg,
-                borderWidth: 1, borderColor: border,
-                borderRadius: 12,
+                backgroundColor: `${colors.bgSecondary}D0`,
+                borderWidth: 1, borderColor: `${colors.bgBorder}88`,
+                borderRadius: 18,
                 padding: spacing[3],
                 gap: spacing[1],
                 minHeight: 100,
+                ...getShadow("sm", scheme),
               }}>
-                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: notePastels.text }}>
+                <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: note.title ? colors.textPrimary : colors.textTertiary }}>
                   {note.title || "Untitled"}
                 </Text>
                 {preview ? (
-                  <Text size="xs" numberOfLines={3} style={{ color: notePastels.text, opacity: 0.75, lineHeight: 16 }}>
+                  <Text size="xs" numberOfLines={3} style={{ color: colors.textSecondary, lineHeight: 16 }}>
                     {preview}
                   </Text>
                 ) : null}
                 {mounted && (
-                  <Text size="xs" style={{ color: notePastels.text, opacity: 0.45, marginTop: "auto" as any }}>
-                    {(() => {
-                      const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
-                      const mins = Math.floor(diff / 60000);
-                      const hours = Math.floor(diff / 3600000);
-                      const days = Math.floor(diff / 86400000);
-                      if (mins < 1) return "just now";
-                      if (mins < 60) return `${mins}m ago`;
-                      if (hours < 24) return `${hours}h ago`;
-                      return `${days}d ago`;
-                    })()}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: "auto" as any }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: notePastels.bg[pi], borderWidth: 1, borderColor: notePastels.border[pi] }} />
+                    <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11 }}>
+                      {(() => {
+                        const diff = Date.now() - new Date(note.updated_at ?? note.created_at).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        const hours = Math.floor(diff / 3600000);
+                        const days = Math.floor(diff / 86400000);
+                        if (mins < 1) return "just now";
+                        if (mins < 60) return `${mins}m ago`;
+                        if (hours < 24) return `${hours}h ago`;
+                        return `${days}d ago`;
+                      })()}
+                    </Text>
+                  </View>
                 )}
               </View>
             </Pressable>
           );
         })}
       </View>
+    </View>
+  ) : null;
+
+  // ─── Getting started (fresh installs only — fills the empty space below
+  // the empty tasks/today cards with something actionable instead of blank
+  // scroll) ──────────────────────────────────────────────────────────────────
+
+  const gettingStarted = isFreshInstall ? (
+    <View style={{ marginBottom: spacing[6] }}>
+      <SectionHeader label="Get started" />
+      <GlassCard style={{ overflow: "hidden" }}>
+        {[
+          { icon: "checkbox-outline" as const, label: "Add your first task", onPress: () => searchRef.current?.focus() },
+          { icon: "document-text-outline" as const, label: "Write a note", onPress: handleGoToNotes },
+          { icon: "cloud-upload-outline" as const, label: "Dump a quick thought", onPress: handleGoToDump },
+        ].map((item, i, arr) => (
+          <Pressable
+            key={item.label}
+            onPress={item.onPress}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: spacing[3],
+              paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+              borderBottomWidth: i === arr.length - 1 ? 0 : 1, borderBottomColor: colors.bgBorder,
+            }}
+          >
+            <Ionicons name={item.icon} size={17} color={colors.accent} />
+            <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+          </Pressable>
+        ))}
+      </GlassCard>
     </View>
   ) : null;
 
@@ -354,6 +393,7 @@ function DashboardScreen() {
         </>
       )}
       {notesRow}
+      {gettingStarted}
     </>
   );
 

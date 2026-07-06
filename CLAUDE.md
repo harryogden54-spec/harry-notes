@@ -27,6 +27,10 @@ Inter + Ionicons `.ttf` files are committed at `public/fonts/` and referenced by
 
 One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Error: ENOENT: ... scandir 'fonts'` once per page load on web. Root cause wasn't isolated — it's unrelated to the `/fonts/` static files (those load fine; checked via `document.fonts` reporting `"loaded"` for all five). Safe to ignore.
 
+### Known accepted warning — RN-Web `<Modal>` deprecated `pointerEvents`
+
+`react-native-web`'s own internal `<Modal>` implementation (`ModalAnimation.js`) still triggers the deprecated-`pointerEvents`-as-a-prop console warning on web. All of *our* call sites were fixed (they use the `style.pointerEvents` form) — this residual warning comes from inside the library itself, not app code, and isn't fixable without a `patch-package` override or an RN-Web upgrade. The deploy pipeline has no patch step, so **accepted as a known, harmless, cosmetic console warning** rather than patched. Revisit if/when RN-Web is upgraded.
+
 ## Architecture
 
 **Stack:** Expo SDK 54 · expo-router v6 · React Native 0.81 · NativeWind v4 (Tailwind CSS) · expo-sqlite · Supabase (sync)
@@ -34,7 +38,7 @@ One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Erro
 ### Routing
 
 expo-router file-based routing. All screens live under `app/`:
-- `app/(tabs)/` — tab bar: `index` (Dashboard), `today`, `tasks`, `notes`, `dump`; `lists` and `calendar` also live here but are hidden from the tab bar (`href: null`). Post-its were removed 2026-07-06; legacy `type: "postit"` notes are coerced to regular notes on load.
+- `app/(tabs)/` — screens: `index` (Dashboard), `today`, `tasks`, `notes`, `courses`, `dump`; `lists` and `calendar` also live here but are hidden from navigation (`href: null`). On mobile, `MobileTabBar` shows only Home/Today/Tasks/Notes plus a "More" sheet for the rest; the desktop `Sidebar` shows every screen. Post-its were removed 2026-07-06; legacy `type: "postit"` notes are coerced to regular notes on load.
 - `app/settings.tsx` — modal screen
 - `app/_layout.tsx` — root layout: wraps everything in providers, initialises the DB, requests notification permissions
 
@@ -86,15 +90,28 @@ Always prefer these over raw RN primitives to keep styling consistent.
 - Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
 
 ## Current state
-Built: tasks, notes (sort Recent/Added/A–Z, archive, `//tag` inline tags + filter chips), lists, calendar tabs, dump (frictionless capture, migration 003),
-settings screen, theme system (6 themes: Obsidian/Nord/Graphite/Evergreen/Solar/Ember; 10 accents incl. Slate/Mono grayscale; header button = light/dark toggle), Supabase sync,
+Built: tasks (category board + composer modal), notes (Pinned/All Notes sections, WYSIWYG editor
+on web, sort Recent/Added/A–Z, archive, `//tag` inline tags + filter chips), courses (custom
+checkbox-progress tables + rings, migration 004), lists, calendar tabs, dump (frictionless capture,
+migration 003), settings screen, theme system (6 themes: Obsidian/Nord/Graphite/Evergreen/Solar/Ember;
+10 accents incl. Slate/Mono grayscale; header button = light/dark toggle), Supabase sync,
 Atelier design system (shadow/type/layout/motion tokens + per-theme kits in `lib/theme.ts`),
-split data/sync/actions contexts, delta-cursor sync with tombstones.
-Removed 2026-07-06: post-its section (dashboard secondary FAB now creates a note) and ALL web keyboard shortcuts (g-chords / `/` / `?` / tasks n/f/j/k/x — they intercepted letters while typing in the notes editor). Do not reintroduce shortcuts unprompted.
-iOS Safari input-focus auto-zoom fixed via viewport `maximum-scale=1` — set at runtime in `lib/webViewport.ts` and statically by `scripts/inject-pwa-head.js`; keep the two in sync.
+split data/sync/actions contexts, delta-cursor sync with tombstones,
+mobile nav = 4 tabs + More sheet (custom `MobileTabBar`; desktop sidebar shows everything).
+"Early July Changes" programme (Claude Design redesign, WYSIWYG editor, accent palette, PWA icon
+fix, UI polish sweep) shipped 2026-07-03; Courses page + nav declutter + modal/zoom/editor fixes
+shipped 2026-07-05 — full history + decisions in `docs/plans/early-july-changes.md`.
+Removed 2026-07-06: post-its section (dashboard secondary FAB now creates a note) and ALL web
+keyboard shortcuts (g-chords / `/` / `?` / tasks n/f/j/k/x — they intercepted letters while typing
+in the notes editor). Do not reintroduce shortcuts unprompted. Also replaced the 30-swatch accent
+palette with a curated 10 (see theme system above) per explicit user request the same day.
+iOS Safari input-focus auto-zoom fixed via viewport `maximum-scale=1` — set at runtime in
+`lib/webViewport.ts` and statically by `scripts/inject-pwa-head.js`; keep the two in sync.
 In progress: —
 On hold (user will ask): remake the iOS widget; further themes redesign beyond the 2026-07-06 trim.
-Not started: calendar screen memoization polish (hidden screen, deferred)
+Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
+memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal) —
+explicitly excluded from the Early July programme, still just flagged.
 
 > Update "In progress" and "Not started" at the start of each session.
 

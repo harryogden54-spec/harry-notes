@@ -8,11 +8,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily, getShadow, THEMES, type ThemeId } from "@/lib/theme";
-import { getTodayStr, getTomorrowStr, parseNaturalDate } from "@/lib/utils";
-import { type TaskCategory, type UniCourse, UNI_COURSES, useTasksData } from "@/lib/TasksContext";
+import { parseNaturalDate } from "@/lib/utils";
+import { type TaskCategory, type UniCourse, useTasksData } from "@/lib/TasksContext";
 import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { useThemeContext } from "@/lib/ThemeContext";
-import { DatePicker } from "@/components/ui/DatePicker";
+import { TaskComposerForm } from "@/components/tasks/TaskComposerModal";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -32,147 +32,6 @@ type CmdItem =
 
 function matches(text: string, q: string) {
   return !q || text.toLowerCase().includes(q.toLowerCase());
-}
-
-// ─── Task creation subform ────────────────────────────────────────────────────
-
-function TaskCreateForm({ initialTitle, onAdd, onClose, colors }: {
-  initialTitle: string;
-  onAdd: Props["onAdd"];
-  onClose: () => void;
-  colors: ReturnType<typeof useTheme>["colors"];
-}) {
-  const [title, setTitle]           = useState(initialTitle);
-  const [quickDate, setQuickDate]   = useState<"none" | "today" | "tomorrow" | "custom">("none");
-  const [customDate, setCustomDate] = useState<string | undefined>();
-  const [showPicker, setShowPicker] = useState(false);
-  const [showMore, setShowMore]     = useState(false);
-  const [category, setCategory]     = useState<TaskCategory | undefined>();
-  const [uniCourse, setUniCourse]   = useState<UniCourse>("Misc");
-  const inputRef = useRef<TextInput | null>(null);
-  const today    = getTodayStr();
-  const tomorrow = getTomorrowStr();
-
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 80);
-  }, []);
-
-  const nlp = title.trim() ? parseNaturalDate(title) : { date: null, cleanText: title };
-  const nlpDate = quickDate === "none" ? nlp.date : null;
-
-  function getEffectiveDate(): string | undefined {
-    if (quickDate === "today")    return today;
-    if (quickDate === "tomorrow") return tomorrow;
-    if (quickDate === "custom")   return customDate;
-    if (nlpDate)                  return nlpDate;
-    return undefined;
-  }
-
-  function submit() {
-    const raw = title.trim();
-    if (!raw) return;
-    const finalTitle = (quickDate === "none" && nlpDate) ? nlp.cleanText || raw : raw;
-    onAdd(finalTitle, getEffectiveDate(), category, category === "uni" ? uniCourse : undefined);
-    onClose();
-  }
-
-  return (
-    <View style={{ gap: spacing[4] }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
-        <Pressable onPress={onClose} hitSlop={12}>
-          <Ionicons name="arrow-back-outline" size={18} color={colors.textTertiary} />
-        </Pressable>
-        <Text size="base" weight="semibold" style={{ flex: 1 }}>New task</Text>
-        <Pressable onPress={onClose} hitSlop={12}
-          style={{ width: 24, height: 24, borderRadius: 99, backgroundColor: colors.bgTertiary, alignItems: "center", justifyContent: "center" }}>
-          <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
-        </Pressable>
-      </View>
-
-      <TextInput
-        ref={inputRef}
-        value={title}
-        onChangeText={setTitle}
-        onSubmitEditing={submit}
-        placeholder="Task title…"
-        placeholderTextColor={colors.textTertiary}
-        returnKeyType="done"
-        style={[
-          { color: colors.textPrimary, fontSize: 16, fontFamily: fontFamily.medium, paddingVertical: spacing[3], paddingHorizontal: spacing[3], backgroundColor: colors.bgTertiary, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder },
-          // @ts-ignore
-          { outlineStyle: "none" },
-        ]}
-      />
-
-      {nlpDate && quickDate === "none" && (
-        <Animated.View entering={FadeIn.duration(150)} style={{
-          flexDirection: "row", alignItems: "center", gap: spacing[2],
-          paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-          backgroundColor: `${colors.accent}14`, borderRadius: radius.lg,
-          borderWidth: 1, borderColor: `${colors.accent}30`, alignSelf: "flex-start",
-        }}>
-          <Ionicons name="calendar-outline" size={12} color={colors.accent} />
-          <Text size="xs" weight="medium" style={{ color: colors.accent }}>
-            {new Date(nlpDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-          </Text>
-          <Text size="xs" style={{ color: `${colors.accent}80` }}>detected</Text>
-        </Animated.View>
-      )}
-
-      <View style={{ gap: spacing[1.5] }}>
-        <Text size="xs" style={{ color: colors.textTertiary, fontFamily: fontFamily.medium }}>Date</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5] }}>
-          {(["none", "today", "tomorrow", "custom"] as const).map(opt => {
-            const labels = { none: "No date", today: "Today", tomorrow: "Tomorrow", custom: "Custom" };
-            const active = quickDate === opt;
-            return (
-              <Pressable key={opt} onPress={() => { setQuickDate(opt); if (opt === "custom") setShowPicker(true); else setShowPicker(false); }}
-                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.xl, borderWidth: 1, borderColor: active ? colors.accent : colors.bgBorder, backgroundColor: active ? `${colors.accent}18` : "transparent" }}>
-                <Text size="xs" weight={active ? "semibold" : undefined} style={{ color: active ? colors.accent : colors.textSecondary }}>
-                  {opt === "custom" && customDate && active ? new Date(customDate + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : labels[opt]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {showPicker && <DatePicker value={customDate} onChange={(d) => { setCustomDate(d ?? undefined); setShowPicker(false); }} />}
-      </View>
-
-      <Pressable onPress={() => setShowMore(v => !v)} style={{ flexDirection: "row", alignItems: "center", gap: spacing[1] }}>
-        <Ionicons name={showMore ? "chevron-up" : "chevron-down"} size={12} color={colors.textTertiary} />
-        <Text size="xs" style={{ color: colors.textTertiary }}>More options</Text>
-        {category && <Text size="xs" style={{ color: colors.accent }}> · {category}</Text>}
-      </Pressable>
-
-      {showMore && (
-        <View style={{ gap: spacing[1.5] }}>
-          <Text size="xs" style={{ color: colors.textTertiary, fontFamily: fontFamily.medium }}>Category</Text>
-          <View style={{ flexDirection: "row", gap: spacing[1.5] }}>
-            {([["personal", "Personal"], ["uni", "Uni"]] as [TaskCategory, string][]).map(([cat, label]) => (
-              <Pressable key={cat} onPress={() => setCategory(c => c === cat ? undefined : cat)}
-                style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[1.5], borderRadius: radius.xl, borderWidth: 1, borderColor: category === cat ? colors.accent : colors.bgBorder, backgroundColor: category === cat ? `${colors.accent}18` : "transparent" }}>
-                <Text size="xs" weight={category === cat ? "semibold" : undefined} style={{ color: category === cat ? colors.accent : colors.textSecondary }}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-          {category === "uni" && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
-              {UNI_COURSES.map(course => (
-                <Pressable key={course} onPress={() => setUniCourse(course)}
-                  style={{ paddingHorizontal: spacing[2], paddingVertical: spacing[0.5], borderRadius: 99, borderWidth: 1, borderColor: uniCourse === course ? colors.accent : colors.bgBorder, backgroundColor: uniCourse === course ? `${colors.accent}18` : "transparent" }}>
-                  <Text size="xs" style={{ color: uniCourse === course ? colors.accent : colors.textSecondary }}>{course}</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
-
-      <Pressable onPress={submit} style={{ backgroundColor: title.trim() ? colors.accent : colors.bgTertiary, borderRadius: radius.lg, paddingVertical: spacing[3], alignItems: "center" }}>
-        <Text size="sm" weight="semibold" style={{ color: title.trim() ? colors.textInverse : colors.textTertiary }}>Add task</Text>
-      </Pressable>
-    </View>
-  );
 }
 
 // ─── Main palette ─────────────────────────────────────────────────────────────
@@ -280,21 +139,23 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
 
   const content = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0 } as any} />
+      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any} />
       <Animated.View
         entering={FadeIn.duration(150)}
         exiting={FadeOut.duration(100)}
         style={{
           backgroundColor: colors.bgSecondary, borderRadius: radius["2xl"],
           borderWidth: 1, borderColor: colors.bgBorder,
-          padding: spacing[5], gap: spacing[3],
+          padding: mode === "add-task" ? 0 : spacing[5], gap: spacing[3],
           width: "90%" as any, maxWidth: 480,
           ...getShadow("overlay", scheme),
-          maxHeight: Platform.OS === "web" ? "70vh" as any : 560,
+          maxHeight: Platform.OS === "web" ? (mode === "add-task" ? "85vh" : "70vh") as any : (mode === "add-task" ? 640 : 560),
         }}
       >
         {mode === "add-task" ? (
-          <TaskCreateForm initialTitle={query} onAdd={onAdd} onClose={onClose} colors={colors} />
+          <ScrollView contentContainerStyle={{ padding: spacing[5] }} keyboardShouldPersistTaps="handled">
+            <TaskComposerForm initialTitle={query} onClose={onClose} />
+          </ScrollView>
         ) : (
           <>
             {/* Search input */}
@@ -441,13 +302,11 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     </View>
   );
 
-  if (Platform.OS === "web") {
-    if (!visible) return null;
-    return <View style={{ position: "absolute", inset: 0, zIndex: 100 } as any}>{content}</View>;
-  }
-
+  // Real <Modal> on every platform — see TaskComposerModal for the rationale
+  // (RNW portals it to the document root, immune to stacking-context fights).
+  if (!visible) return null;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       {content}
     </Modal>
   );

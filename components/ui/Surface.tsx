@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Platform, type ViewProps, type StyleProp, type ViewStyle } from "react-native";
+import { View, type ViewProps, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "@/lib/useTheme";
 import { radius, getShadow } from "@/lib/theme";
 
@@ -26,14 +26,11 @@ export function Surface({ variant = "default", style, children, ...props }: Prop
     variant === "elevated" ? colors.bgSecondary :
                              colors.bgSecondary;
 
-  // Frosted treatment: semi-transparent + blur on web
+  // Frosted treatment: semi-transparent over the gradient. No backdrop blur —
+  // per-card blur layers hurt web paint performance and are imperceptible over
+  // a smooth gradient (GlassCard keeps blur for true overlays).
   const frostedStyle: ViewStyle = {
     backgroundColor: `${baseColor}D0`, // ~82% opacity
-    ...(Platform.OS === "web" ? {
-      // @ts-ignore web-only CSS properties
-      backdropFilter: "blur(14px)",
-      WebkitBackdropFilter: "blur(14px)",
-    } : {}),
   };
 
   const shadowStyle: ViewStyle =
