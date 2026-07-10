@@ -1,9 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, SafeAreaView, ScrollView, TextInput, Pressable,
+  View, ScrollView, TextInput, Pressable,
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from "react-native";
+// Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
@@ -205,7 +207,7 @@ function TodayScreen() {
 
   return (
     <GradientBackground>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
           {/* Time-picker modal */}

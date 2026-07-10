@@ -68,6 +68,18 @@ html {
 /* No rubber-band overscroll flash behind the app shell. */
 html, body { overscroll-behavior-y: none; }
 
+/* ── Standalone PWA viewport height ─────────────────────────────────────── */
+/* In iOS standalone (Add to Home Screen) mode, percentage heights resolve
+   short by the status-bar height while content still paints from the top of
+   the screen — the whole app looks shifted up with a dead strip above the
+   home indicator. dvh spans the true screen in standalone, and in browser
+   tabs it tracks the visible viewport (so nothing hides behind Safari's
+   toolbar). 100vh is the fallback for engines without dvh. */
+html, body {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* ── Mobile zoom guards ─────────────────────────────────────────────────── */
 /* Kill the 300ms double-tap-to-zoom gesture (app UI, not a document) and
    stop iOS/Android inflating text on orientation change. The input-focus

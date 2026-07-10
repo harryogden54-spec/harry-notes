@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { View, ScrollView, SafeAreaView, Pressable, Modal, Platform } from "react-native";
+import { View, ScrollView, Pressable, Modal, Platform } from "react-native";
+// Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, GradientBackground, Surface, DatePicker, TaskRow, SectionHeader } from "@/components/ui";
@@ -307,7 +309,7 @@ function CalendarScreen() {
 
   return (
     <GradientBackground>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={[{ padding: spacing[4], paddingBottom: spacing[16] }, webContentStyle]}
         >

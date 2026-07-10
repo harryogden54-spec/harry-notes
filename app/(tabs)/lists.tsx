@@ -1,10 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, ScrollView, SafeAreaView, TextInput,
+  View, ScrollView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, LayoutAnimation, Modal, RefreshControl,
   useWindowDimensions,
 } from "react-native";
+// Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -714,7 +716,7 @@ function ListsScreen() {
   if (!loaded) {
     return (
       <GradientBackground>
-        <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <SafeAreaView edges={["left", "right"]} style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Text size="sm" secondary>Loading…</Text>
         </SafeAreaView>
       </GradientBackground>
@@ -732,7 +734,7 @@ function ListsScreen() {
 
     return (
       <GradientBackground>
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
           <CreateListModal visible={creating} onDone={() => setCreating(false)} />
           <View style={{ flex: 1, flexDirection: "row" }}>
             {/* Left pane — list index */}
@@ -802,7 +804,7 @@ function ListsScreen() {
   // ── Mobile layout — expand-in-place ──────────────────────────────────────────
   return (
     <GradientBackground>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
       <CreateListModal visible={creating} onDone={() => setCreating(false)} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
