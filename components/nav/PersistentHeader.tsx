@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, Platform, Image } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,9 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
   const { toggle } = useThemeContext();
   const { status, lastSynced } = useSyncStatus();
   const mounted = useMounted();
+  // Standalone PWA / native render under the status bar — the header owns the
+  // top inset (screens below no longer pad their own top).
+  const insets = useSafeAreaInsets();
 
   function toggleScheme() {
     toggle();
@@ -40,7 +44,8 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
   return (
     <View style={{
       flexDirection: "row", alignItems: "center",
-      paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+      paddingHorizontal: spacing[4],
+      paddingTop: spacing[2] + insets.top, paddingBottom: spacing[2],
       borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
       backgroundColor: colors.bgSecondary,
       minHeight: 40,

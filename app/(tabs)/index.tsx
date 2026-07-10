@@ -1,10 +1,14 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, ScrollView, SafeAreaView, Pressable,
+  View, ScrollView, Pressable,
   Platform, KeyboardAvoidingView, TextInput, RefreshControl,
   useWindowDimensions,
 } from "react-native";
+// Screens sit below PersistentHeader (which owns the top inset) and above the
+// tab bar (bottom inset) — pad the side notches only, or standalone-PWA/native
+// would double-pad the top.
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
@@ -407,7 +411,7 @@ function DashboardScreen() {
 
   return (
     <GradientBackground>
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}

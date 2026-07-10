@@ -121,6 +121,13 @@ tags managed from a top-bar TagRow (still stored as a //tag line at the top of t
 `addTagToBody`/`removeTagFromBody`), focus mode = full-window RN `<Modal>`; iOS keyboard could
 leave the page scrolled up with a white bar below → `installKeyboardScrollRestore` in
 `lib/webViewport.ts` + themed `document.body` background set by `ThemeContext`.
+Standalone-PWA safe areas (2026-07-10, round 2): in Add-to-Home-Screen mode percentage heights
+resolve short and content paints under the status bar — `html, body { height: 100dvh }` in
+global.css, `PersistentHeader` owns the top inset (`useSafeAreaInsets`), tab screens use
+`SafeAreaView` from react-native-safe-area-context with `edges={["left","right"]}` (top/bottom
+belong to the header/tab bar — RN-W's SafeAreaView pads all four edges unconditionally and
+double-pads; keep using the context version + edges for anything under the app chrome; full-window
+modals like settings and the task-detail modal keep all edges).
 In progress: —
 On hold (user will ask): remake the iOS widget; further themes redesign beyond the 2026-07-06 trim.
 Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in

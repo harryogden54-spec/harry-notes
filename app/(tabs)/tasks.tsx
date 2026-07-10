@@ -1,10 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, TextInput, Pressable, ScrollView, SafeAreaView,
+  View, TextInput, Pressable, ScrollView,
   KeyboardAvoidingView, Platform, RefreshControl, Modal,
   type ScrollView as RNScrollView, useWindowDimensions,
 } from "react-native";
+// Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
+// (The full-window task-detail Modal below keeps all edges.)
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -218,7 +221,7 @@ function TasksScreen() {
   if (!loaded) {
     return (
       <GradientBackground>
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
           <View style={{ padding: spacing[4], gap: spacing[3] }}>
             {[1, 2, 3, 4, 5].map(i => (
               <Skeleton key={i} height={52} borderRadius={10} />
@@ -233,7 +236,7 @@ function TasksScreen() {
 
   return (
     <GradientBackground>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
         {pillText && (
           <View style={{ alignItems: "center", paddingVertical: spacing[1] }}>
             <View style={{ backgroundColor: `${colors.accent}20`, borderRadius: 99, paddingHorizontal: spacing[3], paddingVertical: 3 }}>
@@ -494,6 +497,7 @@ function TasksScreen() {
             statusBarTranslucent
           >
             <GradientBackground>
+              {/* Full-window modal — covers the status bar, so keep all edges. */}
               <SafeAreaView style={{ flex: 1 }}>
                 <TaskDetailPanel
                   task={tasks.find(t => t.id === selectedTaskId)!}

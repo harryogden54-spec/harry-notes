@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform, Modal } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
@@ -154,6 +155,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const [focusMode, setFocusMode] = useState(false);
   const [wikiQuery, setWikiQuery] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Defensive convert-on-open: a block note synced from a not-yet-migrated
   // device still needs to become a markdown body so the single-TextInput editor
@@ -394,11 +396,12 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   );
 
   // Focus mode = truly full screen: a Modal portals above the whole app shell
-  // (desktop sidebar + notes list included), not just the editor panel.
+  // (desktop sidebar + notes list included), not just the editor panel. The
+  // modal covers the status-bar / home-indicator areas, so pad them itself.
   if (focusMode) {
     return (
       <Modal visible animationType="fade" onRequestClose={() => setFocusMode(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>{editor}</View>
+        <View style={{ flex: 1, backgroundColor: colors.bgPrimary, paddingTop: insets.top, paddingBottom: insets.bottom }}>{editor}</View>
       </Modal>
     );
   }
