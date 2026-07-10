@@ -58,6 +58,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty("--accent", accent);
   }, [accentId]);
 
+  // Paint the raw <body> in the theme background on web. The document body
+  // otherwise stays browser-default white, which shows through as a white
+  // bar whenever iOS Safari offsets the app for the keyboard.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const base = (THEMES[themeId] ?? THEMES.obsidian)[scheme];
+    document.body.style.backgroundColor = base.bgPrimary;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", base.bgPrimary);
+  }, [themeId, scheme]);
+
   const toggle = useCallback(() => {
     setOverride(prev => {
       const next: Scheme = (prev ?? device) === "dark" ? "light" : "dark";

@@ -23,6 +23,19 @@ export function insertLinePrefix(text: string, sel: Sel, prefix: string): { text
   return { text: next, cursor: { start: sel.start + prefix.length, end: sel.end + prefix.length } };
 }
 
+/** Strip a heading/bullet/checkbox prefix from the current line — back to regular text. */
+export function removeLinePrefix(text: string, sel: Sel): { text: string; cursor: Sel } {
+  const lineStart = text.lastIndexOf("\n", sel.start - 1) + 1;
+  const lineEnd = text.indexOf("\n", lineStart);
+  const line = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
+  const m = line.match(/^(#{1,6}\s+|[-*]\s+\[[ xX]\]\s?|[-*]\s+)/);
+  if (!m) return { text, cursor: sel };
+  const removed = m[1].length;
+  const next = text.slice(0, lineStart) + line.slice(removed) + (lineEnd === -1 ? "" : text.slice(lineEnd));
+  const clamp = (p: number) => Math.max(lineStart, p - removed);
+  return { text: next, cursor: { start: clamp(sel.start), end: clamp(sel.end) } };
+}
+
 export function insertBlock(text: string, sel: Sel, block: string): { text: string; cursor: Sel } {
   const before = text[sel.start - 1] === "\n" ? "" : "\n";
   const after = text[sel.end] === "\n" ? "" : "\n";
@@ -48,6 +61,7 @@ export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading 
     { label: "I", italic: true, fn: () => { const r = insertInline(body, selRef.current, "_");  onApply(r.text, r.cursor); } },
     { label: "H",               fn: () => { const r = insertLinePrefix(body, selRef.current, "# ");  onApply(r.text, r.cursor); } },
     { label: "H2",              fn: () => { const r = insertLinePrefix(body, selRef.current, "## "); onApply(r.text, r.cursor); } },
+    { label: "T",               fn: () => { const r = removeLinePrefix(body, selRef.current); onApply(r.text, r.cursor); } },
     { label: "•",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- ");  onApply(r.text, r.cursor); } },
     { label: "☑",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- [ ] "); onApply(r.text, r.cursor); } },
     { label: "`",               fn: () => { const r = insertInline(body, selRef.current, "`");  onApply(r.text, r.cursor); } },

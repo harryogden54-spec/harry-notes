@@ -12,6 +12,9 @@ import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
 import { useDumpsData, useDumpsActions, useDumpsSync, type DumpTag } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
 import { getLocalDateStr } from "@/lib/utils";
+import { storage } from "@/lib/storage";
+
+const HIDE_FILED_KEY = "dump_hide_filed";
 
 function getYesterdayStr(): string {
   const d = new Date();
@@ -253,6 +256,19 @@ function DumpScreen() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hideFiled, setHideFiled] = useState(false);
+
+  useEffect(() => {
+    storage.get<boolean>(HIDE_FILED_KEY).then(v => { if (v != null) setHideFiled(v); });
+  }, []);
+
+  function toggleHideFiled() {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setHideFiled(v => {
+      storage.set(HIDE_FILED_KEY, !v);
+      return !v;
+    });
+  }
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -261,6 +277,8 @@ function DumpScreen() {
   }, [syncNow]);
 
   const sorted = [...dumps].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const filedCount = sorted.filter(d => d.filed).length;
+  const visible = hideFiled ? sorted.filter(d => !d.filed) : sorted;
 
   function handleAdd() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -300,6 +318,7 @@ function DumpScreen() {
               {sorted.length > 0 && (
                 <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
                   {sorted.length} capture{sorted.length !== 1 ? "s" : ""}
+                  {filedCount > 0 ? ` · ${filedCount} filed` : ""}
                 </Text>
               )}
             </View>
@@ -316,11 +335,38 @@ function DumpScreen() {
             </Pressable>
           </View>
 
+          {/* Hide-filed toggle — filed captures are already in the vault, so
+              tucking them away keeps this screen to what still needs filing. */}
+          {filedCount > 0 && (
+            <Pressable
+              onPress={toggleHideFiled}
+              style={{
+                flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
+                gap: spacing[1.5], marginBottom: spacing[4],
+                paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                borderRadius: radius["2xl"], borderWidth: 1,
+                borderColor: hideFiled ? colors.accent : colors.bgBorder,
+                backgroundColor: hideFiled ? `${colors.accent}18` : "transparent",
+              }}
+            >
+              <Ionicons
+                name={hideFiled ? "eye-off-outline" : "checkmark-circle-outline"}
+                size={13}
+                color={hideFiled ? colors.accent : colors.textSecondary}
+              />
+              <Text size="xs" style={{ color: hideFiled ? colors.accent : colors.textSecondary }}>
+                {hideFiled ? `Filed hidden (${filedCount})` : "Hide filed"}
+              </Text>
+            </Pressable>
+          )}
+
           {sorted.length === 0 ? (
             <EmptyState type="sticky" title="Nothing captured yet" subtitle="Tap + to dump a quick thought." />
+          ) : visible.length === 0 ? (
+            <EmptyState type="sticky" title="All filed away" subtitle="Every capture is in the vault. Nice." />
           ) : (
             <View style={{ gap: spacing[3] }}>
-              {sorted.map(d => (
+              {visible.map(d => (
                 <DumpCard
                   key={d.id}
                   content={d.content}

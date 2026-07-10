@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +15,7 @@ import { pickAndUploadNoteImage } from "@/lib/storageImages";
 import { type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions } from "./WikiLinkSuggestions";
 import { NoteBodyEditor, type BodyEditorHandle } from "./editor/NoteBodyEditor";
-import { timeAgo } from "./utils";
+import { timeAgo, extractTags, normalizeTag, addTagToBody, removeTagFromBody, sinkToggledCheckbox } from "./utils";
 
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
   const { colors } = useTheme();
@@ -82,6 +82,56 @@ function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note
   );
 }
 
+/** Tag chips + add-field for the editor top bar. Tags live as a //tag line
+ *  at the top of the body, so list filtering and sync are unchanged. */
+function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: string) => void }) {
+  const { colors } = useTheme();
+  const [draft, setDraft] = useState("");
+  const tags = extractTags(note.body);
+
+  function commit() {
+    const tag = normalizeTag(draft);
+    setDraft("");
+    if (!tag) return;
+    onUpdateBody(addTagToBody(note.body, tag));
+  }
+
+  return (
+    <View style={{
+      flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing[1.5],
+      paddingHorizontal: spacing[4], paddingVertical: spacing[1.5],
+      borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
+    }}>
+      <Ionicons name="pricetag-outline" size={12} color={colors.textTertiary} />
+      {tags.map(tag => (
+        <Pressable
+          key={tag}
+          onPress={() => onUpdateBody(removeTagFromBody(note.body, tag))}
+          accessibilityLabel={`Remove tag ${tag}`}
+          style={{
+            flexDirection: "row", alignItems: "center", gap: 3,
+            paddingHorizontal: spacing[2], paddingVertical: 2,
+            borderRadius: 99, borderWidth: 1, borderColor: colors.bgBorder, backgroundColor: colors.bgSecondary,
+          }}
+        >
+          <Text size="xs" style={{ color: colors.textSecondary }}>//{tag}</Text>
+          <Ionicons name="close" size={10} color={colors.textTertiary} />
+        </Pressable>
+      ))}
+      <TextInput
+        value={draft}
+        onChangeText={setDraft}
+        onSubmitEditing={commit}
+        onBlur={() => { if (draft.trim()) commit(); }}
+        blurOnSubmit={false}
+        placeholder="Add tag…"
+        placeholderTextColor={colors.textTertiary}
+        style={[{ color: colors.textSecondary, fontSize: 12, fontFamily: fontFamily.regular, minWidth: 70, paddingVertical: 2 }, { outlineStyle: "none" } as any]}
+      />
+    </View>
+  );
+}
+
 type Props = {
   note: Note;
   onClose: () => void;
@@ -142,7 +192,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
     if (line === undefined) return;
     lines[lineIndex] = line.replace(/^([-*] \[)([ xX])(\])/, (_m, p1, state, p3) =>
       `${p1}${state.toLowerCase() === "x" ? " " : "x"}${p3}`);
-    updateNote(note.id, { body: lines.join("\n") });
+    updateNote(note.id, { body: sinkToggledCheckbox(lines, lineIndex).join("\n") });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
@@ -198,7 +248,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [openTasks.length, today, allNotes.length]);
 
-  return (
+  const editor = (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={{ flex: 1 }}>
         {/* Focus mode: all chrome hidden, one floating exit control */}
@@ -288,6 +338,9 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         </View>
         )}
 
+        {/* Tags — managed from the top bar; stored as a //tag line in the body */}
+        {!focusMode && <TagRow note={note} onUpdateBody={body => updateNote(note.id, { body })} />}
+
         {/* Body */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[6], paddingTop: spacing[6], paddingBottom: spacing[16], gap: spacing[3] }} keyboardShouldPersistTaps="handled">
           <TextInput
@@ -339,4 +392,15 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
       </View>
     </KeyboardAvoidingView>
   );
+
+  // Focus mode = truly full screen: a Modal portals above the whole app shell
+  // (desktop sidebar + notes list included), not just the editor panel.
+  if (focusMode) {
+    return (
+      <Modal visible animationType="fade" onRequestClose={() => setFocusMode(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>{editor}</View>
+      </Modal>
+    );
+  }
+  return editor;
 }

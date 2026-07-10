@@ -174,7 +174,9 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
         font-family: 'Inter_600SemiBold', -apple-system, sans-serif; font-weight: normal;
         font-size: 16.5px; line-height: 1.4; margin: 10px 0 2px; color: ${colors.textPrimary};
       }
-      .note-editor-body li { margin: 3px 0 3px 22px; }
+      /* Explicit disc: the app-wide CSS reset sets list-style-type: none, which
+         left bullet lines marker-less (visually blank when empty). */
+      .note-editor-body li { margin: 3px 0 3px 22px; list-style: disc outside; }
       .note-editor-body li::marker { color: ${colors.textTertiary}; }
       .note-editor-body hr { border: none; border-top: 1px solid ${colors.bgBorder}; margin: 16px 0; }
       .note-editor-body b, .note-editor-body strong { font-family: 'Inter_700Bold', -apple-system, sans-serif; font-weight: normal; }
@@ -334,6 +336,23 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
       if (!row) return;
       const checked = row.getAttribute("data-checked") === "true";
       row.setAttribute("data-checked", String(!checked));
+
+      // Completed items sink to the bottom of their contiguous checklist;
+      // un-ticking lifts the item back above the checked cluster.
+      const group: HTMLElement[] = [row];
+      for (let p = row.previousElementSibling; p?.getAttribute("data-md-type") === "checkbox"; p = p.previousElementSibling) {
+        group.unshift(p as HTMLElement);
+      }
+      for (let n = row.nextElementSibling; n?.getAttribute("data-md-type") === "checkbox"; n = n.nextElementSibling) {
+        group.push(n as HTMLElement);
+      }
+      if (!checked) {
+        const last = group[group.length - 1];
+        if (last !== row) last.after(row);
+      } else {
+        const firstChecked = group.find(el => el !== row && el.getAttribute("data-checked") === "true");
+        if (firstChecked) firstChecked.before(row);
+      }
       serialize();
     }
   }, [serialize]);
@@ -435,6 +454,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     { key: "italic", title: "Italic",        content: <span style={{ fontFamily: fontFamily.regular, fontStyle: "italic" }}>I</span>, onPress: () => document.execCommand("italic") },
     { key: "h1",     title: "Heading",       content: <span style={{ fontFamily: fontFamily.semibold }}>H</span>,                   onPress: () => setCurrentBlockType("h1") },
     { key: "h2",     title: "Subheading",    content: <span style={{ fontFamily: fontFamily.semibold, fontSize: 12 }}>H2</span>,    onPress: () => setCurrentBlockType("h2") },
+    { key: "text",   title: "Regular text",  content: <span style={{ fontFamily: fontFamily.regular }}>T</span>,                    onPress: () => setCurrentBlockType("paragraph") },
     { key: "bullet", title: "Bulleted list", content: (
         <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>
           <circle cx="4" cy="6" r="0.5" /><circle cx="4" cy="12" r="0.5" /><circle cx="4" cy="18" r="0.5" />
