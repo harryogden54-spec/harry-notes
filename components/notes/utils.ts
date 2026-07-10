@@ -31,6 +31,67 @@ export function extractTags(body: string): string[] {
   return [...tags];
 }
 
+/** A line consisting only of //tag tokens (the editor keeps managed tags on one). */
+const TAG_ONLY_LINE = /^(\s*\/\/[A-Za-z0-9_-]+)+\s*$/;
+
+/** "  //Uni maths! " → "uni-maths" style cleanup for the tag input. */
+export function normalizeTag(raw: string): string | null {
+  const t = raw.trim().replace(/^\/+/, "").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9_-]/g, "");
+  return t || null;
+}
+
+/** Add a //tag marker, kept on a tag-only line at the top of the body. */
+export function addTagToBody(body: string, tag: string): string {
+  if (extractTags(body).includes(tag)) return body;
+  const lines = (body ?? "").split("\n");
+  if (lines.length > 0 && TAG_ONLY_LINE.test(lines[0])) {
+    lines[0] = `${lines[0].trimEnd()} //${tag}`;
+    return lines.join("\n");
+  }
+  return (body ?? "").trim() === "" ? `//${tag}` : `//${tag}\n${body}`;
+}
+
+/** Remove every //tag occurrence; tag-only lines left empty are dropped. */
+export function removeTagFromBody(body: string, tag: string): string {
+  const pattern = new RegExp(`(^|\\s)//${tag}(?=\\s|$)`, "gi");
+  // Sentinel marking a line to delete entirely — can't collide with real text.
+  const DROP = String.fromCharCode(0); // NUL sentinel, cannot appear in note text
+  const lines = (body ?? "").split("\n").map(line => {
+    if (!extractTags(line).includes(tag)) return line;
+    const tagOnly = TAG_ONLY_LINE.test(line);
+    const cleaned = line.replace(pattern, "$1").replace(/ {2,}/g, " ");
+    const final = tagOnly ? cleaned.trim() : cleaned.trimEnd();
+    return final === "" ? DROP : final;
+  });
+  return lines.filter(l => l !== DROP).join("\n");
+}
+
+const CHECKBOX_LINE = /^[-*] \[[ xX]\]/;
+const CHECKED_LINE  = /^[-*] \[[xX]\]/;
+
+/**
+ * After the checkbox on `lineIndex` is toggled, reorder its contiguous
+ * checklist group: checked items sink to the bottom of the group, un-checked
+ * items lift back above the checked cluster. Returns the reordered lines.
+ */
+export function sinkToggledCheckbox(lines: string[], lineIndex: number): string[] {
+  const line = lines[lineIndex];
+  if (line === undefined || !CHECKBOX_LINE.test(line)) return lines;
+  let start = lineIndex;
+  while (start > 0 && CHECKBOX_LINE.test(lines[start - 1])) start--;
+  let end = lineIndex;
+  while (end < lines.length - 1 && CHECKBOX_LINE.test(lines[end + 1])) end++;
+
+  const group = [...lines.slice(start, lineIndex), ...lines.slice(lineIndex + 1, end + 1)];
+  let insertAt = group.length;
+  if (!CHECKED_LINE.test(line)) {
+    const firstChecked = group.findIndex(l => CHECKED_LINE.test(l));
+    if (firstChecked !== -1) insertAt = firstChecked;
+  }
+  group.splice(insertAt, 0, line);
+  return [...lines.slice(0, start), ...group, ...lines.slice(end + 1)];
+}
+
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);

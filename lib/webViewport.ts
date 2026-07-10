@@ -24,4 +24,31 @@ export function applyMobileViewport(): void {
     document.head.appendChild(meta);
   }
   meta.setAttribute("content", VIEWPORT_CONTENT);
+  installKeyboardScrollRestore();
+}
+
+/**
+ * iOS Safari scrolls the (fixed-height, overflow:hidden) page to keep a
+ * focused input visible above the keyboard, and often leaves that scroll
+ * offset behind after the keyboard closes — the whole app sits shifted up
+ * with a bar of raw body background exposed at the bottom. Snap the window
+ * scroll back to 0 whenever an input loses focus or the visual viewport
+ * grows back (keyboard dismissed).
+ */
+function installKeyboardScrollRestore(): void {
+  if (typeof window === "undefined") return;
+  const restore = () => {
+    if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0) {
+      window.scrollTo(0, 0);
+    }
+  };
+  window.addEventListener("focusout", () => { setTimeout(restore, 60); });
+  const vv = window.visualViewport;
+  if (vv) {
+    let lastHeight = vv.height;
+    vv.addEventListener("resize", () => {
+      if (vv.height > lastHeight) setTimeout(restore, 60);
+      lastHeight = vv.height;
+    });
+  }
 }

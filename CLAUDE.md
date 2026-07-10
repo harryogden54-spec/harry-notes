@@ -17,6 +17,12 @@ npm run deploy         # expo export --platform web && wrangler pages deploy
 
 There is no test runner configured. TypeScript is checked implicitly by the Expo build toolchain.
 
+## Dev server rules
+
+- **Before starting a dev server, check whether Metro is already running:** `netstat -ano | findstr :8081`. If it is, reuse it — do not start a second instance.
+- When starting one, use `npx expo start --web --offline` (skips Expo's network update checks).
+- **Kill any dev server you started before the session ends.** Orphaned Metro/Expo processes from worktree sessions have previously been left pinning a CPU core for days.
+
 ### Working in a git worktree
 
 A fresh worktree has no `node_modules/` or `.env` (both are gitignored). Before `npm run web`, `npm run deploy`, or the TypeScript-via-node workaround will work, copy `.env` from the main checkout and run `npm install` inside the worktree.
@@ -107,6 +113,14 @@ in the notes editor). Do not reintroduce shortcuts unprompted. Also replaced the
 palette with a curated 10 (see theme system above) per explicit user request the same day.
 iOS Safari input-focus auto-zoom fixed via viewport `maximum-scale=1` — set at runtime in
 `lib/webViewport.ts` and statically by `scripts/inject-pwa-head.js`; keep the two in sync.
+July 10 batch: Dump hide-filed toggle; notes editor — desktop bullets fixed (explicit
+`list-style: disc`; the app-wide reset nulls li markers), checked checklist items sink to the
+bottom of their group (`sinkToggledCheckbox` in `components/notes/utils.ts`, web + native paths),
+"T" regular-text toolbar button (web `setCurrentBlockType("paragraph")`, native `removeLinePrefix`),
+tags managed from a top-bar TagRow (still stored as a //tag line at the top of the body —
+`addTagToBody`/`removeTagFromBody`), focus mode = full-window RN `<Modal>`; iOS keyboard could
+leave the page scrolled up with a white bar below → `installKeyboardScrollRestore` in
+`lib/webViewport.ts` + themed `document.body` background set by `ThemeContext`.
 In progress: —
 On hold (user will ask): remake the iOS widget; further themes redesign beyond the 2026-07-06 trim.
 Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
