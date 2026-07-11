@@ -9,6 +9,7 @@ export { SubtasksList } from "./SubtasksList";
 export { TaskItem } from "./TaskItem";
 export { TaskCard } from "./TaskCard";
 export { CategoryColumns } from "./CategoryColumns";
+export { CategoriesManageModal } from "./CategoriesManageModal";
 export { TaskDetailPanel } from "./TaskDetailPanel";
 export { AddTaskRow } from "./AddTaskRow";
 export { TaskComposerForm, TaskComposerModal } from "./TaskComposerModal";

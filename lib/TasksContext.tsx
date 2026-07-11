@@ -7,7 +7,11 @@ import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 import { advanceByRecurrence } from "./utils";
 
 export type Priority   = "urgent" | "high" | "medium" | "low";
-export type TaskCategory = "personal" | "uni";
+// Categories are now user-editable data (see TaskCategoriesContext) rather
+// than a fixed union — this alias is kept so existing call sites (composer,
+// selectors, dashboard) don't all need a type import change. The value is a
+// Category.id; "personal"/"uni" remain valid as the seeded defaults.
+export type TaskCategory = string;
 
 export const UNI_COURSES = [
   "Misc",

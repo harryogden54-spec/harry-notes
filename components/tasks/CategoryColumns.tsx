@@ -3,7 +3,8 @@ import { View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, categoryColors } from "@/lib/theme";
+import { spacing, resolveAccentSwatch } from "@/lib/theme";
+import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import type { Task } from "@/lib/TasksContext";
 import { TaskCard } from "./TaskCard";
 
@@ -16,22 +17,24 @@ type Props = {
   selectedIds: Set<string>;
   onBulkSelect: (id: string) => void;
   highlightId?: string | null;
-  /** Mobile (design 1c): stack Personal/Uni as sections in one column instead of side-by-side. */
+  /** Mobile: stack category columns as sections in one column instead of side-by-side. */
   stacked?: boolean;
 };
 
 /**
- * Tasks board: an "Unsorted" strip for tasks with no category (category
- * is optional in the data model, but the design only has 2 columns),
- * followed by Personal / Uni — side-by-side on desktop, stacked on mobile.
+ * Tasks board: an "Uncategorized" strip for tasks with no (or an unknown/
+ * deleted) category, followed by one column per user-defined category —
+ * side-by-side on desktop, stacked on mobile — ordered by Category.order.
  */
 export function CategoryColumns({
   tasks, selectedTaskId, onSelectTask, onToggleDone,
   selectMode, selectedIds, onBulkSelect, highlightId, stacked = false,
 }: Props) {
-  const unsorted = tasks.filter(t => !t.category);
-  const personal = tasks.filter(t => t.category === "personal");
-  const uni      = tasks.filter(t => t.category === "uni");
+  const { scheme } = useTheme();
+  const { categories } = useCategoriesData();
+  const sorted = [...categories].sort((a, b) => a.order - b.order);
+  const knownIds = new Set(sorted.map(c => c.id));
+  const uncategorized = tasks.filter(t => !t.category || !knownIds.has(t.category));
 
   function renderCard(t: Task) {
     return (
@@ -54,12 +57,12 @@ export function CategoryColumns({
     );
   }
 
-  function renderColumn(label: string, color: string, items: Task[]) {
+  function renderColumn(id: string, label: string, color: string, items: Task[]) {
     // On mobile, skip empty categories entirely to save space; on desktop
-    // keep the column (with a quiet hint) so the 2-column structure holds.
+    // keep the column (with a quiet hint) so the multi-column structure holds.
     if (items.length === 0 && stacked) return null;
     return (
-      <View style={stacked ? undefined : { flex: 1, minWidth: 0 }}>
+      <View key={id} style={stacked ? undefined : { flex: 1, minWidth: 0 }}>
         <ColumnHeader label={label} count={items.length} color={color} />
         {items.length === 0
           ? <ColumnEmptyHint />
@@ -68,23 +71,28 @@ export function CategoryColumns({
     );
   }
 
+  const columns = sorted.map(cat => ({
+    id: cat.id,
+    label: cat.name,
+    color: resolveAccentSwatch(cat.color, scheme).color,
+    items: tasks.filter(t => t.category === cat.id),
+  }));
+
   return (
     <View style={{ gap: spacing[5] }}>
-      {unsorted.length > 0 && (
+      {uncategorized.length > 0 && (
         <View>
-          <ColumnHeader label="Unsorted" count={unsorted.length} />
-          <View style={{ gap: spacing[2.5] }}>{unsorted.map(renderCard)}</View>
+          <ColumnHeader label="Uncategorized" count={uncategorized.length} />
+          <View style={{ gap: spacing[2.5] }}>{uncategorized.map(renderCard)}</View>
         </View>
       )}
       {stacked ? (
         <View style={{ gap: spacing[5] }}>
-          {renderColumn("Personal", categoryColors.personal, personal)}
-          {renderColumn("Uni", categoryColors.uni, uni)}
+          {columns.map(col => renderColumn(col.id, col.label, col.color, col.items))}
         </View>
       ) : (
         <View style={{ flexDirection: "row", gap: spacing[5] }}>
-          {renderColumn("Personal", categoryColors.personal, personal)}
-          {renderColumn("Uni", categoryColors.uni, uni)}
+          {columns.map(col => renderColumn(col.id, col.label, col.color, col.items))}
         </View>
       )}
     </View>

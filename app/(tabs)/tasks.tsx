@@ -24,6 +24,7 @@ import { getTodayStr, getNextWeekStr } from "@/lib/utils";
 
 import {
   Chip, AddTaskRow, Section, TaskDetailPanel, EmptyDetailPane, CategoryColumns,
+  CategoriesManageModal,
   PRIORITY_CONFIG, type SortBy,
   isOverdue, isToday, applySort, matchesSearch,
 } from "@/components/tasks";
@@ -52,6 +53,7 @@ function TasksScreen() {
   const [compact, setCompact]                   = useState(Platform.OS !== "web");
   const [showArchive, setShowArchive]           = useState(false);
   const [showFilters, setShowFilters]           = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [completedCollapsed, setCompletedCollapsed] = useState(true);
   const prefsLoaded = useRef(false);
   const addInputRef    = useRef<TextInput | null>(null);
@@ -263,7 +265,11 @@ function TasksScreen() {
               <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <Text size="title" weight="bold">Tasks</Text>
-                  <View style={{ flexDirection: "row", gap: spacing[2] }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+                    <Pressable onPress={() => setShowCategoriesModal(true)} hitSlop={10} accessibilityLabel="Edit categories"
+                      style={{ padding: spacing[1] }}>
+                      <Ionicons name="pricetags-outline" size={18} color={colors.textSecondary} />
+                    </Pressable>
                     {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
                         ["select", selectMode, () => { setSelectMode(v => !v); setSelectedIds(new Set()); }, selectMode ? "Cancel" : "Select"],
                         ...(archived.length > 0
@@ -507,6 +513,8 @@ function TasksScreen() {
             </GradientBackground>
           </Modal>
         )}
+
+        <CategoriesManageModal visible={showCategoriesModal} onClose={() => setShowCategoriesModal(false)} />
       </SafeAreaView>
     </GradientBackground>
   );

@@ -22,7 +22,8 @@ export function getDb(): SQLite.SQLiteDatabase {
 // v8: dumps table added.
 // v9: notes.archived column (notes archive feature).
 // v10: courses table added (checkbox progress tables).
-const SCHEMA_VERSION = 10;
+// v11: task_categories table added (user-editable task categories).
+const SCHEMA_VERSION = 11;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -99,6 +100,15 @@ export async function initDb(): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS task_categories (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL DEFAULT '',
+      color      TEXT NOT NULL DEFAULT 'indigo',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_created   ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_tasks_archived  ON tasks(archived);
     CREATE INDEX IF NOT EXISTS idx_notes_created   ON notes(created_at);
@@ -106,6 +116,7 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_lists_created   ON lists(created_at);
     CREATE INDEX IF NOT EXISTS idx_dumps_created   ON dumps(created_at);
     CREATE INDEX IF NOT EXISTS idx_courses_created ON courses(created_at);
+    CREATE INDEX IF NOT EXISTS idx_task_categories_order ON task_categories(sort_order);
   `);
 
   // ── Migrations ──────────────────────────────────────────────────────────────
@@ -193,6 +204,21 @@ export async function initDb(): Promise<void> {
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_courses_created ON courses(created_at);
+    `);
+  }
+
+  if (current < 11) {
+    // v11: task_categories table — CREATE TABLE IF NOT EXISTS is a no-op for fresh installs.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS task_categories (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL DEFAULT '',
+        color      TEXT NOT NULL DEFAULT 'indigo',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_categories_order ON task_categories(sort_order);
     `);
   }
 
@@ -429,6 +455,32 @@ export async function dbSaveCourses(tables: any[], changes?: SaveChanges): Promi
         JSON.stringify(t.columns ?? []),
         JSON.stringify(t.rows ?? []),
         t.created_at, t.updated_at ?? t.created_at,
+      ]
+    );
+  }));
+}
+
+export async function dbLoadTaskCategories(): Promise<any[]> {
+  const rows = await getDb().getAllAsync<Record<string, any>>(
+    "SELECT * FROM task_categories ORDER BY sort_order ASC"
+  );
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name ?? "",
+    color: r.color ?? "indigo",
+    order: r.sort_order ?? 0,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
+}
+
+export async function dbSaveTaskCategories(categories: any[], changes?: SaveChanges): Promise<void> {
+  enqueue("task_categories", toReq(categories, changes), (req) => runSave("task_categories", req, async (db, c) => {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO task_categories (id,name,color,sort_order,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
+      [
+        c.id, c.name ?? "", c.color ?? "indigo", c.order ?? 0,
+        c.created_at, c.updated_at ?? c.created_at,
       ]
     );
   }));

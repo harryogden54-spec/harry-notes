@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { THEMES } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
+import { useCategoriesSync } from "@/lib/TaskCategoriesContext";
 import { useListsSync } from "@/lib/ListsContext";
 import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/NotesContext";
 import { notesToZip, pickMarkdownFiles } from "@/lib/notesExport";
@@ -148,6 +149,7 @@ export default function SettingsScreen() {
   const { syncStatus: noteSync, syncNow: syncNotes, lastSynced: noteLastSynced } = useNotesSync();
   const { syncStatus: courseSync, syncNow: syncCourses, lastSynced: courseLastSynced } = useCoursesSync();
   const { syncNow: syncDumps } = useDumpsSync();
+  const { syncStatus: categorySync, syncNow: syncCategories, lastSynced: categoryLastSynced } = useCategoriesSync();
   const { notes } = useNotesData();
   const { bulkAddNotes } = useNotesActions();
   const { showToast } = useToast();
@@ -193,13 +195,13 @@ export default function SettingsScreen() {
     }
   }
 
-  const domainStatuses = [taskSync, listSync, noteSync, courseSync];
+  const domainStatuses = [taskSync, listSync, noteSync, courseSync, categorySync];
   const overallSync = domainStatuses.includes("error") ? "error"
     : domainStatuses.includes("syncing") ? "syncing"
     : domainStatuses.every(s => s === "synced") ? "synced"
     : "idle";
 
-  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced, courseLastSynced].filter(Boolean) as string[];
+  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced, courseLastSynced, categoryLastSynced].filter(Boolean) as string[];
   const lastSynced   = allSyncTimes.length > 0
     ? new Date(Math.max(...allSyncTimes.map(t => new Date(t).getTime()))).toISOString()
     : null;
@@ -214,6 +216,7 @@ export default function SettingsScreen() {
     await Promise.all([
       syncTasks({ full: true }), syncNotes({ full: true }),
       syncLists({ full: true }), syncDumps({ full: true }), syncCourses({ full: true }),
+      syncCategories({ full: true }),
     ]);
     showToast("Synced successfully");
   }

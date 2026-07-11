@@ -17,6 +17,7 @@ import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
+import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
 import { storage } from "@/lib/storage";
@@ -97,6 +98,7 @@ function DashboardScreen() {
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
   const { syncNow: syncTasks } = useTasksSync();
+  const { categories: taskCategories } = useCategoriesData();
   const { showToast }          = useToast();
   const { notes, loaded: notesLoaded } = useNotesData();
   const router                 = useRouter();
@@ -207,7 +209,7 @@ function DashboardScreen() {
 
   // ─── Tasks card ───────────────────────────────────────────────────────────────
 
-  const CATEGORY_LABEL: Record<string, string> = { personal: "Personal", uni: "Uni" };
+  const categoryLabel: Record<string, string> = Object.fromEntries(taskCategories.map(c => [c.id, c.name]));
 
   const tasksCardItems = openTasks.slice(0, 5);
   const tasksOverflow  = openTasks.length - 5;
@@ -236,7 +238,7 @@ function DashboardScreen() {
                 }}
               >
                 <Text size="xs" style={{ color: active ? colors.accent : colors.textSecondary }}>
-                  {CATEGORY_LABEL[cat] ?? cat}
+                  {categoryLabel[cat] ?? cat}
                 </Text>
               </Pressable>
             );
