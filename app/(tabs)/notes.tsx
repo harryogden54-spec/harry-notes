@@ -225,7 +225,7 @@ function NotesScreen() {
                 backgroundColor: active ? `${colors.accent}18` : colors.bgSecondary,
               }}>
                 <Text size="xs" weight={active ? "semibold" : "regular"} style={{ color: active ? colors.accent : colors.textSecondary }}>
-                  //{tag}
+                  {tag}
                 </Text>
               </Pressable>
             );

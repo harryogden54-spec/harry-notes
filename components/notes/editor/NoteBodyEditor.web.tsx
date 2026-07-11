@@ -72,6 +72,28 @@ function createBlockElement(b: Block): HTMLElement {
     return row;
   }
 
+  if (b.type === "tablerow") {
+    const row = document.createElement("div");
+    row.setAttribute("data-md-type", "tablerow");
+    for (const cell of (b.cells?.length ? b.cells : [""])) {
+      const td = document.createElement("span");
+      td.setAttribute("data-md-cell", "true");
+      td.innerHTML = inlineMarkdownToHtml(cell) || "<br/>";
+      row.appendChild(td);
+    }
+    return row;
+  }
+
+  if (b.type === "tablesep") {
+    // Carried verbatim, invisible: consecutive display:table-row siblings form
+    // one anonymous table; a display:none element between them doesn't break it.
+    const sep = document.createElement("div");
+    sep.setAttribute("data-md-type", "tablesep");
+    sep.setAttribute("data-raw", b.text);
+    sep.contentEditable = "false";
+    return sep;
+  }
+
   const tag = b.type === "h1" ? "h1" : b.type === "h2" ? "h2" : b.type === "h3" ? "h3" : "div";
   const el = document.createElement(tag);
   if (b.type !== "paragraph" && b.type !== "empty") el.setAttribute("data-md-type", b.type);
@@ -112,6 +134,15 @@ function serializeContainer(container: HTMLElement): string {
       return;
     }
     if (mdType === "bullet") { blocks.push({ type: "bullet", text: inlineNodeToMarkdown(el) }); return; }
+    if (mdType === "tablerow") {
+      const cells = Array.from(el.querySelectorAll("[data-md-cell]")).map(c => inlineNodeToMarkdown(c));
+      blocks.push({ type: "tablerow", text: "", cells: cells.length ? cells : [""] });
+      return;
+    }
+    if (mdType === "tablesep") {
+      blocks.push({ type: "tablesep", text: el.getAttribute("data-raw") ?? "| --- |" });
+      return;
+    }
     if (mdType === "checkbox") {
       const label = el.querySelector('[data-md-checkbox-label]');
       const checked = el.getAttribute("data-checked") === "true";
@@ -206,6 +237,27 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
       .note-editor-body [data-checked="true"] [data-md-checkbox-label] {
         text-decoration: line-through; color: ${colors.textTertiary};
       }
+      /* Tables: each markdown row is a top-level div (editor line invariant);
+         contiguous display:table-row siblings form one anonymous table box, so
+         columns align across rows without a shared <table> wrapper. Anonymous
+         tables can't border-collapse, so cells draw right+bottom borders and
+         adjacency rules add the outer top/left edges exactly once. */
+      .note-editor-body [data-md-type="tablerow"] { display: table-row; }
+      .note-editor-body [data-md-cell] {
+        display: table-cell; padding: 5px 10px; min-width: 64px;
+        font-size: 15px; vertical-align: top;
+        border-right: 1px solid ${colors.bgBorder};
+        border-bottom: 1px solid ${colors.bgBorder};
+        border-top: 1px solid ${colors.bgBorder};
+      }
+      .note-editor-body [data-md-cell]:first-child { border-left: 1px solid ${colors.bgBorder}; }
+      .note-editor-body [data-md-type="tablerow"] + [data-md-type="tablerow"] [data-md-cell],
+      .note-editor-body [data-md-type="tablesep"] + [data-md-type="tablerow"] [data-md-cell] { border-top: none; }
+      .note-editor-body [data-md-type="tablerow"]:has(+ [data-md-type="tablesep"]) [data-md-cell] {
+        font-family: 'Inter_600SemiBold', -apple-system, sans-serif;
+        background: ${colors.bgSecondary};
+      }
+      .note-editor-body [data-md-type="tablesep"] { display: none; }
       .note-toolbar-btn {
         border: none; background: transparent; cursor: pointer;
         display: inline-flex; align-items: center; justify-content: center;
@@ -359,18 +411,14 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Escape") { onWikiQueryChange(null); return; }
-    if (e.key !== "Enter" || e.shiftKey) return;
+    if (e.key !== "Enter" && e.key !== "Tab" && e.key !== "Backspace") return;
     const container = containerRef.current;
     const sel = window.getSelection();
     if (!container || !sel || sel.rangeCount === 0) return;
     const block = findTopLevelBlock(container, sel.getRangeAt(0).startContainer);
     if (!block) return;
     const mdType = block.getAttribute("data-md-type");
-    const isHeading = block.tagName === "H1" || block.tagName === "H2" || block.tagName === "H3";
-    const isList = mdType === "bullet" || mdType === "checkbox";
-    if (!isHeading && !isList) return; // let the browser's default Enter create a plain sibling div
 
-    e.preventDefault();
     const placeCaret = (el: HTMLElement) => {
       const range = document.createRange();
       range.setStart(el, 0);
@@ -378,6 +426,116 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
       sel.removeAllRanges();
       sel.addRange(range);
     };
+    const placeCaretEnd = (el: HTMLElement) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+
+    // ── Tables ──────────────────────────────────────────────────────────────
+    if (mdType === "tablerow") {
+      const typeOf = (el: Element | null) => el?.getAttribute("data-md-type") ?? null;
+      const range = sel.getRangeAt(0);
+      const startEl = range.startContainer instanceof HTMLElement
+        ? range.startContainer
+        : range.startContainer.parentElement;
+      const cell = (startEl?.closest("[data-md-cell]") ?? null) as HTMLElement | null;
+      const cells = Array.from(block.querySelectorAll("[data-md-cell]")) as HTMLElement[];
+      const rowIsEmpty = (block.textContent ?? "").trim() === "";
+      // A separator with no adjacent row would serialize as an orphan `| --- |` line.
+      const removeOrphanSeps = () => {
+        container.querySelectorAll('[data-md-type="tablesep"]').forEach(sep => {
+          if (typeOf(sep.previousElementSibling) !== "tablerow" && typeOf(sep.nextElementSibling) !== "tablerow") sep.remove();
+        });
+      };
+
+      // Tab selects the target cell's contents so typing replaces (spreadsheet behaviour).
+      const selectCell = (el: HTMLElement) => {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      };
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const idx = cell ? cells.indexOf(cell) : 0;
+        if (e.shiftKey) {
+          if (idx > 0) { selectCell(cells[idx - 1]); return; }
+          let p = block.previousElementSibling;
+          while (p && typeOf(p) === "tablesep") p = p.previousElementSibling;
+          if (typeOf(p) === "tablerow") {
+            const pc = p!.querySelectorAll("[data-md-cell]");
+            selectCell(pc[pc.length - 1] as HTMLElement);
+          }
+          return;
+        }
+        if (idx < cells.length - 1) { selectCell(cells[idx + 1]); return; }
+        let n = block.nextElementSibling;
+        while (n && typeOf(n) === "tablesep") n = n.nextElementSibling;
+        if (typeOf(n) === "tablerow") {
+          selectCell(n!.querySelector("[data-md-cell]") as HTMLElement);
+          return;
+        }
+        // Tab past the last cell grows the table (OneNote behaviour).
+        const grown = createBlockElement({ type: "tablerow", text: "", cells: cells.map(() => "") });
+        block.after(grown);
+        placeCaret(grown.querySelector("[data-md-cell]") as HTMLElement);
+        serialize();
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (rowIsEmpty) {
+          // Enter on an empty row exits the table (mirrors empty-list-item Enter).
+          const plain = document.createElement("div");
+          plain.innerHTML = "<br/>";
+          block.replaceWith(plain);
+          removeOrphanSeps();
+          placeCaret(plain);
+          serialize();
+          return;
+        }
+        const next = createBlockElement({ type: "tablerow", text: "", cells: cells.map(() => "") });
+        block.after(next);
+        placeCaret(next.querySelector("[data-md-cell]") as HTMLElement);
+        serialize();
+        return;
+      }
+
+      // Backspace: delete an all-empty row; otherwise keep the caret from
+      // merging the row into the previous block when at a cell start.
+      if (rowIsEmpty) {
+        e.preventDefault();
+        let prev = block.previousElementSibling as HTMLElement | null;
+        while (prev && typeOf(prev) === "tablesep") prev = prev.previousElementSibling as HTMLElement | null;
+        block.remove();
+        removeOrphanSeps();
+        if (prev) {
+          const pc = prev.querySelectorAll("[data-md-cell]");
+          placeCaretEnd((pc.length ? pc[pc.length - 1] : prev) as HTMLElement);
+        }
+        serialize();
+        return;
+      }
+      if (cell && range.collapsed) {
+        const pre = document.createRange();
+        pre.selectNodeContents(cell);
+        try { pre.setEnd(range.startContainer, range.startOffset); } catch { return; }
+        if (pre.toString() === "") e.preventDefault();
+      }
+      return;
+    }
+
+    if (e.key !== "Enter" || e.shiftKey) return;
+    const isHeading = block.tagName === "H1" || block.tagName === "H2" || block.tagName === "H3";
+    const isList = mdType === "bullet" || mdType === "checkbox";
+    if (!isHeading && !isList) return; // let the browser's default Enter create a plain sibling div
+
+    e.preventDefault();
 
     if (isList) {
       const contentEl = mdType === "checkbox"
@@ -448,6 +606,35 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     serialize();
   }, [serialize]);
 
+  const insertTable = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const sel = window.getSelection();
+    const block = sel && sel.rangeCount > 0 ? findTopLevelBlock(container, sel.getRangeAt(0).startContainer) : null;
+
+    const header = createBlockElement({ type: "tablerow", text: "", cells: ["Column 1", "Column 2"] });
+    const sep    = createBlockElement({ type: "tablesep", text: "| --- | --- |" });
+    const row    = createBlockElement({ type: "tablerow", text: "", cells: ["", ""] });
+
+    const blockIsEmptyPlain = block && block.tagName === "DIV" && !block.getAttribute("data-md-type") && (block.textContent ?? "").trim() === "";
+    if (block && blockIsEmptyPlain) block.replaceWith(header);
+    else if (block) block.after(header);
+    else container.appendChild(header);
+    header.after(sep);
+    sep.after(row);
+
+    // Select the placeholder header text so typing replaces it.
+    const first = header.querySelector("[data-md-cell]") as HTMLElement | null;
+    if (first && sel) {
+      const r = document.createRange();
+      r.selectNodeContents(first);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    container.focus();
+    serialize();
+  }, [serialize]);
+
   const strokeProps = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const tools: { key: string; title: string; content: React.ReactNode; onPress: () => void }[] = [
     { key: "bold",   title: "Bold",          content: <span style={{ fontFamily: fontFamily.bold }}>B</span>,                       onPress: () => document.execCommand("bold") },
@@ -467,6 +654,12 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
           <path d="m8.5 12 2.5 2.5 5-5" />
         </svg>
       ), onPress: () => setCurrentBlockType("checkbox") },
+    { key: "table",  title: "Insert table",  content: (
+        <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M3 10h18M12 10v10" />
+        </svg>
+      ), onPress: insertTable },
   ];
 
   return (
@@ -476,6 +669,8 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
           display: "flex", flexDirection: "row", alignItems: "center", gap: 2,
           borderBottom: `1px solid ${colors.bgBorder}`, background: colors.bgSecondary,
           padding: `${spacing[2]}px ${spacing[3]}px`, marginBottom: spacing[3],
+          // Pin to the top of the note ScrollView while the body scrolls.
+          position: "sticky", top: 0, zIndex: 10,
         }}
       >
         {tools.map(t => (

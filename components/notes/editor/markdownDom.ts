@@ -13,14 +13,31 @@
  * plain text while editing, unchanged in storage).
  */
 
-export type BlockType = "h1" | "h2" | "h3" | "bullet" | "checkbox" | "divider" | "image" | "paragraph" | "empty";
+export type BlockType = "h1" | "h2" | "h3" | "bullet" | "checkbox" | "divider" | "image" | "paragraph" | "empty" | "tablerow" | "tablesep";
 
 export type Block = {
   type: BlockType;
   text: string;
   checked?: boolean;
   src?: string;
+  cells?: string[];        // tablerow only
 };
+
+// ─── Table rows ──────────────────────────────────────────────────────────────
+// A table is just consecutive `| a | b |` lines; the `| --- | --- |` separator
+// row is carried verbatim (tablesep) so storage round-trips byte-identical.
+// Cell text escapes literal pipes as \| so cell content can't break the row.
+
+export function splitTableRow(line: string): string[] {
+  const inner = line.trim().replace(/^\|/, "").replace(/\|\s*$/, "");
+  return inner
+    .split(/(?<!\\)\|/)
+    .map(c => c.trim().replace(/\\\|/g, "|"));
+}
+
+export function joinTableRow(cells: string[]): string {
+  return `| ${cells.map(c => c.replace(/\|/g, "\\|")).join(" | ")} |`;
+}
 
 export function parseMarkdownToBlocks(body: string): Block[] {
   return body.split("\n").map(parseLine);
@@ -35,6 +52,10 @@ function parseLine(line: string): Block {
   if (line.startsWith("## "))  return { type: "h2", text: line.slice(3) };
   if (line.startsWith("# "))   return { type: "h1", text: line.slice(2) };
   if (/^---+$/.test(line))     return { type: "divider", text: "" };
+  if (/^\|.*\|\s*$/.test(line)) {
+    if (/^\|[\s:|-]+\|\s*$/.test(line) && line.includes("-")) return { type: "tablesep", text: line };
+    return { type: "tablerow", text: line, cells: splitTableRow(line) };
+  }
   const bulletMatch = line.match(/^[-*] (.*)$/);
   if (bulletMatch) return { type: "bullet", text: bulletMatch[1] };
   if (line.trim() === "") return { type: "empty", text: "" };
@@ -49,6 +70,8 @@ export function blockToMarkdownLine(b: Block): string {
     case "h2":        return `## ${b.text}`;
     case "h3":        return `### ${b.text}`;
     case "divider":   return "---";
+    case "tablerow":  return joinTableRow(b.cells ?? []);
+    case "tablesep":  return b.text;
     case "bullet":    return `- ${b.text}`;
     case "empty":     return "";
     default:          return b.text;

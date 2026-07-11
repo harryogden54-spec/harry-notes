@@ -4,8 +4,12 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox } from "@/components/ui";
 import { spacing, fontFamily, radius } from "@/lib/theme";
 import { evalREPL, type REPLContext } from "./replEval";
+import { splitTableRow } from "./editor/markdownDom";
 
 type Colors = ReturnType<typeof useTheme>["colors"];
+
+const isTableLine = (line: string | undefined): boolean => !!line && /^\|.*\|\s*$/.test(line);
+const isTableSep  = (line: string | undefined): boolean => !!line && isTableLine(line) && /^\|[\s:|-]+\|\s*$/.test(line) && line.includes("-");
 
 // Parsed inline spans cached per theme (WeakMap key = the memoized colors
 // object from useTheme) and per line text. Reusing the same element array
@@ -72,13 +76,48 @@ function renderInlineUncached(text: string, colors: Colors): React.ReactNode {
 // One markdown line, memoized: editing line 40 of a 200-line note re-parses
 // only line 40. replCtx is only passed for "> " lines, so data changes
 // (tasks/notes counts) invalidate REPL lines without touching prose lines.
-const MarkdownLine = React.memo(function MarkdownLine({ line, index, colors, replCtx, onToggleCheckbox }: {
+const MarkdownLine = React.memo(function MarkdownLine({ line, index, colors, replCtx, onToggleCheckbox, prevLine, nextLine }: {
   line: string;
   index: number;
   colors: Colors;
   replCtx?: REPLContext;
   onToggleCheckbox?: (lineIndex: number) => void;
+  /** Neighbour lines, passed only for table rows — header/first-row detection. */
+  prevLine?: string;
+  nextLine?: string;
 }) {
+  // ── Table lines: "| a | b |" ────────────────────────────────────────────
+  if (isTableLine(line)) {
+    if (isTableSep(line)) return null; // header separator — implied by header styling
+    const cells = splitTableRow(line);
+    const isHeader   = isTableSep(nextLine);
+    const isFirstRow = !isTableLine(prevLine);
+    return (
+      <View style={{
+        flexDirection: "row",
+        borderColor: colors.bgBorder,
+        borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1,
+        borderTopWidth: isFirstRow ? 1 : 0,
+        backgroundColor: isHeader ? colors.bgSecondary : "transparent",
+      }}>
+        {cells.map((cell, j) => (
+          <View key={j} style={{
+            flex: 1, paddingHorizontal: spacing[2.5], paddingVertical: spacing[1.5],
+            borderColor: colors.bgBorder, borderRightWidth: j < cells.length - 1 ? 1 : 0,
+          }}>
+            <Text style={{
+              color: isHeader ? colors.textPrimary : colors.textSecondary,
+              fontSize: 14, lineHeight: 20,
+              fontFamily: isHeader ? fontFamily.semibold : fontFamily.regular,
+            }}>
+              {renderInline(cell, colors)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
   // ── Image lines: "![alt](url)" ──────────────────────────────────────────
   const imgMatch = line.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/);
   if (imgMatch) {
@@ -164,6 +203,8 @@ export function MarkdownView({ body, colors, replCtx, onToggleCheckbox }: {
           colors={colors}
           replCtx={line.startsWith("> ") ? replCtx : undefined}
           onToggleCheckbox={onToggleCheckbox ? stableToggle : undefined}
+          prevLine={isTableLine(line) ? lines[i - 1] : undefined}
+          nextLine={isTableLine(line) ? lines[i + 1] : undefined}
         />
       ))}
     </View>

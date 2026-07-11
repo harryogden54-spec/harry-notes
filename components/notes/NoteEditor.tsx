@@ -115,7 +115,7 @@ function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: strin
             borderRadius: 99, borderWidth: 1, borderColor: colors.bgBorder, backgroundColor: colors.bgSecondary,
           }}
         >
-          <Text size="xs" style={{ color: colors.textSecondary }}>//{tag}</Text>
+          <Text size="xs" style={{ color: colors.textSecondary }}>{tag}</Text>
           <Ionicons name="close" size={10} color={colors.textTertiary} />
         </Pressable>
       ))}

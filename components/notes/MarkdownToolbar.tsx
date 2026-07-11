@@ -66,6 +66,7 @@ export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading 
     { label: "☑",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- [ ] "); onApply(r.text, r.cursor); } },
     { label: "`",               fn: () => { const r = insertInline(body, selRef.current, "`");  onApply(r.text, r.cursor); } },
     { label: "—",               fn: () => { const r = insertBlock(body, selRef.current, "---"); onApply(r.text, r.cursor); } },
+    { label: "⊞",               fn: () => { const r = insertBlock(body, selRef.current, "| Column 1 | Column 2 |\n| --- | --- |\n|  |  |"); onApply(r.text, r.cursor); } },
   ];
 
   return (
