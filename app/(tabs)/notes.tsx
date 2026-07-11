@@ -50,12 +50,12 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
   );
 }
 
-function NoteCardGrid({ notes, onOpen }: { notes: Note[]; onOpen: (id: string) => void }) {
+function NoteCardGrid({ notes, onOpen, pageCounts }: { notes: Note[]; onOpen: (id: string) => void; pageCounts?: Map<string, number> }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[4] }}>
       {notes.map(note => (
         <View key={note.id} style={{ width: "47%" as any, flexGrow: 1 }}>
-          <NoteCard note={note} onOpen={() => onOpen(note.id)} />
+          <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} />
         </View>
       ))}
     </View>
@@ -117,15 +117,37 @@ function NotesScreen() {
     }
   }, [loaded, params.openId, params._t, isDesktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Documents only — notes with parent_id are pages of another note, reached
+  // via the parent's tab strip rather than the list.
   const allNotes = useMemo(
-    () => notes.filter(n => !n.archived),
+    () => notes.filter(n => !n.archived && !n.parent_id),
     [notes]
   );
 
   const archivedNotes = useMemo(
-    () => notes.filter(n => n.archived).sort(cmpRecentDesc),
+    () => notes.filter(n => n.archived && !n.parent_id).sort(cmpRecentDesc),
     [notes]
   );
+
+  // Searchable text of each document's pages, keyed by parent id.
+  const pageText = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of notes) {
+      if (!n.parent_id) continue;
+      map.set(n.parent_id, `${map.get(n.parent_id) ?? ""} ${n.title} ${n.body}`.toLowerCase());
+    }
+    return map;
+  }, [notes]);
+
+  // Tab count per document (pages + the note itself), for the list badge.
+  const pageCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const n of notes) {
+      if (!n.parent_id) continue;
+      map.set(n.parent_id, (map.get(n.parent_id) ?? 1) + 1);
+    }
+    return map;
+  }, [notes]);
 
   // Tags across all active notes (//tag in the body), for the filter chips.
   const allTags = useMemo(() => {
@@ -146,7 +168,8 @@ function NotesScreen() {
       return (
         n.title.toLowerCase().includes(q) ||
         n.body.toLowerCase().includes(q) ||
-        blockText.toLowerCase().includes(q)
+        blockText.toLowerCase().includes(q) ||
+        (pageText.get(n.id)?.includes(q) ?? false)
       );
     });
     if (activeTag) filtered = filtered.filter(n => extractTags(n.body).includes(activeTag));
@@ -155,7 +178,7 @@ function NotesScreen() {
       pinnedNotes: sorted.filter(n => n.pinned),
       restNotes: sorted.filter(n => !n.pinned),
     };
-  }, [allNotes, search, activeTag, sortBy]);
+  }, [allNotes, pageText, search, activeTag, sortBy]);
 
   // Desktop: auto-select newest note when created
   const prevNotesLen = useRef(0);
@@ -268,7 +291,9 @@ function NotesScreen() {
 
   // ── Mobile: full-screen note editor ──────────────────────────────────────────
   if (!isDesktop) {
-    const openNote = notes.find(n => n.id === openNoteId);
+    // If the id points at a page, open its parent document (tab strip handles pages).
+    const found = notes.find(n => n.id === openNoteId);
+    const openNote = found?.parent_id ? notes.find(n => n.id === found.parent_id) ?? found : found;
     if (openNote) {
       return (
         <GradientBackground>
@@ -338,13 +363,13 @@ function NotesScreen() {
                   {pinnedNotes.length > 0 && (
                     <View style={{ marginBottom: spacing[5] }}>
                       <SectionLabel label="Pinned" count={pinnedNotes.length} />
-                      <NoteCardGrid notes={pinnedNotes} onOpen={openCard} />
+                      <NoteCardGrid notes={pinnedNotes} onOpen={openCard} pageCounts={pageCounts} />
                     </View>
                   )}
                   {restNotes.length > 0 && (
                     <View>
                       <SectionLabel label="All notes" count={restNotes.length} />
-                      <NoteCardGrid notes={restNotes} onOpen={openCard} />
+                      <NoteCardGrid notes={restNotes} onOpen={openCard} pageCounts={pageCounts} />
                     </View>
                   )}
                 </>
@@ -359,7 +384,8 @@ function NotesScreen() {
   }
 
   // ── Desktop: two-pane layout ──────────────────────────────────────────────────
-  const openNote = selectedNote ? notes.find(n => n.id === selectedNote) ?? null : null;
+  const selFound = selectedNote ? notes.find(n => n.id === selectedNote) ?? null : null;
+  const openNote = selFound?.parent_id ? notes.find(n => n.id === selFound.parent_id) ?? selFound : selFound;
 
   return (
     <GradientBackground>
@@ -418,7 +444,7 @@ function NotesScreen() {
                       <SectionLabel label="Pinned" count={pinnedNotes.length} />
                       <View style={{ gap: spacing[2.5] }}>
                         {pinnedNotes.map(note => (
-                          <NoteIndexRow key={note.id} note={note} isSelected={selectedNote === note.id} onSelect={() => setSelectedNote(note.id)} />
+                          <NoteIndexRow key={note.id} note={note} isSelected={selectedNote === note.id} onSelect={() => setSelectedNote(note.id)} pageCount={pageCounts.get(note.id)} />
                         ))}
                       </View>
                     </View>
@@ -428,7 +454,7 @@ function NotesScreen() {
                       <SectionLabel label="All notes" count={restNotes.length} />
                       <View style={{ gap: spacing[2.5] }}>
                         {restNotes.map(note => (
-                          <NoteIndexRow key={note.id} note={note} isSelected={selectedNote === note.id} onSelect={() => setSelectedNote(note.id)} />
+                          <NoteIndexRow key={note.id} note={note} isSelected={selectedNote === note.id} onSelect={() => setSelectedNote(note.id)} pageCount={pageCounts.get(note.id)} />
                         ))}
                       </View>
                     </View>

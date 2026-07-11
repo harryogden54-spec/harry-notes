@@ -24,6 +24,12 @@ export type Note = {
   // Post-its were retired 2026-07; normalizeNote coerces legacy "postit" rows
   // to "note" so old post-its show up as regular notes.
   type: "note";
+  // Pages: a note with parent_id is one page (tab) of its parent document.
+  // Pages are hidden from the notes list and edited via the parent's tab strip;
+  // each page is its own sync row, so concurrent edits to different pages of
+  // the same document never conflict.
+  parent_id?: string;
+  page_order?: number;
   created_at: string;
   updated_at?: string;
 };
@@ -41,7 +47,7 @@ type NotesSync = {
 };
 
 type NotesActions = {
-  addNote: () => string;
+  addNote: (init?: Partial<Pick<Note, "title" | "body" | "parent_id" | "page_order">>) => string;
   bulkAddNotes: (notes: Note[]) => void;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "created_at">>) => void;
   deleteNote: (id: string) => () => void;
@@ -116,13 +122,13 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     mergeRow: (local, remote) => ({ ...remote, archived: remote.archived ?? local.archived }),
   });
 
-  const addNote = useCallback((): string => {
+  const addNote = useCallback((init?: Partial<Pick<Note, "title" | "body" | "parent_id" | "page_order">>): string => {
     const id  = newId();
     const now = new Date().toISOString();
     // Notes are plain markdown `body` strings — one editable TextInput, so text
     // is fully selectable/copyable. (Legacy block notes are converted to
     // markdown by migrateBlocksToBody.)
-    const note: Note = { id, title: "", body: "", pinned: false, type: "note", created_at: now, updated_at: now };
+    const note: Note = { id, title: "", body: "", pinned: false, type: "note", created_at: now, updated_at: now, ...init };
     markDirty(id);
     setNotes(prev => [note, ...prev]);
     return id;
@@ -134,20 +140,26 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
   }, [markDirty, setNotes]);
 
   const deleteNote = useCallback((id: string): (() => void) => {
-    const deleted = notesRef.current.find(n => n.id === id);
-    setNotes(prev => prev.filter(n => n.id !== id));
-    pendingDeletesRef.current.add(id);
-    markLocallyDeleted(id); // remove the SQLite row on next flush
+    // Deleting a document takes its pages with it (and undo restores them all).
+    const ids = [id, ...notesRef.current.filter(n => n.parent_id === id).map(n => n.id)];
+    const deleted = notesRef.current.filter(n => ids.includes(n.id));
+    setNotes(prev => prev.filter(n => !ids.includes(n.id)));
+    for (const nid of ids) {
+      pendingDeletesRef.current.add(nid);
+      markLocallyDeleted(nid); // remove the SQLite row on next flush
+    }
     const timer = setTimeout(() => {
-      syncDelete("notes", id);
-      pendingDeletesRef.current.delete(id);
+      for (const nid of ids) {
+        syncDelete("notes", nid);
+        pendingDeletesRef.current.delete(nid);
+      }
     }, 3000);
     return () => {
       clearTimeout(timer);
-      pendingDeletesRef.current.delete(id);
-      if (deleted) {
-        markDirty(id); // also clears the local-delete mark
-        setNotes(prev => [deleted, ...prev]);
+      for (const nid of ids) pendingDeletesRef.current.delete(nid);
+      if (deleted.length > 0) {
+        for (const nid of ids) markDirty(nid); // also clears the local-delete mark
+        setNotes(prev => [...deleted, ...prev]);
       }
     };
   }, [notesRef, pendingDeletesRef, markLocallyDeleted, markDirty, setNotes]);

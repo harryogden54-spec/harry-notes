@@ -9,14 +9,14 @@ import { useNotesActions } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
 import { timeAgo, notePreview } from "./utils";
 
-type Props = { note: Note; onOpen: () => void };
+type Props = { note: Note; onOpen: () => void; pageCount?: number };
 
 /**
  * Note card per the redesign (artboard 1d): a neutral floating surface with
  * the note's pastel as a small identity dot in the meta row — not a
  * full-pastel background.
  */
-export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
+export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }: Props) {
   const { pinNote } = useNotesActions();
   const { colors, notePastels, scheme } = useTheme();
   const [hovered, setHovered] = useState(false);
@@ -64,6 +64,12 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen }: Props) {
       <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: "auto" as any, paddingTop: 2 }}>
         <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: notePastels.bg[idx], borderWidth: 1, borderColor: notePastels.border[idx] }} />
         <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11.5 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+        {!!pageCount && pageCount > 1 && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+            <Ionicons name="documents-outline" size={11} color={colors.textTertiary} />
+            <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11.5 }}>{pageCount}</Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );

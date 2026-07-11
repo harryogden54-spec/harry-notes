@@ -7,14 +7,14 @@ import { spacing, getNotePastelIndex, getShadow } from "@/lib/theme";
 import type { Note } from "@/lib/NotesContext";
 import { timeAgo, notePreview } from "./utils";
 
-type Props = { note: Note; isSelected: boolean; onSelect: () => void };
+type Props = { note: Note; isSelected: boolean; onSelect: () => void; pageCount?: number };
 
 /**
  * Floating bubble card for the desktop notes index — same card language as
  * TaskCard/NoteCard (18px radius, frosted surface, soft shadow, pastel
  * identity dot), selection shown with an accent border.
  */
-export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect }: Props) {
+export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect, pageCount }: Props) {
   const { colors, notePastels, scheme } = useTheme();
   const [hovered, setHovered] = useState(false);
   const idx = getNotePastelIndex(note.id);
@@ -58,6 +58,12 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 1 }}>
         <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: notePastels.bg[idx], borderWidth: 1, borderColor: notePastels.border[idx] }} />
         <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+        {!!pageCount && pageCount > 1 && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+            <Ionicons name="documents-outline" size={10} color={colors.textTertiary} />
+            <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11 }}>{pageCount}</Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );

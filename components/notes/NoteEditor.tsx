@@ -133,6 +133,60 @@ function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: strin
   );
 }
 
+/** Page tabs — each page is a child note (own sync row); the first tab is the
+ *  parent note itself, so single-page notes are untouched by this feature. */
+function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage }: {
+  pages: Note[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onAdd: () => void;
+  onDeletePage: (id: string) => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingHorizontal: spacing[3], paddingVertical: spacing[1.5] }}
+      >
+        {pages.map((p, i) => {
+          const active = p.id === activeId;
+          return (
+            <Pressable
+              key={p.id}
+              onPress={() => onSelect(p.id)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 4,
+                paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                borderRadius: radius.md, borderWidth: 1, maxWidth: 170,
+                borderColor: active ? colors.accent : colors.bgBorder,
+                backgroundColor: active ? `${colors.accent}14` : "transparent",
+              }}
+            >
+              <Text size="xs" weight={active ? "semibold" : "regular"} numberOfLines={1} style={{ color: active ? colors.accent : colors.textSecondary, flexShrink: 1 }}>
+                {p.title || (i === 0 ? "Untitled" : `Page ${i + 1}`)}
+              </Text>
+              {/* Delete only from the active child tab — the first tab is the note itself */}
+              {active && i > 0 && (
+                <Pressable onPress={() => onDeletePage(p.id)} hitSlop={8} accessibilityLabel="Delete page">
+                  <Ionicons name="close" size={11} color={colors.textTertiary} />
+                </Pressable>
+              )}
+            </Pressable>
+          );
+        })}
+        <Pressable onPress={onAdd} hitSlop={8} accessibilityLabel="Add page" style={{ padding: spacing[1] }}>
+          <Ionicons name="add" size={15} color={colors.textTertiary} />
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
 type Props = {
   note: Note;
   onClose: () => void;
@@ -143,7 +197,7 @@ type Props = {
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
   const { colors } = useTheme();
   const { notes } = useNotesData();
-  const { updateNote, deleteNote, pinNote, archiveNote, unarchiveNote } = useNotesActions();
+  const { addNote, updateNote, deleteNote, pinNote, archiveNote, unarchiveNote } = useNotesActions();
   const { tasks } = useTasksData();
   const { showToast } = useToast();
   const today = getTodayStr();
@@ -157,6 +211,30 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const [uploading, setUploading] = useState(false);
   const insets = useSafeAreaInsets();
 
+  // Pages: the note itself is tab 1; children (parent_id === note.id) are the
+  // rest. Every edit below targets `page` — the active tab's note row.
+  const pages = useMemo(() => {
+    const children = notes
+      .filter(n => n.parent_id === note.id)
+      .sort((a, b) => (a.page_order ?? 0) - (b.page_order ?? 0) || a.created_at.localeCompare(b.created_at));
+    return [note, ...children];
+  }, [notes, note]);
+  const [activePageId, setActivePageId] = useState(note.id);
+  useEffect(() => { setActivePageId(note.id); }, [note.id]);
+  const page = pages.find(p => p.id === activePageId) ?? note;
+
+  const handleAddPage = useCallback(() => {
+    const id = addNote({ parent_id: note.id, page_order: pages.length, title: `Page ${pages.length + 1}` });
+    setActivePageId(id);
+  }, [addNote, note.id, pages.length]);
+
+  const handleDeletePage = useCallback((id: string) => {
+    const idx = pages.findIndex(p => p.id === id);
+    const undo = deleteNote(id);
+    setActivePageId(pages[Math.max(0, idx - 1)]?.id ?? note.id);
+    showToast("Page deleted", { label: "Undo", onPress: undo });
+  }, [pages, deleteNote, note.id, showToast]);
+
   // Defensive convert-on-open: a block note synced from a not-yet-migrated
   // device still needs to become a markdown body so the single-TextInput editor
   // can render it. The bulk migration (migrateBlocksToBody) handles existing ones.
@@ -168,7 +246,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   }, [note.id]);
 
   async function handleCopy() {
-    await Clipboard.setStringAsync(note.body ?? "");
+    await Clipboard.setStringAsync(page.body ?? "");
     showToast("Note copied");
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
@@ -177,7 +255,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
     if (uploading) return;
     setUploading(true);
     showToast("Uploading photo…");
-    const result = await pickAndUploadNoteImage(note.id);
+    const result = await pickAndUploadNoteImage(page.id);
     setUploading(false);
     if (!result.ok) {
       if (result.reason === "cancelled") return;
@@ -189,28 +267,30 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
 
   // Toggle a `- [ ]` / `- [x]` line from the rendered preview.
   function toggleCheckboxLine(lineIndex: number) {
-    const lines = note.body.split("\n");
+    const lines = page.body.split("\n");
     const line = lines[lineIndex];
     if (line === undefined) return;
     lines[lineIndex] = line.replace(/^([-*] \[)([ xX])(\])/, (_m, p1, state, p3) =>
       `${p1}${state.toLowerCase() === "x" ? " " : "x"}${p3}`);
-    updateNote(note.id, { body: sinkToggledCheckbox(lines, lineIndex).join("\n") });
+    updateNote(page.id, { body: sinkToggledCheckbox(lines, lineIndex).join("\n") });
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   // Track the title as it was when editing began so we can propagate renames.
-  const committedTitleRef = useRef(note.title);
-  useEffect(() => { committedTitleRef.current = note.title; }, [note.id]);
+  const committedTitleRef = useRef(page.title);
+  useEffect(() => { committedTitleRef.current = page.title; }, [activePageId]);
 
   useEffect(() => { if (!note.title) setTimeout(() => titleRef.current?.focus(), 50); }, [note.id]);
-  useEffect(() => { setPreview(false); }, [note.id]);
+  useEffect(() => { setPreview(false); }, [note.id, activePageId]);
 
   // Propagate title renames to all notes that contain [[oldTitle]].
-  // Runs on blur/submit so we don't rewrite on every keystroke.
+  // Runs on blur/submit so we don't rewrite on every keystroke. Only the
+  // document title (tab 1) participates in wiki links — page renames don't.
   function handleTitleCommit() {
     const oldTitle = committedTitleRef.current;
-    const newTitle = note.title;
+    const newTitle = page.title;
     committedTitleRef.current = newTitle;
+    if (page.id !== note.id) return;
     if (!oldTitle || oldTitle === newTitle) return;
     const pattern = `[[${oldTitle}]]`;
     const replacement = `[[${newTitle || "Untitled"}]]`;
@@ -232,8 +312,9 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
     onOpenNote?.(id);
   }, [onOpenNote]);
 
-  const wordCount = note.body.trim() ? note.body.trim().split(/\s+/).length : 0;
-  const allNotes = notes.filter(n => !n.archived);
+  const wordCount = page.body.trim() ? page.body.trim().split(/\s+/).length : 0;
+  // Documents only — pages don't participate in wiki links / backlinks.
+  const allNotes = notes.filter(n => !n.archived && !n.parent_id);
 
   const openTasks = tasks.filter(t => !t.done && !t.archived);
   const replCtx = useMemo(() => ({
@@ -291,6 +372,16 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             </Pressable>
           )}
           <Pressable
+            onPress={handleAddPage}
+            hitSlop={12}
+            accessibilityLabel="Add page"
+            // @ts-ignore web-only tooltip
+            title={Platform.OS === "web" ? "Add page" : undefined}
+            style={{ padding: spacing[1] }}
+          >
+            <Ionicons name="duplicate-outline" size={15} color={colors.textTertiary} />
+          </Pressable>
+          <Pressable
             onPress={() => setFocusMode(true)}
             hitSlop={12}
             accessibilityLabel="Focus mode"
@@ -343,13 +434,18 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         {/* Tags — managed from the top bar; stored as a //tag line in the body */}
         {!focusMode && <TagRow note={note} onUpdateBody={body => updateNote(note.id, { body })} />}
 
+        {/* Page tabs — appear once the note has more than one page */}
+        {!focusMode && pages.length > 1 && (
+          <PageTabs pages={pages} activeId={page.id} onSelect={setActivePageId} onAdd={handleAddPage} onDeletePage={handleDeletePage} />
+        )}
+
         {/* Body */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing[6], paddingTop: spacing[6], paddingBottom: spacing[16], gap: spacing[3] }} keyboardShouldPersistTaps="handled">
           <TextInput
             ref={titleRef}
-            value={note.title}
-            onChangeText={title => updateNote(note.id, { title })}
-            placeholder="Untitled"
+            value={page.title}
+            onChangeText={title => updateNote(page.id, { title })}
+            placeholder={page.id === note.id ? "Untitled" : "Page title"}
             placeholderTextColor={colors.textTertiary}
             returnKeyType="next"
             onBlur={handleTitleCommit}
@@ -357,8 +453,9 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             style={[{ color: colors.textPrimary, fontSize: 26, fontFamily: fontFamily.bold, lineHeight: 34, marginBottom: spacing[3] }, { outlineStyle: "none" } as any]}
           />
           <NoteBodyEditor
-            body={note.body}
-            onChangeBody={body => updateNote(note.id, { body })}
+            key={page.id}
+            body={page.body}
+            onChangeBody={body => updateNote(page.id, { body })}
             bodyRef={bodyRef}
             selRef={selRef}
             cursor={cursor}
@@ -379,7 +476,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         {/* Footer */}
         {!focusMode && (
         <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[6], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
-          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {note.body.length} chars</Text>
+          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {page.body.length} chars</Text>
         </View>
         )}
 

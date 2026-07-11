@@ -136,7 +136,8 @@ function DashboardScreen() {
   const overdueCount = overdueTasks.length;
 
   const sortedNotes = useMemo(
-    () => notes.filter(n => !n.archived).sort(cmpRecentDesc),
+    // Documents only — notes with parent_id are pages inside another note.
+    () => notes.filter(n => !n.archived && !n.parent_id).sort(cmpRecentDesc),
     [notes]
   );
 
