@@ -10,7 +10,8 @@ import { useThemeContext } from "@/lib/ThemeContext";
 import { THEMES } from "@/lib/theme";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useListsSync } from "@/lib/ListsContext";
-import { useNotesData, useNotesSync } from "@/lib/NotesContext";
+import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/NotesContext";
+import { notesToZip, pickMarkdownFiles } from "@/lib/notesExport";
 import { useCoursesSync } from "@/lib/CoursesContext";
 import { useDumpsSync } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
@@ -148,6 +149,7 @@ export default function SettingsScreen() {
   const { syncStatus: courseSync, syncNow: syncCourses, lastSynced: courseLastSynced } = useCoursesSync();
   const { syncNow: syncDumps } = useDumpsSync();
   const { notes } = useNotesData();
+  const { bulkAddNotes } = useNotesActions();
   const { showToast } = useToast();
   const router = useRouter();
   const { unarchiveTask, deleteTask } = useTasksActions();
@@ -281,6 +283,25 @@ export default function SettingsScreen() {
     });
     downloadBlob(new Blob([md], { type: "text/markdown" }), `harry-notes-${date}.md`);
     showToast("Markdown export downloaded");
+  }
+
+  function handleExportNotesZip() {
+    if (Platform.OS !== "web") { showToast("Export is only available on web"); return; }
+    downloadBlob(notesToZip(notes), `harry-notes-${getLocalDateStr()}.zip`);
+    showToast("Notes exported");
+  }
+
+  async function handleImportNotes() {
+    if (Platform.OS !== "web") { showToast("Import is only available on web"); return; }
+    const files = await pickMarkdownFiles();
+    if (files.length === 0) return;
+    const now = new Date().toISOString();
+    bulkAddNotes(files.map((f): Note => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title: f.title, body: f.body, pinned: false, type: "note",
+      created_at: now, updated_at: now,
+    })));
+    showToast(`Imported ${files.length} note${files.length !== 1 ? "s" : ""}`);
   }
 
   const archivedTasks = tasks.filter(t => t.archived);
@@ -461,6 +482,8 @@ export default function SettingsScreen() {
             <Row icon="archive-outline" label="Trash / Archive" subtitle={archivedTasks.length > 0 ? `${archivedTasks.length} archived task${archivedTasks.length !== 1 ? "s" : ""}` : "Empty"} onPress={() => setShowTrash(true)} chevron />
             <Row icon="document-outline"      label="Export as JSON"     subtitle="Download all data as JSON"     onPress={handleExportJSON}     chevron />
             <Row icon="document-text-outline" label="Export as Markdown" subtitle="Download notes + tasks as .md" onPress={handleExportMarkdown} chevron />
+            <Row icon="albums-outline"        label="Export notes (.zip)" subtitle="One .md file per note"        onPress={handleExportNotesZip} chevron />
+            <Row icon="download-outline"      label="Import notes"        subtitle="Pick .md files — one note each" onPress={handleImportNotes}  chevron />
             <Row
               label="Archive completed tasks"
               subtitle={completedCount > 0 ? `${completedCount} task${completedCount !== 1 ? "s" : ""} will be archived` : "No completed tasks"}
