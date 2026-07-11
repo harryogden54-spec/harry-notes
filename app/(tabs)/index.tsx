@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, Pressable,
@@ -19,9 +19,8 @@ import { spacing, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme"
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
-import { storage } from "@/lib/storage";
-import { getTodayStr, getLocalDateStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
-import { carryForwardToday } from "@/lib/todayCarry";
+import { useTodayData } from "@/lib/TodayContext";
+import { getTodayStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 import { notePreview } from "@/components/notes/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
@@ -35,31 +34,19 @@ function greeting() {
   return "Good evening";
 }
 
-function getTodayKey() {
-  return `today_items_${getLocalDateStr()}`;
-}
-
-type TodayItem = { id: string; text: string; done: boolean };
-
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 
 // ─── Today panel ──────────────────────────────────────────────────────────────
+// Reads the same synced store as the Today tab (lib/TodayContext.tsx) — carry-
+// forward and the done-item retention sweep both live there now, so this
+// panel just filters to today's active items.
 
 function TodayPanel() {
   const { colors } = useTheme();
-  const [items, setItems] = useState<TodayItem[]>([]);
-  const todayKey = getTodayKey();
+  const { items: allTodayItems } = useTodayData();
+  const todayStr = getTodayStr();
 
-  useEffect(() => {
-    (async () => {
-      await carryForwardToday();
-      const saved = await storage.get<TodayItem[]>(todayKey);
-      if (saved) setItems(saved);
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const active = items.filter(i => !i.done);
+  const active = allTodayItems.filter(i => i.date === todayStr && !i.done);
 
   if (active.length === 0) {
     return (
