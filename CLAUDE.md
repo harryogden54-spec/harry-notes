@@ -128,11 +128,32 @@ global.css, `PersistentHeader` owns the top inset (`useSafeAreaInsets`), tab scr
 belong to the header/tab bar — RN-W's SafeAreaView pads all four edges unconditionally and
 double-pads; keep using the context version + edges for anything under the app chrome; full-window
 modals like settings and the task-detail modal keep all edges).
+July 11 batch: notes markdown tables (web WYSIWYG: tablerow/tablesep blocks keep the
+one-element-per-line invariant; contiguous `display: table-row` siblings form an anonymous CSS
+table so columns align — Tab/Shift+Tab navigates cells, Tab-at-end/Enter grow rows, empty-row
+Enter/Backspace exits/deletes; `MarkdownView` renders `| a | b |` lines for native/preview);
+note pages/tabs (tab 1 = the note itself, further tabs = child notes with `parent_id` +
+`page_order` — each page its own sync row so per-page edits never conflict; pages hidden from
+list/dashboard/wiki-links, page-count badge, search looks inside pages); sticky editor toolbar
+(`position: sticky` in the note ScrollView); tag chips display without the `//` prefix (storage
+format unchanged); custom task categories (synced `task_categories` table + migration 005,
+`TaskCategoriesContext`, ids "personal"/"uni" seeded for back-compat, Edit-categories modal:
+add/rename/recolor via accent keys/reorder/delete-with-reassign); Today screen synced
+(`today_items` table + migration 006, `TodayContext` — all days in one store filtered by date,
+carry-forward is idempotent (only the `date` field of undone items changes, same id), 30-day
+retention sweep for done items, one-time import from legacy `today_items_<date>` keys;
+lib/todayCarry.ts deleted); notes export (.zip of .md files via dependency-free ZIP writer in
+`lib/notesExport.ts`; multi-page notes become folders) + import (.md file picker, filename =
+title); theme polish (getShadow sm/md web adds a 1px inner top highlight; dashboard greeting is
+ink→accent gradient text on web). Migrations 005/006 applied to Supabase 2026-07-11.
 In progress: —
-On hold (user will ask): remake the iOS widget; further themes redesign beyond the 2026-07-06 trim.
+Next up (user request): iOS widget — needs either a native Expo build (Apple dev account) or a
+Scriptable/Shortcuts widget reading Supabase; approach not yet chosen.
+On hold (user will ask): further themes redesign beyond the 2026-07-11 polish.
 Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
-memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal) —
-explicitly excluded from the Early July programme, still just flagged.
+memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal;
+Supabase RLS is disabled on every table — anon key in the web bundle can read/write all rows;
+flagged 2026-07-11, needs sync_key-aware policies before enabling).
 
 > Update "In progress" and "Not started" at the start of each session.
 
