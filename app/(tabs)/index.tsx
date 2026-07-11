@@ -154,7 +154,17 @@ function DashboardScreen() {
   const header = (
     <View style={{ paddingTop: spacing[8], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
       <View style={{ flex: 1 }}>
-        <Text size="display" weight="bold">
+        <Text
+          size="display"
+          weight="bold"
+          // Web: ink → accent gradient across the greeting; plain text on native.
+          style={Platform.OS === "web" ? ({
+            backgroundImage: `linear-gradient(100deg, ${colors.textPrimary} 45%, ${colors.accent} 110%)`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            alignSelf: "flex-start",
+          } as any) : undefined}
+        >
           {mounted ? greeting() : "Good morning"}
         </Text>
         <Text size="sm" secondary style={{ marginTop: spacing[1] }}>

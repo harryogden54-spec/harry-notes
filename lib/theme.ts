@@ -205,7 +205,14 @@ export function getShadow(
   // RN Web warns that shadow*/elevation style props are deprecated in favour
   // of boxShadow — return the CSS form on web, the native form elsewhere.
   if (Platform.OS === "web") {
-    return { boxShadow: `0px ${s.offsetY}px ${s.radius}px ${color}${opacityToHexAlpha(opacity)}` };
+    const drop = `0px ${s.offsetY}px ${s.radius}px ${color}${opacityToHexAlpha(opacity)}`;
+    // Card levels get a 1px inner top highlight — a crisp lit edge that reads
+    // as depth without heavier shadows. Overlay/xs levels stay single-layer.
+    if (level === "sm" || level === "md") {
+      const edge = scheme === "dark" ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.75)";
+      return { boxShadow: `inset 0 1px 0 ${edge}, ${drop}` };
+    }
+    return { boxShadow: drop };
   }
   return {
     shadowColor: color,
