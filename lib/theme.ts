@@ -393,13 +393,18 @@ export function getNotePastelIndex(id: string): number {
 }
 
 // ─── Category colours ─────────────────────────────────────────────────────────
-// Sanctioned fixed palette: identical across themes so categories stay
-// recognisable regardless of palette. Not subject to the no-hardcoded-hex rule.
+// Task categories are user-editable (see TaskCategoriesContext) and store a
+// curated AccentId (one of ACCENT_OPTIONS above) rather than a raw hex value —
+// this resolves that id to concrete colours for the active scheme, falling
+// back to the first accent for an unrecognised/legacy id.
 
-export const categoryColors = {
-  personal: "#88C0D0",
-  uni:      "#B48EAD",
-} as const;
+export function resolveAccentSwatch(
+  id: string,
+  scheme: ColorScheme
+): { color: string; hover: string; subtle: string } {
+  const opt = ACCENT_OPTIONS.find(a => a.id === id) ?? ACCENT_OPTIONS[0];
+  return { color: opt.color, hover: opt.hover, subtle: scheme === "dark" ? opt.subtle : opt.lightSubtle };
+}
 
 // ─── List default colours ─────────────────────────────────────────────────────
 // Sanctioned fixed palette — user-picked list identities, theme-independent.

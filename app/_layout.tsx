@@ -14,6 +14,7 @@ import { initDb } from "@/lib/db";
 import { requestNotificationPermission, scheduleTaskReminders } from "@/lib/notifications";
 import { useTasksData } from "@/lib/TasksContext";
 import { TasksProvider } from "@/lib/TasksContext";
+import { TaskCategoriesProvider } from "@/lib/TaskCategoriesContext";
 import { useListsData } from "@/lib/ListsContext";
 import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { migrateListsToNotes } from "@/lib/migrateListsToNotes";
@@ -144,6 +145,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <TasksProvider>
+          <TaskCategoriesProvider>
           <ListsProvider>
             <NotesProvider>
               <DumpProvider>
@@ -158,6 +160,7 @@ export default function RootLayout() {
               </DumpProvider>
             </NotesProvider>
           </ListsProvider>
+          </TaskCategoriesProvider>
         </TasksProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
