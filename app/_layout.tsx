@@ -23,6 +23,7 @@ import { ListsProvider } from "@/lib/ListsContext";
 import { NotesProvider } from "@/lib/NotesContext";
 import { DumpProvider } from "@/lib/DumpContext";
 import { CoursesProvider } from "@/lib/CoursesContext";
+import { TodayProvider } from "@/lib/TodayContext";
 import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
 import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
@@ -150,12 +151,14 @@ export default function RootLayout() {
             <NotesProvider>
               <DumpProvider>
               <CoursesProvider>
+              <TodayProvider>
               <ToastProvider>
                 <CommandPaletteProvider>
                   <AppShell />
                   <ToastContainer />
                 </CommandPaletteProvider>
               </ToastProvider>
+              </TodayProvider>
               </CoursesProvider>
               </DumpProvider>
             </NotesProvider>

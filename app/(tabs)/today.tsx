@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, ScrollView, TextInput, Pressable,
@@ -13,18 +13,10 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
-import { storage } from "@/lib/storage";
 import { useTasksData } from "@/lib/TasksContext";
-import { getTodayStr, getLocalDateStr, formatHeaderDate } from "@/lib/utils";
-import { carryForwardToday } from "@/lib/todayCarry";
+import { useTodayData, useTodayActions, type TodayItem } from "@/lib/TodayContext";
+import { getTodayStr, formatHeaderDate } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
-
-type TodayItem = {
-  id: string;
-  text: string;
-  done: boolean;
-  time_block?: string; // "09:00" — used by timeline view
-};
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 
@@ -44,14 +36,15 @@ function formatHour(time: string) {
   return `${h - 12}pm`;
 }
 
-function getTodayKey() {
-  return `today_items_${getLocalDateStr()}`;
+function byOrder(a: TodayItem, b: TodayItem) {
+  return a.order - b.order;
 }
 
 function TodayScreen() {
   const { colors } = useTheme();
   const { tasks } = useTasksData();
-  const [items, setItems]             = useState<TodayItem[]>([]);
+  const { items: allItems } = useTodayData();
+  const { addItem: addTodayItem, toggleItem, deleteItem, updateItemTime, moveItem, reorderActive } = useTodayActions();
   const [input, setInput]             = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
@@ -63,31 +56,16 @@ function TodayScreen() {
 
   const dateLabel = mounted ? formatHeaderDate() : "";
 
-  const todayKey = getTodayKey();
-
-  // Carry incomplete items forward across any day boundary, then load today's
-  // list (which now includes carried items). The carry + 7-day stale-key GC
-  // live in lib/todayCarry.ts and are idempotent.
-  useEffect(() => {
-    (async () => {
-      await carryForwardToday();
-      const saved = await storage.get<TodayItem[]>(todayKey);
-      if (saved) setItems(saved);
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persist on every change
-  useEffect(() => {
-    storage.set(todayKey, items);
-  }, [items, todayKey]);
-
-  const active    = items.filter(i => !i.done);
-  const completed = items.filter(i => i.done);
+  // The context store holds ALL days' items — carry-forward (past incomplete
+  // items get today's date) and the 30-day done-item retention sweep run
+  // inside TodayContext itself. This screen only ever looks at today's slice.
+  const todayStr = getTodayStr();
+  const dayItems = allItems.filter(i => i.date === todayStr);
+  const active    = dayItems.filter(i => !i.done).sort(byOrder);
+  const completed = dayItems.filter(i => i.done).sort(byOrder);
 
   // Suggestions: overdue + today tasks sorted by priority, not already in list
-  const todayStr = getTodayStr();
-  const existingTexts = new Set(items.map(i => i.text.toLowerCase()));
+  const existingTexts = new Set(dayItems.map(i => i.text.toLowerCase()));
   const suggestions = tasks
     .filter(t =>
       !t.done && !t.archived &&
@@ -105,48 +83,34 @@ function TodayScreen() {
     const text = input.trim();
     if (!text) return;
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const next: TodayItem[] = [{ id: `t_${Date.now()}`, text, done: false }, ...items];
-    setItems(next);
+    addTodayItem(text);
     setInput("");
   }
 
   function addSuggestion(title: string) {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setItems(prev => [{ id: `t_${Date.now()}`, text: title, done: false }, ...prev]);
+    addTodayItem(title);
   }
 
-  const toggleItem = useCallback((id: string) => {
+  const onToggleItem = useCallback((id: string) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setItems(prev => {
-      const item = prev.find(i => i.id === id);
-      if (!item) return prev;
-      const rest = prev.filter(i => i.id !== id);
-      return item.done ? [{ ...item, done: false }, ...rest] : [...rest, { ...item, done: true }];
-    });
-  }, []);
+    toggleItem(id);
+  }, [toggleItem]);
 
-  const deleteItem = useCallback((id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id));
-  }, []);
+  const onDeleteItem = useCallback((id: string) => {
+    deleteItem(id);
+  }, [deleteItem]);
 
   // Web reorder affordance — native uses long-press drag instead.
-  const moveItem = useCallback((id: string, dir: "up" | "down") => {
-    setItems(prev => {
-      const activeItems = prev.filter(i => !i.done);
-      const rest        = prev.filter(i => i.done);
-      const idx = activeItems.findIndex(i => i.id === id);
-      if (idx === -1) return prev;
-      const swap = dir === "up" ? idx - 1 : idx + 1;
-      if (swap < 0 || swap >= activeItems.length) return prev;
-      const next = [...activeItems];
-      [next[idx], next[swap]] = [next[swap], next[idx]];
-      return [...next, ...rest];
-    });
-  }, []);
+  const onMoveItem = useCallback((id: string, dir: "up" | "down") => {
+    moveItem(id, todayStr, dir);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moveItem, todayStr]);
 
-  const updateItemTime = (id: string, time: string | undefined) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, time_block: time } : i));
-  };
+  const onDragEndActive = useCallback((data: TodayItem[]) => {
+    reorderActive(todayStr, data);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reorderActive, todayStr]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -173,11 +137,11 @@ function TodayScreen() {
           </Pressable>
         ) : (
           <View style={{ flexDirection: "row", gap: 2 }}>
-            <Pressable onPress={() => moveItem(item.id, "up")} hitSlop={6}
+            <Pressable onPress={() => onMoveItem(item.id, "up")} hitSlop={6}
               style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
               <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
             </Pressable>
-            <Pressable onPress={() => moveItem(item.id, "down")} hitSlop={6}
+            <Pressable onPress={() => onMoveItem(item.id, "down")} hitSlop={6}
               style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
               <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
             </Pressable>
@@ -185,7 +149,7 @@ function TodayScreen() {
         )}
 
         <Pressable
-          onPress={() => toggleItem(item.id)}
+          onPress={() => onToggleItem(item.id)}
           hitSlop={8}
           style={{
             width: 20, height: 20, borderRadius: 10,
@@ -198,7 +162,7 @@ function TodayScreen() {
 
         <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.text}</Text>
 
-        <Pressable onPress={() => deleteItem(item.id)} hitSlop={8}>
+        <Pressable onPress={() => onDeleteItem(item.id)} hitSlop={8}>
           <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
         </Pressable>
       </View>
@@ -352,7 +316,7 @@ function TodayScreen() {
             </Surface>
 
             {/* Empty state + suggestions */}
-            {items.length === 0 && (
+            {dayItems.length === 0 && (
               <View style={{ alignItems: "center", paddingVertical: spacing[10], gap: spacing[3] }}>
                 <View style={{
                   width: 64, height: 64, borderRadius: 32,
@@ -372,7 +336,7 @@ function TodayScreen() {
             {/* Suggestions — full panel when empty, collapsed chip when list has items */}
             {suggestions.length > 0 && (
               <View style={{ marginTop: spacing[2] }}>
-                {items.length > 0 ? (
+                {dayItems.length > 0 ? (
                   // Collapsed chip — tapping reveals the same panel below
                   <Pressable
                     onPress={() => setShowSuggestions(v => !v)}
@@ -398,7 +362,7 @@ function TodayScreen() {
                     SUGGESTED · {suggestions.length}
                   </Text>
                 )}
-                {(items.length === 0 || showSuggestions) && (
+                {(dayItems.length === 0 || showSuggestions) && (
                   <Surface style={{ overflow: "hidden", padding: 0, marginTop: spacing[2] }}>
                     {suggestions.map((task, i) => (
                       <View key={task.id} style={{
@@ -441,7 +405,7 @@ function TodayScreen() {
                     data={active}
                     keyExtractor={i => i.id}
                     renderItem={renderActiveItem}
-                    onDragEnd={({ data }) => setItems([...data, ...completed])}
+                    onDragEnd={({ data }) => onDragEndActive(data)}
                     scrollEnabled={false}
                     activationDistance={Platform.OS === "web" ? 999 : 12}
                     removeClippedSubviews={Platform.OS !== "web"}
@@ -457,8 +421,8 @@ function TodayScreen() {
               <TimelineSection
                 items={active}
                 colors={colors}
-                onToggle={toggleItem}
-                onDelete={deleteItem}
+                onToggle={onToggleItem}
+                onDelete={onDeleteItem}
                 onPickTime={setTimePickerFor}
                 onClearTime={id => updateItemTime(id, undefined)}
               />
@@ -485,8 +449,8 @@ function TodayScreen() {
                     <CompletedRow
                       key={item.id}
                       item={item}
-                      onToggle={() => toggleItem(item.id)}
-                      onDelete={() => deleteItem(item.id)}
+                      onToggle={() => onToggleItem(item.id)}
+                      onDelete={() => onDeleteItem(item.id)}
                       isLast={i === completed.length - 1}
                     />
                   ))}
@@ -679,4 +643,3 @@ function TimelineItemRow({ item, colors, onToggle, onDelete, onPickTime, onClear
 export default function TodayScreenBounded() {
   return <ErrorBoundary><TodayScreen /></ErrorBoundary>;
 }
-

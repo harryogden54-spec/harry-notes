@@ -23,7 +23,8 @@ export function getDb(): SQLite.SQLiteDatabase {
 // v9: notes.archived column (notes archive feature).
 // v10: courses table added (checkbox progress tables).
 // v11: task_categories table added (user-editable task categories).
-const SCHEMA_VERSION = 11;
+// v12: today_items table added (Today screen sync).
+const SCHEMA_VERSION = 12;
 
 export async function initDb(): Promise<void> {
   const db = getDb();
@@ -109,6 +110,17 @@ export async function initDb(): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS today_items (
+      id         TEXT PRIMARY KEY,
+      date       TEXT NOT NULL DEFAULT '',
+      text       TEXT NOT NULL DEFAULT '',
+      done       INTEGER NOT NULL DEFAULT 0,
+      time_block TEXT,
+      item_order REAL NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_created   ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_tasks_archived  ON tasks(archived);
     CREATE INDEX IF NOT EXISTS idx_notes_created   ON notes(created_at);
@@ -117,6 +129,7 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_dumps_created   ON dumps(created_at);
     CREATE INDEX IF NOT EXISTS idx_courses_created ON courses(created_at);
     CREATE INDEX IF NOT EXISTS idx_task_categories_order ON task_categories(sort_order);
+    CREATE INDEX IF NOT EXISTS idx_today_items_date ON today_items(date);
   `);
 
   // ── Migrations ──────────────────────────────────────────────────────────────
@@ -219,6 +232,23 @@ export async function initDb(): Promise<void> {
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_task_categories_order ON task_categories(sort_order);
+    `);
+  }
+
+  if (current < 12) {
+    // v12: today_items table — CREATE TABLE IF NOT EXISTS is a no-op for fresh installs.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS today_items (
+        id         TEXT PRIMARY KEY,
+        date       TEXT NOT NULL DEFAULT '',
+        text       TEXT NOT NULL DEFAULT '',
+        done       INTEGER NOT NULL DEFAULT 0,
+        time_block TEXT,
+        item_order REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_today_items_date ON today_items(date);
     `);
   }
 
@@ -474,6 +504,22 @@ export async function dbLoadTaskCategories(): Promise<any[]> {
   }));
 }
 
+export async function dbLoadTodayItems(): Promise<any[]> {
+  const rows = await getDb().getAllAsync<Record<string, any>>(
+    "SELECT * FROM today_items ORDER BY date ASC, item_order ASC"
+  );
+  return rows.map(r => ({
+    id: r.id,
+    date: r.date ?? "",
+    text: r.text ?? "",
+    done: !!r.done,
+    time_block: r.time_block ?? undefined,
+    order: typeof r.item_order === "number" ? r.item_order : 0,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
+}
+
 export async function dbSaveTaskCategories(categories: any[], changes?: SaveChanges): Promise<void> {
   enqueue("task_categories", toReq(categories, changes), (req) => runSave("task_categories", req, async (db, c) => {
     await db.runAsync(
@@ -481,6 +527,20 @@ export async function dbSaveTaskCategories(categories: any[], changes?: SaveChan
       [
         c.id, c.name ?? "", c.color ?? "indigo", c.order ?? 0,
         c.created_at, c.updated_at ?? c.created_at,
+      ]
+    );
+  }));
+}
+
+export async function dbSaveTodayItems(items: any[], changes?: SaveChanges): Promise<void> {
+  enqueue("today_items", toReq(items, changes), (req) => runSave("today_items", req, async (db, i) => {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO today_items (id,date,text,done,time_block,item_order,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+      [
+        i.id, i.date ?? "", i.text ?? "", i.done ? 1 : 0,
+        i.time_block ?? null,
+        typeof i.order === "number" ? i.order : 0,
+        i.created_at, i.updated_at ?? i.created_at,
       ]
     );
   }));
