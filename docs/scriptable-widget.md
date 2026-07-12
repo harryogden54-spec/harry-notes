@@ -1,0 +1,116 @@
+# iOS home-screen widget (via Scriptable)
+
+This gives you a home-screen widget for **harry.** showing today's checklist
+and any tasks due today or overdue. It's built with [Scriptable](https://scriptable.app),
+a free iOS app that runs small JavaScript scripts and can render them as
+home-screen widgets — no Apple developer account or app build required.
+
+The widget talks directly to the same Supabase database the app syncs to,
+so it always reflects your latest data (refreshed roughly every 15 minutes,
+per iOS's own widget scheduling).
+
+## 1. Install Scriptable
+
+Install **Scriptable** from the App Store (it's free): <https://apps.apple.com/app/scriptable/id1405459188>
+
+## 2. Create the script
+
+1. Open Scriptable.
+2. Tap the **+** button (top right) to create a new script.
+3. Select all the placeholder code Scriptable gives you and delete it.
+4. Paste in the entire contents of [`widget/scriptable-today.js`](../widget/scriptable-today.js)
+   from this repo.
+5. Tap the script's name at the top ("Untitled Script") and rename it to
+   something you'll recognize later, e.g. `harry Today`.
+
+## 3. Find your sync key in the app
+
+The widget needs your **sync key** so it knows which data is yours (the
+same key you'd enter on a second device to sync with it).
+
+1. Open the harry. app → **Settings**.
+2. Under **Sync Key**, tap the **eye icon** next to "Sync key" to reveal it
+   (it's masked by default).
+3. Tap **Copy key** to copy it to your clipboard. (If you don't have a
+   sync key set yet, tap **Set sync key** or **Generate new key** first —
+   the widget can't show anything until sync is turned on.)
+
+## 4. Paste your key into the script
+
+Back in Scriptable, find this line near the top of the script:
+
+```js
+const SYNC_KEY = "PASTE-YOUR-SYNC-KEY-HERE";
+```
+
+Replace `PASTE-YOUR-SYNC-KEY-HERE` with the key you copied, keeping the
+quotes, e.g.:
+
+```js
+const SYNC_KEY = "ABCD-1234-WXYZ";
+```
+
+Tap **Done** (top left) to save.
+
+You can preview it right away — tap the **Play** button at the bottom of
+the editor. It should show a preview of the medium-size widget with
+today's items and due tasks. If something looks off, see Troubleshooting
+below.
+
+## 5. Add the widget to your home screen
+
+1. Long-press an empty area of your home screen until the icons jiggle.
+2. Tap the **+** button in the top corner.
+3. Search for **Scriptable** and choose either the **small** or **medium**
+   size (the medium size shows both a TODAY column and a DUE column; the
+   small size shows a compact combined list — pick whichever fits your
+   layout).
+4. Tap **Add Widget**, then tap the newly placed widget on your home
+   screen to configure it.
+5. Set:
+   - **Script** → the script you created (e.g. `harry Today`)
+   - **When Interacting** → "Run Script" (default is fine)
+6. Tap outside the widget to finish.
+
+## What to expect
+
+- The header shows today's date, then your undone **Today** items for
+  today, and tasks that are **due today or overdue**.
+- Tapping the widget opens the harry. app in Safari
+  (`https://harry-notes.pages.dev`).
+- iOS decides exactly when to refresh widgets — the script asks for a
+  refresh roughly every **15 minutes**, but iOS may refresh sooner or
+  later depending on battery and usage. Pulling down the widget doesn't
+  force a refresh; if you need the very latest data right now, open the
+  app instead.
+- If there's nothing due or scheduled, it shows a quiet "All clear ✦".
+
+## Troubleshooting
+
+**Widget is empty or just says "Set your sync key"**
+The `SYNC_KEY` placeholder wasn't replaced, or the quotes got deleted
+when editing. Re-open the script in Scriptable and check the line looks
+like `const SYNC_KEY = "YOUR-ACTUAL-KEY";` with no extra spaces.
+
+**Widget shows nothing even though you have tasks/today items**
+Most likely the sync key doesn't match. Go back to Settings → Sync Key
+in the app, copy it again (tap the eye icon first to make sure you copy
+the real key, not the masked `••••` version), and re-paste it into the
+script exactly.
+
+**Widget says "Couldn't sync"**
+This means the request to Supabase failed (no network, or Supabase was
+briefly unreachable). It'll clear up on the next refresh — no action
+needed unless it persists, in which case check your phone has an internet
+connection and try re-running the script from inside Scriptable to see
+a more detailed error.
+
+**Widget looks stale / doesn't seem to update**
+This is normal iOS behavior — widget refresh timing is controlled by the
+OS, not the script, and is not instant. Opening the app itself always
+shows live data.
+
+**I changed my sync key later**
+If you generate a new sync key or change it in the app, you'll need to
+edit the script in Scriptable and paste the new key in, then re-run it
+once from inside Scriptable so the widget picks up the change.
