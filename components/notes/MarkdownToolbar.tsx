@@ -61,6 +61,7 @@ export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading 
     { label: "I", italic: true, fn: () => { const r = insertInline(body, selRef.current, "_");  onApply(r.text, r.cursor); } },
     { label: "H",               fn: () => { const r = insertLinePrefix(body, selRef.current, "# ");  onApply(r.text, r.cursor); } },
     { label: "H2",              fn: () => { const r = insertLinePrefix(body, selRef.current, "## "); onApply(r.text, r.cursor); } },
+    { label: "H3",              fn: () => { const r = insertLinePrefix(body, selRef.current, "### "); onApply(r.text, r.cursor); } },
     { label: "T",               fn: () => { const r = removeLinePrefix(body, selRef.current); onApply(r.text, r.cursor); } },
     { label: "•",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- ");  onApply(r.text, r.cursor); } },
     { label: "☑",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- [ ] "); onApply(r.text, r.cursor); } },

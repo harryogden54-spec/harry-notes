@@ -641,6 +641,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     { key: "italic", title: "Italic",        content: <span style={{ fontFamily: fontFamily.regular, fontStyle: "italic" }}>I</span>, onPress: () => document.execCommand("italic") },
     { key: "h1",     title: "Heading",       content: <span style={{ fontFamily: fontFamily.semibold }}>H</span>,                   onPress: () => setCurrentBlockType("h1") },
     { key: "h2",     title: "Subheading",    content: <span style={{ fontFamily: fontFamily.semibold, fontSize: 12 }}>H2</span>,    onPress: () => setCurrentBlockType("h2") },
+    { key: "h3",     title: "Small heading", content: <span style={{ fontFamily: fontFamily.semibold, fontSize: 11 }}>H3</span>,    onPress: () => setCurrentBlockType("h3") },
     { key: "text",   title: "Regular text",  content: <span style={{ fontFamily: fontFamily.regular }}>T</span>,                    onPress: () => setCurrentBlockType("paragraph") },
     { key: "bullet", title: "Bulleted list", content: (
         <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>

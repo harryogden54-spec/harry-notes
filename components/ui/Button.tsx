@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, PressableProps, ActivityIndicator, View } from "react-native";
+import { Pressable, PressableProps, ActivityIndicator, Platform } from "react-native";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
 import { radius, spacing, motion } from "@/lib/theme";
@@ -80,6 +80,14 @@ export function Button({
         };
         return {
           backgroundColor: hovered && !disabled ? hoverBg[variant] : bg[variant],
+          // Primary (web): soft vertical accent gradient + 1px inner top
+          // highlight — matches the card lit-edge language from getShadow.
+          ...(Platform.OS === "web" && variant === "primary" && !disabled ? ({
+            backgroundImage: hovered
+              ? `linear-gradient(180deg, ${colors.accentHover}, ${colors.accent})`
+              : `linear-gradient(180deg, ${colors.accent}, ${colors.accentHover})`,
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
+          } as any) : {}),
           borderRadius: radius.xl,
           borderWidth: 1,
           borderColor: border[variant],

@@ -49,11 +49,10 @@ export async function setSyncKey(key: string): Promise<void> {
   }
   // The delta cursors belong to the previous key's dataset — drop them so the
   // next sync does a full fetch against the new key.
-  await Promise.all([
-    storage.remove("sync:cursor:tasks"),
-    storage.remove("sync:cursor:notes"),
-    storage.remove("sync:cursor:lists"),
-  ]);
+  await Promise.all(
+    ["tasks", "notes", "lists", "dumps", "courses", "task_categories", "today_items"]
+      .map(t => storage.remove(`sync:cursor:${t}`))
+  );
 }
 
 /**

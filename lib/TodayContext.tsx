@@ -64,12 +64,6 @@ function stamp(item: TodayItem): TodayItem {
 
 const EPOCH = new Date(0).toISOString();
 
-/** Retention window for completed items — hard-deleted (tombstoned) after this
- *  many days so the store doesn't grow forever. Matches the old 7-day stale-key
- *  GC's spirit but longer, since completed items are now useful history rather
- *  than a per-day AsyncStorage key that just needs sweeping. */
-const DONE_RETENTION_DAYS = 30;
-
 /** Coerce a possibly-malformed item (older schema / other client / imported
  *  from the legacy per-day AsyncStorage keys) into a well-formed one. */
 function normalizeTodayItem(t: TodayItem): TodayItem {
@@ -211,28 +205,9 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
     normalizeRemote: (row) => normalizeTodayItem(row),
   });
 
-  // ─── Retention sweep ────────────────────────────────────────────────────────
-  // Hard-delete (tombstone) completed items older than DONE_RETENTION_DAYS so
-  // the store doesn't grow forever. Runs once per load, after the initial
-  // load + carry-forward has settled.
-  useEffect(() => {
-    if (!loaded) return;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - DONE_RETENTION_DAYS);
-    const cutoffStr = getLocalDateStr(cutoff);
-
-    const stale = itemsRef.current.filter(i => i.done && i.date < cutoffStr);
-    if (stale.length === 0) return;
-    const staleIds = stale.map(i => i.id);
-
-    for (const id of staleIds) pendingDeletesRef.current.add(id);
-    markLocallyDeleted(...staleIds);
-    setItems(prev => prev.filter(i => !staleIds.includes(i.id)));
-    for (const id of staleIds) {
-      syncDelete("today_items", id).finally(() => pendingDeletesRef.current.delete(id));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded]);
+  // No retention sweep: completed items stay forever (user request 2026-07-12
+  // — "no longer remove items from 'today' after a day, just leave them
+  // there"). They can still be deleted manually via deleteItem.
 
   const addItem = useCallback((text: string): string => {
     const id  = newId();

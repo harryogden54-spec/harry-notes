@@ -57,12 +57,14 @@ function TodayScreen() {
   const dateLabel = mounted ? formatHeaderDate() : "";
 
   // The context store holds ALL days' items — carry-forward (past incomplete
-  // items get today's date) and the 30-day done-item retention sweep run
-  // inside TodayContext itself. This screen only ever looks at today's slice.
+  // items get today's date) runs inside TodayContext itself. Active items are
+  // today's slice; done items stay listed past their day (user request
+  // 2026-07-12) — newest day first, manual order within a day.
   const todayStr = getTodayStr();
   const dayItems = allItems.filter(i => i.date === todayStr);
   const active    = dayItems.filter(i => !i.done).sort(byOrder);
-  const completed = dayItems.filter(i => i.done).sort(byOrder);
+  const completed = allItems.filter(i => i.done)
+    .sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
 
   // Suggestions: overdue + today tasks sorted by priority, not already in list
   const existingTexts = new Set(dayItems.map(i => i.text.toLowerCase()));

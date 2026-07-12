@@ -26,9 +26,10 @@ export function GradientBackground({ children }: { children: React.ReactNode }) 
   }
 
   // Per-theme signature wash: two radial glows from the theme kit (Nord gets
-  // frost→aurora, Ember a hearth glow, …) — kept very subtle.
-  const opacity1 = scheme === "dark" ? 0.12 : 0.08;
-  const opacity2 = scheme === "dark" ? 0.07 : 0.05;
+  // frost→aurora, Ember a hearth glow, …) — noticeable but never loud.
+  const opacity1 = scheme === "dark" ? 0.17 : 0.11;
+  const opacity2 = scheme === "dark" ? 0.10 : 0.07;
+  const opacity3 = scheme === "dark" ? 0.05 : 0.035;
 
   const rgba = (hex: string, op: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -41,6 +42,7 @@ export function GradientBackground({ children }: { children: React.ReactNode }) 
     background: [
       `radial-gradient(ellipse 80% 60% at 15% 0%, ${rgba(kit.wash[0], opacity1)} 0%, transparent 60%)`,
       `radial-gradient(ellipse 60% 50% at 85% 100%, ${rgba(kit.wash[1], opacity2)} 0%, transparent 60%)`,
+      `radial-gradient(ellipse 50% 40% at 75% 30%, ${rgba(kit.wash[1], opacity3)} 0%, transparent 70%)`,
       colors.bgPrimary,
     ].join(", "),
   };

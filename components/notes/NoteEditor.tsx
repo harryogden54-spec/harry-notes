@@ -135,12 +135,13 @@ function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: strin
 
 /** Page tabs — each page is a child note (own sync row); the first tab is the
  *  parent note itself, so single-page notes are untouched by this feature. */
-function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage }: {
+function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage, onMovePage }: {
   pages: Note[];
   activeId: string;
   onSelect: (id: string) => void;
   onAdd: () => void;
   onDeletePage: (id: string) => void;
+  onMovePage: (id: string, dir: -1 | 1) => void;
 }) {
   const { colors } = useTheme();
   return (
@@ -170,11 +171,23 @@ function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage }: {
               <Text size="xs" weight={active ? "semibold" : "regular"} numberOfLines={1} style={{ color: active ? colors.accent : colors.textSecondary, flexShrink: 1 }}>
                 {p.title || (i === 0 ? "Untitled" : `Page ${i + 1}`)}
               </Text>
-              {/* Delete only from the active child tab — the first tab is the note itself */}
+              {/* Reorder/delete only on the active child tab — the first tab is the note itself */}
               {active && i > 0 && (
-                <Pressable onPress={() => onDeletePage(p.id)} hitSlop={8} accessibilityLabel="Delete page">
-                  <Ionicons name="close" size={11} color={colors.textTertiary} />
-                </Pressable>
+                <>
+                  {i > 1 && (
+                    <Pressable onPress={() => onMovePage(p.id, -1)} hitSlop={6} accessibilityLabel="Move page left">
+                      <Ionicons name="chevron-back" size={11} color={colors.textTertiary} />
+                    </Pressable>
+                  )}
+                  {i < pages.length - 1 && (
+                    <Pressable onPress={() => onMovePage(p.id, 1)} hitSlop={6} accessibilityLabel="Move page right">
+                      <Ionicons name="chevron-forward" size={11} color={colors.textTertiary} />
+                    </Pressable>
+                  )}
+                  <Pressable onPress={() => onDeletePage(p.id)} hitSlop={8} accessibilityLabel="Delete page">
+                    <Ionicons name="close" size={11} color={colors.textTertiary} />
+                  </Pressable>
+                </>
               )}
             </Pressable>
           );
@@ -234,6 +247,17 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
     setActivePageId(pages[Math.max(0, idx - 1)]?.id ?? note.id);
     showToast("Page deleted", { label: "Undo", onPress: undo });
   }, [pages, deleteNote, note.id, showToast]);
+
+  // Swap a child page with its neighbour. Writing index positions as
+  // page_order also normalises any stale values from concurrent edits.
+  const handleMovePage = useCallback((id: string, dir: -1 | 1) => {
+    const children = pages.slice(1);
+    const idx = children.findIndex(p => p.id === id);
+    const j = idx + dir;
+    if (idx === -1 || j < 0 || j >= children.length) return;
+    updateNote(id, { page_order: j });
+    updateNote(children[j].id, { page_order: idx });
+  }, [pages, updateNote]);
 
   // Defensive convert-on-open: a block note synced from a not-yet-migrated
   // device still needs to become a markdown body so the single-TextInput editor
@@ -436,7 +460,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
 
         {/* Page tabs — appear once the note has more than one page */}
         {!focusMode && pages.length > 1 && (
-          <PageTabs pages={pages} activeId={page.id} onSelect={setActivePageId} onAdd={handleAddPage} onDeletePage={handleDeletePage} />
+          <PageTabs pages={pages} activeId={page.id} onSelect={setActivePageId} onAdd={handleAddPage} onDeletePage={handleDeletePage} onMovePage={handleMovePage} />
         )}
 
         {/* Body */}

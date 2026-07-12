@@ -77,6 +77,8 @@ export default function TabLayout() {
             alignItems: "center", justifyContent: "center",
             ...getShadow("md", scheme, { color: colors.accent, opacity: hovered && !pressed ? 0.55 : 0.4 }),
             ...(Platform.OS === "web" ? {
+              // Diagonal accent gradient + lit top edge (same language as cards/buttons).
+              backgroundImage: `linear-gradient(135deg, ${colors.accentHover}, ${colors.accent} 70%)`,
               transitionProperty: "transform, background-color, box-shadow",
               transitionDuration: "150ms",
               transitionTimingFunction: "ease-out",
@@ -125,6 +127,9 @@ export default function TabLayout() {
             backgroundColor: colors.accent, alignItems: "center", justifyContent: "center",
             // Accent glow — md geometry from the token scale, tinted shadow
             ...getShadow("md", scheme, { color: colors.accent, opacity: 0.4 }),
+            ...(Platform.OS === "web" ? {
+              backgroundImage: `linear-gradient(135deg, ${colors.accentHover}, ${colors.accent} 70%)`,
+            } as any : {}),
           }}
         >
           <Ionicons name="add" size={26} color={colors.textInverse} />

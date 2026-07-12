@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getSyncKey } from "./syncKey";
+import { getSyncKey, getCachedSyncKey } from "./syncKey";
 
 // Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
 // Fail loudly if missing so a misconfigured build surfaces immediately rather
@@ -19,7 +19,21 @@ if (!SYNC_ENABLED) {
 
 export const supabase = createClient(
   SUPABASE_URL || "https://placeholder.supabase.co",
-  SUPABASE_ANON_KEY || "placeholder"
+  SUPABASE_ANON_KEY || "placeholder",
+  {
+    global: {
+      // Every request carries the sync key as a header so the RLS policies
+      // (migrations/007_rls_sync_key.sql) can scope rows to it — the anon key
+      // alone grants nothing. The cache is always warm here: every helper in
+      // this file awaits getSyncKey() before issuing a request.
+      fetch: (input: any, init?: any) => {
+        const key = getCachedSyncKey();
+        const headers = new Headers(init?.headers);
+        if (key) headers.set("x-sync-key", key);
+        return fetch(input, { ...init, headers });
+      },
+    },
+  }
 );
 
 // Upserts are chunked so a large dirty set (e.g. first-device bootstrap) can't
