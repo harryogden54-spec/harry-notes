@@ -146,14 +146,21 @@ lib/todayCarry.ts deleted); notes export (.zip of .md files via dependency-free 
 `lib/notesExport.ts`; multi-page notes become folders) + import (.md file picker, filename =
 title); theme polish (getShadow sm/md web adds a 1px inner top highlight; dashboard greeting is
 ink→accent gradient text on web). Migrations 005/006 applied to Supabase 2026-07-11.
+July 12 batch: Supabase RLS enabled — client sends `x-sync-key` header on every request
+(custom fetch in `lib/supabase.ts`); migration 007 adds per-table policies matching the header
+against the sync_key column (anon key alone grants nothing; legacy pre-app tables locked with
+RLS + no policies). NOTE: any future synced table needs the same policy pattern AND the client
+already sends the header. iOS widget shipped as a Scriptable script (`widget/scriptable-today.js`
++ setup guide `docs/scriptable-widget.md`) — reads today_items + due tasks via REST with the
+x-sync-key header; user pastes their sync key into the script. Theme push round 2: FAB + primary
+Button accent gradients, deeper GradientBackground washes. Today: retention sweep removed, done
+items stay listed past their day (newest first). Notes: H3 toolbar button (web + native), page
+reorder via chevrons on the active tab. setSyncKey now clears all 7 domains' delta cursors.
 In progress: —
-Next up (user request): iOS widget — needs either a native Expo build (Apple dev account) or a
-Scriptable/Shortcuts widget reading Supabase; approach not yet chosen.
-On hold (user will ask): further themes redesign beyond the 2026-07-11 polish.
+On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
 Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
-memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal;
-Supabase RLS is disabled on every table — anon key in the web bundle can read/write all rows;
-flagged 2026-07-11, needs sync_key-aware policies before enabling).
+memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal);
+Supabase storage bucket (note images) policies not yet reviewed — table RLS shipped 2026-07-12.
 
 > Update "In progress" and "Not started" at the start of each session.
 
