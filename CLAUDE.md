@@ -156,6 +156,16 @@ x-sync-key header; user pastes their sync key into the script. Theme push round 
 Button accent gradients, deeper GradientBackground washes. Today: retention sweep removed, done
 items stay listed past their day (newest first). Notes: H3 toolbar button (web + native), page
 reorder via chevrons on the active tab. setSyncKey now clears all 7 domains' delta cursors.
+July 15 batch: widget v2 — every colour is `Color.dynamic(light, dark)` (follows system
+appearance), large widget renders stacked TODAY / DUE / PINNED NOTES sections (12-row budget,
+per-section caps 5/5/4 with leftover redistribution, empty sections skipped), pinned-notes fetch
+excludes child pages, in-app preview is presentLarge. Notes: the managed //tag first line is
+hidden from the editor — NoteEditor splits it off before display and re-joins on save
+(`splitTagLine` in `components/notes/utils.ts`); only the exact line captured at page-open or
+via TagRow is hidden, so a tag line typed mid-session stays visible (protects the caret from
+DOM rebuilds); notePreview strips it from list previews too. Desktop sidebar collapse (already
+existed via header chevron) now persists (`sidebar_collapsed` storage key). Migration 008 pins
+search_path='' on set_updated_at/request_sync_key (linter 0011) — applied live, RLS re-verified.
 In progress: —
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
 Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
