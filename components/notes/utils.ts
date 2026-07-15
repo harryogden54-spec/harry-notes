@@ -14,7 +14,7 @@ export function animate() {
 export function notePreview(note: Note, max = 120): string {
   const text = note.blocks && note.blocks.length > 0
     ? note.blocks.map(b => b.content).filter(Boolean).join(" · ")
-    : stripMarkdown((note.body ?? "").trim());
+    : stripMarkdown(splitTagLine(note.body ?? "")[1].trim());
   return text.slice(0, max);
 }
 
@@ -33,6 +33,19 @@ export function extractTags(body: string): string[] {
 
 /** A line consisting only of //tag tokens (the editor keeps managed tags on one). */
 const TAG_ONLY_LINE = /^(\s*\/\/[A-Za-z0-9_-]+)+\s*$/;
+
+/**
+ * Split a leading tag-only line off the body: [tagLine | null, rest].
+ * The editor hides this line (tags are managed from the TagRow) and re-joins
+ * it on save, so the stored format is unchanged.
+ */
+export function splitTagLine(body: string): [string | null, string] {
+  const lines = (body ?? "").split("\n");
+  if (lines.length > 0 && TAG_ONLY_LINE.test(lines[0])) {
+    return [lines[0], lines.slice(1).join("\n")];
+  }
+  return [null, body ?? ""];
+}
 
 /** "  //Uni maths! " → "uni-maths" style cleanup for the tag input. */
 export function normalizeTag(raw: string): string | null {

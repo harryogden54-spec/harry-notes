@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, getShadow, layout } from "@/lib/theme";
+import { storage } from "@/lib/storage";
 import { useTasksActions } from "@/lib/TasksContext";
 import { useNotesActions } from "@/lib/NotesContext";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
@@ -21,8 +22,20 @@ export default function TabLayout() {
   const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;
 
+  // Manual collapse overrides the width-based auto default and persists
+  // across sessions; null = user hasn't chosen, follow autoCollapsed.
   const [manualCollapsed, setManualCollapsed] = useState<boolean | null>(null);
+  useEffect(() => {
+    storage.get<boolean>("sidebar_collapsed").then(v => {
+      if (typeof v === "boolean") setManualCollapsed(v);
+    });
+  }, []);
   const collapsed = manualCollapsed !== null ? manualCollapsed : autoCollapsed;
+  const toggleSidebar = useCallback(() => {
+    const next = !collapsed;
+    setManualCollapsed(next);
+    storage.set("sidebar_collapsed", next);
+  }, [collapsed]);
 
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const pathname = usePathname();
@@ -51,10 +64,7 @@ export default function TabLayout() {
   if (useSidebar) {
     return (
       <View style={{ flex: 1, flexDirection: "row" }}>
-        <Sidebar
-          collapsed={collapsed}
-          onToggleCollapse={() => setManualCollapsed(c => !(c !== null ? c : autoCollapsed))}
-        />
+        <Sidebar collapsed={collapsed} onToggleCollapse={toggleSidebar} />
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PersistentHeader showTitle={false} />
           <OfflineBanner />

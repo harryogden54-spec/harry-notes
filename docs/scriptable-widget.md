@@ -1,13 +1,18 @@
 # iOS home-screen widget (via Scriptable)
 
-This gives you a home-screen widget for **harry.** showing today's checklist
-and any tasks due today or overdue. It's built with [Scriptable](https://scriptable.app),
-a free iOS app that runs small JavaScript scripts and can render them as
-home-screen widgets — no Apple developer account or app build required.
+This gives you a home-screen widget for **harry.** showing today's checklist,
+any tasks due today or overdue, and — on the large size — your pinned notes
+too. It's built with [Scriptable](https://scriptable.app), a free iOS app
+that runs small JavaScript scripts and can render them as home-screen
+widgets — no Apple developer account or app build required.
 
 The widget talks directly to the same Supabase database the app syncs to,
 so it always reflects your latest data (refreshed roughly every 15 minutes,
 per iOS's own widget scheduling).
+
+The widget follows the system's Light/Dark Mode setting automatically —
+every color swaps to a matching light or dark variant, same as the app
+itself, so it looks right whichever appearance your phone is using.
 
 ## 1. Install Scriptable
 
@@ -53,18 +58,22 @@ const SYNC_KEY = "ABCD-1234-WXYZ";
 Tap **Done** (top left) to save.
 
 You can preview it right away — tap the **Play** button at the bottom of
-the editor. It should show a preview of the medium-size widget with
-today's items and due tasks. If something looks off, see Troubleshooting
-below.
+the editor. It should show a preview of the large-size widget (TODAY / DUE
+/ PINNED NOTES sections) so you can see everything the widget can display
+in one go, regardless of which size you actually place on your home
+screen. If something looks off, see Troubleshooting below.
 
 ## 5. Add the widget to your home screen
 
 1. Long-press an empty area of your home screen until the icons jiggle.
 2. Tap the **+** button in the top corner.
-3. Search for **Scriptable** and choose either the **small** or **medium**
-   size (the medium size shows both a TODAY column and a DUE column; the
-   small size shows a compact combined list — pick whichever fits your
-   layout).
+3. Search for **Scriptable** and choose a size:
+   - **Small** — a compact combined list of today's items and due tasks.
+   - **Medium** — a two-column layout: a TODAY column and a DUE column.
+   - **Large** — stacked full-width sections, top to bottom: TODAY, DUE,
+     then **PINNED NOTES** (the titles of any notes you've pinned in the
+     app). Empty sections are skipped entirely, and each section shows a
+     "+N more" line if there's more than fits.
 4. Tap **Add Widget**, then tap the newly placed widget on your home
    screen to configure it.
 5. Set:
@@ -75,7 +84,18 @@ below.
 ## What to expect
 
 - The header shows today's date, then your undone **Today** items for
-  today, and tasks that are **due today or overdue**.
+  today, and tasks that are **due today or overdue**. Done items never
+  show up in any size — small, medium, or large.
+- On the **large** size only, a third **PINNED NOTES** section lists the
+  titles of notes you've pinned in the app (most recently updated first).
+  Note *pages* (the tabs inside a multi-page note) and archived notes are
+  never shown here — only top-level pinned notes.
+- Each large-widget section is skipped entirely if it has nothing to show,
+  and the space is reused by whichever section still has content — e.g. an
+  empty TODAY section lets DUE show more rows than it normally would.
+- The whole widget follows **system Light/Dark Mode** — background, text,
+  and accent colors all swap automatically, matching the app's own light
+  and dark palettes.
 - Tapping the widget opens the harry. app in Safari
   (`https://harry-notes.pages.dev`).
 - iOS decides exactly when to refresh widgets — the script asks for a
@@ -83,7 +103,8 @@ below.
   later depending on battery and usage. Pulling down the widget doesn't
   force a refresh; if you need the very latest data right now, open the
   app instead.
-- If there's nothing due or scheduled, it shows a quiet "All clear ✦".
+- If there's nothing due, scheduled, or pinned, it shows a quiet
+  "All clear ✦".
 
 ## Troubleshooting
 

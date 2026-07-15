@@ -30,13 +30,17 @@ const APP_URL = "https://harry-notes.pages.dev";
 const REFRESH_MINUTES = 15;
 
 // ---- Obsidian theme palette (matches lib/theme.ts in the app) ----
+// Each entry follows the system light/dark appearance via Color.dynamic —
+// first arg is used in Light Mode, second in Dark Mode. Light values come
+// from lib/theme.ts THEMES.obsidian.light; dark values are unchanged from
+// the previous hardcoded-dark-only palette.
 const COLORS = {
-  bg: new Color("#0D0D0D"),
-  textPrimary: new Color("#EDEDED"),
-  textSecondary: new Color("#A0A0A5"),
-  textTertiary: new Color("#6E6E73"),
-  accent: new Color("#5B6AD0"),
-  overdue: new Color("#D0705B"),
+  bg: Color.dynamic(new Color("#FFFFFF"), new Color("#0D0D0D")),
+  textPrimary: Color.dynamic(new Color("#0D0D0D"), new Color("#EDEDED")),
+  textSecondary: Color.dynamic(new Color("#4A4A4A"), new Color("#A0A0A5")),
+  textTertiary: Color.dynamic(new Color("#8A8A8A"), new Color("#6E6E73")),
+  accent: Color.dynamic(new Color("#5B6AD0"), new Color("#5B6AD0")),
+  overdue: Color.dynamic(new Color("#C0392B"), new Color("#D0705B")),
 };
 
 // ---------------------------------------------------------------------------
@@ -120,6 +124,18 @@ function filterDueTasks(tasks, todayStr) {
     .filter(t => !t.done && !t.archived && t.due_date && t.due_date <= todayStr)
     .sort((a, b) => (a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0))
     .map(t => ({ ...t, overdue: t.due_date < todayStr }));
+}
+
+function filterPinnedNotes(notes) {
+  // Child rows are note *pages* (they carry parent_id) — exclude them, we
+  // only want top-level pinned notes.
+  return notes
+    .filter(n => n && n.pinned === true && !n.archived && !n.parent_id)
+    .map(n => ({
+      title: (typeof n.title === "string" && n.title.trim()) || "Untitled",
+      updated_at: n.updated_at || "",
+    }))
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0));
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +316,90 @@ function renderMedium(widget, todayList, dueList) {
   widget.addSpacer();
 }
 
+// Distributes a fixed total row budget across sections in order. Each
+// section gets up to its own `cap` first — but never more than what's left
+// of the total budget, so per-section caps (which can sum higher than the
+// budget) can't blow through it. Any budget left over afterwards (because
+// an earlier section had fewer items than its cap, or was empty) rolls
+// forward to later sections that still have more items to show than they
+// were initially allotted.
+function allocateRows(sections, totalBudget) {
+  const alloc = sections.map(() => 0);
+  let remaining = totalBudget;
+
+  sections.forEach((s, i) => {
+    const take = Math.min(s.cap, s.items.length, remaining);
+    alloc[i] = take;
+    remaining -= take;
+  });
+
+  for (let i = 0; i < sections.length && remaining > 0; i++) {
+    const room = sections[i].items.length - alloc[i];
+    if (room <= 0) continue;
+    const take = Math.min(room, remaining);
+    alloc[i] += take;
+    remaining -= take;
+  }
+
+  return alloc;
+}
+
+function renderLarge(widget, todayList, dueList, pinnedList) {
+  const header = widget.addText(longHeaderDate());
+  header.font = Font.semiboldSystemFont(15);
+  header.textColor = COLORS.accent;
+
+  widget.addSpacer(10);
+
+  const sections = [
+    { label: "TODAY", items: todayList, cap: 5, getLabel: i => i.text },
+    {
+      label: "DUE",
+      items: dueList,
+      cap: 5,
+      getLabel: t => t.title,
+      getOverdue: t => t.overdue,
+    },
+    { label: "PINNED NOTES", items: pinnedList, cap: 4, getLabel: n => n.title },
+  ];
+
+  const nonEmpty = sections.filter(s => s.items.length > 0);
+
+  if (nonEmpty.length === 0) {
+    widget.addSpacer();
+    addEmptyState(widget, { centered: true });
+    widget.addSpacer();
+    return;
+  }
+
+  const TOTAL_ROW_BUDGET = 12;
+  const alloc = allocateRows(nonEmpty, TOTAL_ROW_BUDGET);
+
+  nonEmpty.forEach((section, idx) => {
+    const label = widget.addText(section.label);
+    label.font = Font.semiboldSystemFont(11);
+    label.textColor = COLORS.textTertiary;
+
+    widget.addSpacer(6);
+
+    const shown = section.items.slice(0, alloc[idx]);
+    for (const item of shown) {
+      addRow(widget, section.getLabel(item), {
+        overdue: section.getOverdue ? section.getOverdue(item) : false,
+        size: 13,
+      });
+      widget.addSpacer(6);
+    }
+    addMoreLine(widget, section.items.length - shown.length, 11);
+
+    if (idx < nonEmpty.length - 1) {
+      widget.addSpacer(12);
+    }
+  });
+
+  widget.addSpacer();
+}
+
 // ---------------------------------------------------------------------------
 // Widget assembly
 // ---------------------------------------------------------------------------
@@ -320,11 +420,14 @@ async function buildWidget() {
 
   let todayItemsRaw;
   let tasksRaw;
+  let notesRaw = [];
   try {
-    [todayItemsRaw, tasksRaw] = await Promise.all([
-      fetchTable("today_items"),
-      fetchTable("tasks"),
-    ]);
+    const fetches = [fetchTable("today_items"), fetchTable("tasks")];
+    // Pinned notes are only needed for the large layout — skip the extra
+    // request for small/medium.
+    if (family === "large") fetches.push(fetchTable("notes"));
+
+    [todayItemsRaw, tasksRaw, notesRaw = []] = await Promise.all(fetches);
   } catch (err) {
     renderErrorState(widget);
     return widget;
@@ -336,9 +439,12 @@ async function buildWidget() {
 
   if (family === "small") {
     renderSmall(widget, todayList, dueList);
+  } else if (family === "large") {
+    const pinnedList = filterPinnedNotes(notesRaw);
+    renderLarge(widget, todayList, dueList, pinnedList);
   } else {
-    // Treat "large" (and anything unrecognized) as medium — this widget
-    // does not have a distinct large layout.
+    // Anything else (medium, or unrecognized) falls back to the medium
+    // two-column layout.
     renderMedium(widget, todayList, dueList);
   }
 
@@ -350,6 +456,13 @@ async function buildWidget() {
 // ---------------------------------------------------------------------------
 
 async function run() {
+  // When run directly inside the Scriptable app (not as a placed widget),
+  // there's no widgetFamily set by iOS — force "large" so buildWidget()
+  // renders the same layout as the presentLarge() preview below.
+  if (typeof config !== "undefined" && !config.runsInWidget) {
+    config.widgetFamily = "large";
+  }
+
   let widget;
   try {
     widget = await buildWidget();
@@ -366,8 +479,10 @@ async function run() {
   if (typeof config !== "undefined" && config.runsInWidget) {
     Script.setWidget(widget);
   } else {
-    // Running inside the Scriptable app directly — show a preview.
-    await widget.presentMedium();
+    // Running inside the Scriptable app directly — show a preview. Large
+    // is the more interesting layout to preview now that it has its own
+    // stacked-sections design.
+    await widget.presentLarge();
   }
   Script.complete();
 }

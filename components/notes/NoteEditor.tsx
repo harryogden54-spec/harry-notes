@@ -16,7 +16,7 @@ import { pickAndUploadNoteImage } from "@/lib/storageImages";
 import { type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions } from "./WikiLinkSuggestions";
 import { NoteBodyEditor, type BodyEditorHandle } from "./editor/NoteBodyEditor";
-import { timeAgo, extractTags, normalizeTag, addTagToBody, removeTagFromBody, sinkToggledCheckbox } from "./utils";
+import { timeAgo, extractTags, normalizeTag, addTagToBody, removeTagFromBody, sinkToggledCheckbox, splitTagLine } from "./utils";
 
 function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note[]; onOpen: (id: string) => void }) {
   const { colors } = useTheme();
@@ -236,6 +236,39 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   useEffect(() => { setActivePageId(note.id); }, [note.id]);
   const page = pages.find(p => p.id === activePageId) ?? note;
 
+  // The managed //tag line (kept at the top of the body by TagRow) is hidden
+  // from the editor: strip it before display, re-join it on save. Only the
+  // exact line captured when the page opened (or after a TagRow action) is
+  // hidden — a tag line typed manually mid-session stays visible, so the DOM
+  // is never rebuilt out from under the caret. Reset during render on page
+  // switch to avoid a one-frame unstripped flash.
+  const [tagState, setTagState] = useState(() => ({ pageId: page.id, line: splitTagLine(page.body)[0] }));
+  if (tagState.pageId !== page.id) {
+    setTagState({ pageId: page.id, line: splitTagLine(page.body)[0] });
+  }
+  const [hiddenTagLine, visibleBody] = useMemo((): [string | null, string] => {
+    if (tagState.line === null) return [null, page.body];
+    const [line, rest] = splitTagLine(page.body);
+    return line === tagState.line ? [line, rest] : [null, page.body];
+  }, [page.body, tagState.line]);
+
+  const commitBody = useCallback((visible: string) => {
+    const body = hiddenTagLine === null
+      ? visible
+      : visible === "" ? hiddenTagLine : `${hiddenTagLine}\n${visible}`;
+    updateNote(page.id, { body });
+  }, [hiddenTagLine, updateNote, page.id]);
+
+  // TagRow edits the stored (tab-1) body directly; re-capture the managed
+  // line so the new tag set stays hidden without a body-editor rebuild.
+  // (Skipped when a child page is active — tagState belongs to that page.)
+  const handleTagsChanged = useCallback((body: string) => {
+    if (tagState.pageId === note.id) {
+      setTagState({ pageId: note.id, line: splitTagLine(body)[0] });
+    }
+    updateNote(note.id, { body });
+  }, [note.id, tagState.pageId, updateNote]);
+
   const handleAddPage = useCallback(() => {
     const id = addNote({ parent_id: note.id, page_order: pages.length, title: `Page ${pages.length + 1}` });
     setActivePageId(id);
@@ -270,7 +303,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   }, [note.id]);
 
   async function handleCopy() {
-    await Clipboard.setStringAsync(page.body ?? "");
+    await Clipboard.setStringAsync(visibleBody ?? "");
     showToast("Note copied");
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
@@ -290,13 +323,15 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   }
 
   // Toggle a `- [ ]` / `- [x]` line from the rendered preview.
+  // Line indices are in visible-body space (the hidden tag line is stripped
+  // before the preview renders), so operate on visibleBody and re-join.
   function toggleCheckboxLine(lineIndex: number) {
-    const lines = page.body.split("\n");
+    const lines = visibleBody.split("\n");
     const line = lines[lineIndex];
     if (line === undefined) return;
     lines[lineIndex] = line.replace(/^([-*] \[)([ xX])(\])/, (_m, p1, state, p3) =>
       `${p1}${state.toLowerCase() === "x" ? " " : "x"}${p3}`);
-    updateNote(page.id, { body: sinkToggledCheckbox(lines, lineIndex).join("\n") });
+    commitBody(sinkToggledCheckbox(lines, lineIndex).join("\n"));
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
@@ -336,7 +371,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
     onOpenNote?.(id);
   }, [onOpenNote]);
 
-  const wordCount = page.body.trim() ? page.body.trim().split(/\s+/).length : 0;
+  const wordCount = visibleBody.trim() ? visibleBody.trim().split(/\s+/).length : 0;
   // Documents only — pages don't participate in wiki links / backlinks.
   const allNotes = notes.filter(n => !n.archived && !n.parent_id);
 
@@ -456,7 +491,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         )}
 
         {/* Tags — managed from the top bar; stored as a //tag line in the body */}
-        {!focusMode && <TagRow note={note} onUpdateBody={body => updateNote(note.id, { body })} />}
+        {!focusMode && <TagRow note={note} onUpdateBody={handleTagsChanged} />}
 
         {/* Page tabs — appear once the note has more than one page */}
         {!focusMode && pages.length > 1 && (
@@ -478,8 +513,8 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
           />
           <NoteBodyEditor
             key={page.id}
-            body={page.body}
-            onChangeBody={body => updateNote(page.id, { body })}
+            body={visibleBody}
+            onChangeBody={commitBody}
             bodyRef={bodyRef}
             selRef={selRef}
             cursor={cursor}
@@ -500,7 +535,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
         {/* Footer */}
         {!focusMode && (
         <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingHorizontal: spacing[6], paddingVertical: spacing[2], borderTopWidth: 1, borderTopColor: colors.bgBorder, backgroundColor: colors.bgSecondary }}>
-          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {page.body.length} chars</Text>
+          <Text size="xs" tertiary>{wordCount} word{wordCount !== 1 ? "s" : ""} · {visibleBody.length} chars</Text>
         </View>
         )}
 
