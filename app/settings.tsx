@@ -15,6 +15,7 @@ import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/No
 import { notesToZip, pickMarkdownFiles } from "@/lib/notesExport";
 import { useCoursesSync } from "@/lib/CoursesContext";
 import { useDumpsSync } from "@/lib/DumpContext";
+import { useTodaySync } from "@/lib/TodayContext";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -148,8 +149,9 @@ export default function SettingsScreen() {
   const { syncStatus: listSync, syncNow: syncLists, lastSynced: listLastSynced } = useListsSync();
   const { syncStatus: noteSync, syncNow: syncNotes, lastSynced: noteLastSynced } = useNotesSync();
   const { syncStatus: courseSync, syncNow: syncCourses, lastSynced: courseLastSynced } = useCoursesSync();
-  const { syncNow: syncDumps } = useDumpsSync();
+  const { syncStatus: dumpSync, syncNow: syncDumps, lastSynced: dumpLastSynced } = useDumpsSync();
   const { syncStatus: categorySync, syncNow: syncCategories, lastSynced: categoryLastSynced } = useCategoriesSync();
+  const { syncStatus: todaySync, syncNow: syncToday, lastSynced: todayLastSynced } = useTodaySync();
   const { notes } = useNotesData();
   const { bulkAddNotes } = useNotesActions();
   const { showToast } = useToast();
@@ -195,13 +197,13 @@ export default function SettingsScreen() {
     }
   }
 
-  const domainStatuses = [taskSync, listSync, noteSync, courseSync, categorySync];
+  const domainStatuses = [taskSync, listSync, noteSync, courseSync, categorySync, dumpSync, todaySync];
   const overallSync = domainStatuses.includes("error") ? "error"
     : domainStatuses.includes("syncing") ? "syncing"
     : domainStatuses.every(s => s === "synced") ? "synced"
     : "idle";
 
-  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced, courseLastSynced, categoryLastSynced].filter(Boolean) as string[];
+  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced, courseLastSynced, categoryLastSynced, dumpLastSynced, todayLastSynced].filter(Boolean) as string[];
   const lastSynced   = allSyncTimes.length > 0
     ? new Date(Math.max(...allSyncTimes.map(t => new Date(t).getTime()))).toISOString()
     : null;
@@ -212,11 +214,11 @@ export default function SettingsScreen() {
   async function handleSyncNow() {
     // Manual sync is the reconciliation path: full fetch, ignoring the delta
     // cursor, so it can repair any divergence the incremental sync missed.
-    // Covers every synced domain (lists/dumps/courses were previously missed).
+    // Must cover every synced domain — today_items was missed until 2026-07-18.
     await Promise.all([
       syncTasks({ full: true }), syncNotes({ full: true }),
       syncLists({ full: true }), syncDumps({ full: true }), syncCourses({ full: true }),
-      syncCategories({ full: true }),
+      syncCategories({ full: true }), syncToday({ full: true }),
     ]);
     showToast("Synced successfully");
   }

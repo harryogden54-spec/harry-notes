@@ -20,13 +20,24 @@ Install **Scriptable** from the App Store (it's free): <https://apps.apple.com/a
 
 ## 2. Create the script
 
-1. Open Scriptable.
-2. Tap the **+** button (top right) to create a new script.
-3. Select all the placeholder code Scriptable gives you and delete it.
-4. Paste in the entire contents of [`widget/scriptable-today.js`](../widget/scriptable-today.js)
-   from this repo.
+1. On the iPhone, open the script's **raw** file in Safari:
+   <https://raw.githubusercontent.com/harryogden54-spec/harry-notes/master/widget/scriptable-today.js>
+   (sign in to GitHub first if the repo is private).
+
+   ⚠️ Always copy from the **raw** view. Copying the code out of a chat app,
+   an email, Notes, or GitHub's *rendered* file view can silently mangle it —
+   long lines get wrapped, and characters like `` ` ``, `*` and `_` get eaten
+   by markdown formatting — which produces baffling syntax errors when the
+   script runs (e.g. `Unexpected identifier`, `Expected ')'`).
+2. Tap-and-hold → **Select All** → **Copy**.
+3. Open Scriptable and tap the **+** button (top right) to create a new script.
+4. Select all the placeholder code Scriptable gives you, delete it, and paste.
 5. Tap the script's name at the top ("Untitled Script") and rename it to
    something you'll recognize later, e.g. `harry Today`.
+
+If you're **updating** an existing script to a newer version: open the script,
+Select All, delete, and paste the new copy — don't paste below or above the
+old code, and re-add your sync key afterwards (step 4 below).
 
 ## 3. Find your sync key in the app
 
@@ -107,6 +118,17 @@ screen. If something looks off, see Troubleshooting below.
   "All clear ✦".
 
 ## Troubleshooting
+
+**"Exception occurred — Syntax Error" (e.g. `Unexpected identifier`, `Expected ')' to end an argument list`)**
+The pasted copy of the script got corrupted in transit — this happens when
+the code is copied from anywhere other than the raw file (rendered GitHub
+view, a chat message, Mail, Notes…): markdown-significant characters
+(backticks, `*`, `_`) get stripped and long lines get re-wrapped. The file
+in the repo is valid. Fix: delete everything in the Scriptable editor and
+re-paste from the **raw** URL in step 2 above, then re-add your sync key.
+A widget already placed on the home screen keeps running its own saved copy
+of whichever script it points at, so it can keep working (or keep showing
+old behavior) while your edited copy is broken — the two are independent.
 
 **Widget is empty or just says "Set your sync key"**
 The `SYNC_KEY` placeholder wasn't replaced, or the quotes got deleted

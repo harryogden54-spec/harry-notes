@@ -14,7 +14,7 @@ import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasksData } from "@/lib/TasksContext";
-import { useTodayData, useTodayActions, type TodayItem } from "@/lib/TodayContext";
+import { useTodayData, useTodayActions, useTodaySync, type TodayItem } from "@/lib/TodayContext";
 import { getTodayStr, formatHeaderDate } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 
@@ -45,6 +45,7 @@ function TodayScreen() {
   const { tasks } = useTasksData();
   const { items: allItems } = useTodayData();
   const { addItem: addTodayItem, toggleItem, deleteItem, updateItemTime, moveItem, reorderActive } = useTodayActions();
+  const { syncNow } = useTodaySync();
   const [input, setInput]             = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
@@ -114,10 +115,11 @@ function TodayScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reorderActive, todayStr]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 600);
-  }, []);
+    await syncNow().catch(() => {});
+    setRefreshing(false);
+  }, [syncNow]);
 
   // ─── Draggable row ───────────────────────────────────────────────────────────
 
