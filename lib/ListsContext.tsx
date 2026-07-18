@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadLists, dbSaveLists } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 
@@ -37,7 +36,7 @@ type ListsData = {
 type ListsSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type ListsActions = {
@@ -90,7 +89,7 @@ function newId() {
 export function ListsProvider({ children }: { children: React.ReactNode }) {
   const {
     items: lists, setItems: setLists, loaded, syncStatus, lastSynced,
-    itemsRef: listsRef, pendingDeletesRef,
+    itemsRef: listsRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<NoteList>({
     table: "lists",
@@ -132,21 +131,16 @@ export function ListsProvider({ children }: { children: React.ReactNode }) {
   const deleteList = useCallback((id: string): (() => void) => {
     const deleted = listsRef.current.find(l => l.id === id);
     setLists(prev => prev.filter(l => l.id !== id));
-    pendingDeletesRef.current.add(id);
-    markLocallyDeleted(id); // remove the SQLite row on next flush
-    const timer = setTimeout(() => {
-      syncDelete("lists", id);
-      pendingDeletesRef.current.delete(id);
-    }, 3000);
+    // Removes the SQLite row on next flush AND queues the remote tombstone
+    // (retried by the sync hook until it lands).
+    markLocallyDeleted(id);
     return () => {
-      clearTimeout(timer);
-      pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id); // also clears the local-delete mark
+        markDirty(id); // cancels the queued tombstone / resurrects if sent
         setLists(prev => [...prev, deleted]);
       }
     };
-  }, [listsRef, pendingDeletesRef, markLocallyDeleted, markDirty, setLists]);
+  }, [listsRef, markLocallyDeleted, markDirty, setLists]);
 
   const pinList = useCallback((id: string) => {
     markDirty(id);

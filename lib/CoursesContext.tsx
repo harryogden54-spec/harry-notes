@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadCourses, dbSaveCourses } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 
@@ -50,7 +49,7 @@ type CoursesData = {
 type CoursesSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type CoursesActions = {
@@ -104,7 +103,7 @@ function newId() {
 export function CoursesProvider({ children }: { children: React.ReactNode }) {
   const {
     items: tables, setItems: setTables, loaded, syncStatus, lastSynced,
-    itemsRef: tablesRef, pendingDeletesRef,
+    itemsRef: tablesRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<CourseTable>({
     table: "courses",
@@ -151,21 +150,16 @@ export function CoursesProvider({ children }: { children: React.ReactNode }) {
   const deleteTable = useCallback((id: string): (() => void) => {
     const deleted = tablesRef.current.find(t => t.id === id);
     setTables(prev => prev.filter(t => t.id !== id));
-    pendingDeletesRef.current.add(id);
+    // Removes the SQLite row on next flush AND queues the remote tombstone
+    // (retried by the sync hook until it lands).
     markLocallyDeleted(id);
-    const timer = setTimeout(() => {
-      syncDelete("courses", id);
-      pendingDeletesRef.current.delete(id);
-    }, 3000);
     return () => {
-      clearTimeout(timer);
-      pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // cancels the queued tombstone / resurrects if sent
         setTables(prev => [...prev, deleted]);
       }
     };
-  }, [tablesRef, pendingDeletesRef, markLocallyDeleted, markDirty, setTables]);
+  }, [tablesRef, markLocallyDeleted, markDirty, setTables]);
 
   const addRow = useCallback((tableId: string) => {
     const row: CourseRow = { id: newId(), cells: {} };

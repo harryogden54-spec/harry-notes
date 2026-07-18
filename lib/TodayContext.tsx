@@ -2,7 +2,6 @@ import React, { createContext, useContext, useCallback, useMemo, useEffect } fro
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadTodayItems, dbSaveTodayItems } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 import { getLocalDateStr } from "./utils";
@@ -39,7 +38,7 @@ type TodayData = {
 type TodaySync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type TodayActions = {
@@ -171,7 +170,7 @@ function carryForwardToday(items: TodayItem[]): { items: TodayItem[]; dirty: str
 export function TodayProvider({ children }: { children: React.ReactNode }) {
   const {
     items, setItems, loaded, syncStatus, lastSynced,
-    itemsRef, pendingDeletesRef,
+    itemsRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<TodayItem>({
     table: "today_items",
@@ -252,21 +251,16 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
   const deleteItem = useCallback((id: string): (() => void) => {
     const deleted = itemsRef.current.find(i => i.id === id);
     setItems(prev => prev.filter(i => i.id !== id));
-    pendingDeletesRef.current.add(id);
-    markLocallyDeleted(id); // remove the SQLite row on next flush
-    const timer = setTimeout(() => {
-      syncDelete("today_items", id);
-      pendingDeletesRef.current.delete(id);
-    }, 3000);
+    // Removes the SQLite row on next flush AND queues the remote tombstone
+    // (retried by the sync hook until it lands).
+    markLocallyDeleted(id);
     return () => {
-      clearTimeout(timer);
-      pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id); // also clears the local-delete mark
+        markDirty(id); // cancels the queued tombstone / resurrects if sent
         setItems(prev => [...prev, deleted]);
       }
     };
-  }, [itemsRef, pendingDeletesRef, markLocallyDeleted, markDirty, setItems]);
+  }, [itemsRef, markLocallyDeleted, markDirty, setItems]);
 
   const updateItemTime = useCallback((id: string, time: string | undefined) => {
     markDirty(id);

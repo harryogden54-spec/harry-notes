@@ -40,6 +40,17 @@ export const supabase = createClient(
 // produce one oversized POST that times out on a slow connection.
 const UPSERT_CHUNK_SIZE = 100;
 
+// Conflict target for upserts. (id, sync_key) — not id alone — so the same id
+// can exist under different sync keys (fixed seeded ids like task_categories
+// "personal"/"uni", and re-uploading a whole dataset after a key rotation).
+// Requires the unique constraint from migrations/009_composite_upsert_index.sql.
+const UPSERT_ON_CONFLICT = "id,sync_key";
+
+// PostgREST caps responses at db_max_rows (1000 by default) and silently
+// truncates beyond it — page explicitly so a large table can't lose rows.
+const FETCH_PAGE_SIZE = 1000;
+const FETCH_MAX_PAGES = 30;
+
 // Result type so callers can distinguish "remote is empty" from "fetch failed".
 // The previous shape (returning [] on error) caused contexts to mistake a
 // network blip for an empty remote and re-upload the entire local store.
@@ -71,21 +82,34 @@ export async function syncFetch<T extends { id: string }>(
   if (!syncKey) return EMPTY_OK;
 
   try {
-    let query = supabase
-      .from(table)
-      .select("id, data, updated_at, deleted")
-      .eq("sync_key", syncKey);
-    if (sinceIso) query = query.gt("updated_at", sinceIso);
-    const { data, error } = await query;
-    if (error) {
-      console.warn(`syncFetch ${table}:`, error.message);
-      return { ok: false, error: error.message };
+    // Paged fetch with a stable order — without an explicit order + range,
+    // PostgREST returns an arbitrary 1000-row slice and the rest silently
+    // never syncs. Rows written between page requests are caught by the next
+    // delta (the cursor advances only to what we actually saw).
+    const all: any[] = [];
+    for (let page = 0; page < FETCH_MAX_PAGES; page++) {
+      const from = page * FETCH_PAGE_SIZE;
+      let query = supabase
+        .from(table)
+        .select("id, data, updated_at, deleted")
+        .eq("sync_key", syncKey)
+        .order("updated_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + FETCH_PAGE_SIZE - 1);
+      if (sinceIso) query = query.gt("updated_at", sinceIso);
+      const { data, error } = await query;
+      if (error) {
+        console.warn(`syncFetch ${table}:`, error.message);
+        return { ok: false, error: error.message };
+      }
+      all.push(...(data ?? []));
+      if (!data || data.length < FETCH_PAGE_SIZE) break;
     }
 
     const rows: T[] = [];
     const deletedIds: string[] = [];
     let serverMax: string | null = null;
-    for (const row of (data ?? []) as any[]) {
+    for (const row of all as any[]) {
       if (typeof row.updated_at === "string" && (!serverMax || row.updated_at > serverMax)) {
         serverMax = row.updated_at;
       }
@@ -123,12 +147,27 @@ export async function syncUpsert<T extends { id: string }>(
     sync_key: syncKey,
     deleted: false,
   }));
+  let allOk = true;
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
-    const { error } = await supabase.from(table).upsert(chunk, { onConflict: "id" });
-    if (error) { console.warn(`syncUpsert ${table}:`, error.message); return false; }
+    const { error } = await supabase.from(table).upsert(chunk, { onConflict: UPSERT_ON_CONFLICT });
+    if (error) {
+      // One rejected row (e.g. an RLS violation) fails the whole chunk POST.
+      // Retry row-by-row so a single poisoned row can't block every other
+      // row in the domain from ever syncing.
+      console.warn(`syncUpsert ${table} chunk failed, retrying per-row:`, error.message);
+      for (const row of chunk) {
+        const { error: rowErr } = await supabase
+          .from(table)
+          .upsert([row], { onConflict: UPSERT_ON_CONFLICT });
+        if (rowErr) {
+          allOk = false;
+          console.warn(`syncUpsert ${table} row ${row.id}:`, rowErr.message);
+        }
+      }
+    }
   }
-  return true;
+  return allOk;
 }
 
 /**
@@ -146,7 +185,7 @@ export async function syncDelete(table: string, id: string): Promise<boolean> {
 
   const { error } = await supabase
     .from(table)
-    .upsert([{ id, data: { id }, sync_key: syncKey, deleted: true }], { onConflict: "id" });
+    .upsert([{ id, data: { id }, sync_key: syncKey, deleted: true }], { onConflict: UPSERT_ON_CONFLICT });
   if (error) { console.warn(`syncDelete ${table}:`, error.message); return false; }
   return true;
 }

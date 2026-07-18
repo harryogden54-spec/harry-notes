@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadTaskCategories, dbSaveTaskCategories } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 import { ACCENT_OPTIONS, type AccentId } from "./theme";
@@ -37,7 +36,7 @@ type CategoriesData = {
 type CategoriesSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type CategoriesActions = {
@@ -84,7 +83,7 @@ function newId() {
 export function TaskCategoriesProvider({ children }: { children: React.ReactNode }) {
   const {
     items: categories, setItems: setCategories, loaded, syncStatus, lastSynced,
-    itemsRef: categoriesRef, pendingDeletesRef,
+    itemsRef: categoriesRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Category>({
     table: "task_categories",
@@ -135,12 +134,10 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
 
   const deleteCategory = useCallback((id: string) => {
     setCategories(prev => prev.filter(c => c.id !== id));
-    pendingDeletesRef.current.add(id);
-    markLocallyDeleted(id); // remove the SQLite row on next flush
-    syncDelete("task_categories", id).finally(() => {
-      pendingDeletesRef.current.delete(id);
-    });
-  }, [pendingDeletesRef, markLocallyDeleted]);
+    // Removes the SQLite row on next flush AND queues the remote tombstone
+    // (retried by the sync hook until it lands).
+    markLocallyDeleted(id);
+  }, [markLocallyDeleted, setCategories]);
 
   const reorderCategories = useCallback((orderedIds: string[]) => {
     const orderMap = new Map(orderedIds.map((id, i) => [id, i]));

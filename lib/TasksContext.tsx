@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadTasks, dbSaveTasks } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 import { advanceByRecurrence } from "./utils";
@@ -59,7 +58,7 @@ type TasksData = {
 type TasksSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type TasksActions = {
@@ -111,7 +110,7 @@ function newId() {
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const {
     items: tasks, setItems: setTasks, loaded, syncStatus, lastSynced,
-    itemsRef: tasksRef, pendingDeletesRef,
+    itemsRef: tasksRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Task>({
     table: "tasks",
@@ -220,21 +219,16 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const deleteTask = useCallback((id: string): (() => void) => {
     const deleted = tasksRef.current.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
-    pendingDeletesRef.current.add(id);
-    markLocallyDeleted(id); // remove the SQLite row on next flush
-    const timer = setTimeout(() => {
-      syncDelete("tasks", id);
-      pendingDeletesRef.current.delete(id);
-    }, 3000);
+    // Removes the SQLite row on next flush AND queues the remote tombstone
+    // (retried by the sync hook until it lands).
+    markLocallyDeleted(id);
     return () => {
-      clearTimeout(timer);
-      pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id); // also clears the local-delete mark
+        markDirty(id); // cancels the queued tombstone / resurrects if sent
         setTasks(prev => [...prev, deleted]);
       }
     };
-  }, [tasksRef, pendingDeletesRef, markLocallyDeleted, markDirty, setTasks]);
+  }, [tasksRef, markLocallyDeleted, markDirty, setTasks]);
 
   const reorderTask = useCallback((id: string, direction: "up" | "down") => {
     setTasks(prev => {

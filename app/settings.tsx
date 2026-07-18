@@ -215,12 +215,16 @@ export default function SettingsScreen() {
     // Manual sync is the reconciliation path: full fetch, ignoring the delta
     // cursor, so it can repair any divergence the incremental sync missed.
     // Must cover every synced domain — today_items was missed until 2026-07-18.
-    await Promise.all([
+    const results = await Promise.all([
       syncTasks({ full: true }), syncNotes({ full: true }),
       syncLists({ full: true }), syncDumps({ full: true }), syncCourses({ full: true }),
       syncCategories({ full: true }), syncToday({ full: true }),
     ]);
-    showToast("Synced successfully");
+    // Don't claim success when a domain failed — the old toast said "Synced
+    // successfully" unconditionally, hiding real errors (e.g. RLS rejections).
+    showToast(results.every(Boolean)
+      ? "Synced successfully"
+      : "Some items couldn't sync — check the status above and try again");
   }
 
   function handleClearCompleted() {

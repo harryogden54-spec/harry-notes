@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadNotes, dbSaveNotes } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 
@@ -43,7 +42,7 @@ type NotesData = {
 type NotesSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type NotesActions = {
@@ -97,7 +96,7 @@ function newId() {
 export function NotesProvider({ children }: { children: React.ReactNode }) {
   const {
     items: notes, setItems: setNotes, loaded, syncStatus, lastSynced,
-    itemsRef: notesRef, pendingDeletesRef,
+    itemsRef: notesRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Note>({
     table: "notes",
@@ -144,25 +143,17 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     const ids = [id, ...notesRef.current.filter(n => n.parent_id === id).map(n => n.id)];
     const deleted = notesRef.current.filter(n => ids.includes(n.id));
     setNotes(prev => prev.filter(n => !ids.includes(n.id)));
-    for (const nid of ids) {
-      pendingDeletesRef.current.add(nid);
-      markLocallyDeleted(nid); // remove the SQLite row on next flush
-    }
-    const timer = setTimeout(() => {
-      for (const nid of ids) {
-        syncDelete("notes", nid);
-        pendingDeletesRef.current.delete(nid);
-      }
-    }, 3000);
+    // Removes the SQLite rows on next flush AND queues the remote tombstones —
+    // the hook retries them until they land (the old fire-and-forget timer lost
+    // the delete if the app closed within 3s, resurrecting it on a full fetch).
+    markLocallyDeleted(...ids);
     return () => {
-      clearTimeout(timer);
-      for (const nid of ids) pendingDeletesRef.current.delete(nid);
       if (deleted.length > 0) {
-        for (const nid of ids) markDirty(nid); // also clears the local-delete mark
+        markDirty(...ids); // cancels queued tombstones / resurrects if already sent
         setNotes(prev => [...deleted, ...prev]);
       }
     };
-  }, [notesRef, pendingDeletesRef, markLocallyDeleted, markDirty, setNotes]);
+  }, [notesRef, markLocallyDeleted, markDirty, setNotes]);
 
   const bulkAddNotes = useCallback((newNotes: Note[]) => {
     if (newNotes.length === 0) return;

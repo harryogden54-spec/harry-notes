@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
-import { syncFetch, syncUpsert, SYNC_ENABLED } from "./supabase";
+import { syncFetch, syncUpsert, syncDelete, SYNC_ENABLED } from "./supabase";
 import { getSyncKey } from "./syncKey";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
@@ -40,6 +40,9 @@ const LOCAL_PERSIST_DEBOUNCE_MS = 800;
 const REMOTE_SYNC_DEBOUNCE_MS = 1500;
 // Automatic foreground syncs are throttled; explicit syncNow() is not.
 const FOREGROUND_SYNC_MIN_INTERVAL_MS = 60_000;
+// Periodic pull while the app is visible — without it, an always-open window
+// never sees other devices' changes until a visibility flip or relaunch.
+const PULL_INTERVAL_MS = 90_000;
 // A cursor older than this falls back to a full reconciliation fetch.
 const CURSOR_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -71,30 +74,72 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   const fullSaveRef       = useRef(false);
   const syncInFlightRef   = useRef(false);
   const lastSyncAtRef     = useRef(0);
+  // Remote tombstones still owed to the server. Persisted (and retried) so a
+  // killed app can't leave a delete local-only — an unsent tombstone means the
+  // row resurrects from the server on the next full fetch.
+  const pendingRemoteDeletesRef = useRef<Set<string>>(new Set());
   // undefined = not yet loaded from storage; null = no cursor stored.
   const cursorRef         = useRef<string | null | undefined>(undefined);
   const cursorKey         = `sync:cursor:${table}`;
+  const dirtyKey          = `sync:dirty:${table}`;
+  const pendingDeleteKey  = `sync:pendingDelete:${table}`;
 
   useEffect(() => { itemsRef.current = items; }, [items]);
+
+  // Both sets are tiny (ids of unsynced edits/deletes) — persist them whole,
+  // fire-and-forget, every time they change. They are re-hydrated on launch so
+  // an app killed mid-debounce retries instead of stranding the edit locally
+  // until the next full reconciliation.
+  const persistDirty = useCallback(() => {
+    storage.set(dirtyKey, Array.from(dirtyIdsRef.current));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const persistPendingDeletes = useCallback(() => {
+    storage.set(pendingDeleteKey, Array.from(pendingRemoteDeletesRef.current));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const markDirty = useCallback((...ids: string[]) => {
     for (const id of ids) {
       dirtyIdsRef.current.add(id);
       localDirtyRef.current.add(id);
-      // A row being written back (e.g. delete undo) is no longer deleted.
+      // A row being written back (e.g. delete undo) is no longer deleted —
+      // cancel the queued tombstone (or resurrect via the coming upsert if the
+      // tombstone already went out).
       localDeletesRef.current.delete(id);
+      pendingRemoteDeletesRef.current.delete(id);
+      pendingDeletesRef.current.delete(id);
     }
+    persistDirty();
+    persistPendingDeletes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Record a local deletion so the next local flush removes the DB row.
-   *  (The Supabase tombstone is sent separately by the context's delete action.) */
+  /** Record a local deletion: removes the DB row on next local flush AND
+   *  queues the remote tombstone (sent on the next remote flush, retried until
+   *  it succeeds — the contexts no longer call syncDelete themselves). */
   const markLocallyDeleted = useCallback((...ids: string[]) => {
     for (const id of ids) {
       localDeletesRef.current.add(id);
       localDirtyRef.current.delete(id);
       dirtyIdsRef.current.delete(id);
+      pendingDeletesRef.current.add(id);
+      pendingRemoteDeletesRef.current.add(id);
     }
+    persistDirty();
+    persistPendingDeletes();
+    // Schedule the tombstone upload on the standard remote debounce. Undo
+    // within the window cancels it via markDirty; undo after it re-upserts
+    // with deleted=false, which resurrects the row server-side.
+    if (SYNC_ENABLED) {
+      if (syncDebounce.current) clearTimeout(syncDebounce.current);
+      syncDebounce.current = setTimeout(() => { flushRemoteNowRef.current(); }, REMOTE_SYNC_DEBOUNCE_MS);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // markLocallyDeleted is declared before flushRemoteNow — bridge via a ref.
+  const flushRemoteNowRef = useRef<() => Promise<void>>(async () => {});
 
   // ─── Local persistence (debounced, dirty-aware) ──────────────────────────────
   const flushLocalNow = useCallback(() => {
@@ -116,6 +161,24 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─── Remote tombstones (persisted queue, retried until sent) ─────────────────
+  const flushRemoteDeletes = useCallback(async (): Promise<boolean> => {
+    if (pendingRemoteDeletesRef.current.size === 0) return true;
+    let allOk = true;
+    for (const id of Array.from(pendingRemoteDeletesRef.current)) {
+      const ok = await syncDelete(table, id);
+      if (ok) {
+        pendingRemoteDeletesRef.current.delete(id);
+        pendingDeletesRef.current.delete(id);
+      } else {
+        allOk = false; // stays queued — retried on the next flush/sync
+      }
+    }
+    persistPendingDeletes();
+    return allOk;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table]);
+
   // ─── Remote upload (debounced, dirty-only) ───────────────────────────────────
   const flushRemoteNow = useCallback(async () => {
     if (syncDebounce.current) { clearTimeout(syncDebounce.current); syncDebounce.current = null; }
@@ -124,16 +187,23 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     // syncStatus so the UI doesn't report "synced" for a no-op.
     if (!(await getSyncKey())) return;
     const dirtyIds = dirtyIdsRef.current;
-    if (dirtyIds.size === 0) return;
     const dirty = itemsRef.current.filter(t => dirtyIds.has(t.id));
-    if (dirty.length === 0) { dirtyIds.clear(); return; }
+    if (dirty.length === 0 && pendingRemoteDeletesRef.current.size === 0) {
+      if (dirtyIds.size > 0) { dirtyIds.clear(); persistDirty(); }
+      return;
+    }
     const pushedIds = dirty.map(t => t.id);
     dirtyIds.clear();
+    persistDirty();
     setSyncStatus("syncing");
     try {
-      const ok = await syncUpsert(table, dirty);
+      const ok = dirty.length === 0 || await syncUpsert(table, dirty);
       if (!ok) {
         for (const id of pushedIds) dirtyIds.add(id);
+        persistDirty();
+      }
+      const deletesOk = await flushRemoteDeletes();
+      if (!ok || !deletesOk) {
         setSyncStatus("error");
       } else {
         setSyncStatus("synced");
@@ -142,10 +212,12 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     } catch {
       // Network error — restore dirty IDs so next sync retries them
       for (const id of pushedIds) dirtyIds.add(id);
+      persistDirty();
       setSyncStatus("error");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table]);
+  }, [table, flushRemoteDeletes]);
+  flushRemoteNowRef.current = flushRemoteNow;
 
   // ─── Persist on every items change (both paths debounced) ────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,7 +269,11 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       } else {
         const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
         const remoteUp = _updated_at ?? rem.updated_at ?? "";
-        if (remoteUp > localUp) {
+        // A dirty row is an unpushed local edit — never let remote overwrite
+        // it on timestamps alone (remote is server-clock, local is client-clock;
+        // skew could wrongly favor remote and silently drop the edit). The edit
+        // uploads next flush, after which timestamps agree again.
+        if (remoteUp > localUp && !dirtyIdsRef.current.has(rem.id)) {
           merged[idx] = mergeRow ? mergeRow(merged[idx], rem) : rem;
           localDirtyRef.current.add(rem.id);
         }
@@ -225,16 +301,20 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   // Delta fetch by default; full reconciliation fetch when there is no usable
   // cursor or the caller asks for it. The full path is the safety net: deleting
   // the cursor key must always reproduce identical state.
-  const performSync = useCallback(async (opts?: { full?: boolean }) => {
-    if (!SYNC_ENABLED) return;
+  const performSync = useCallback(async (opts?: { full?: boolean }): Promise<boolean> => {
+    if (!SYNC_ENABLED) return true;
     // No sync key configured — offline-only mode. Bail before touching
     // syncStatus so the UI doesn't report "synced" for a no-op.
-    if (!(await getSyncKey())) return;
-    if (syncInFlightRef.current) return;
+    if (!(await getSyncKey())) return true;
+    if (syncInFlightRef.current) return true;
     syncInFlightRef.current = true;
     try {
       if (syncDebounce.current) { clearTimeout(syncDebounce.current); syncDebounce.current = null; }
       setSyncStatus("syncing");
+
+      // Send any owed tombstones first, so the fetch below reflects them and
+      // a previously-failed delete can't resurrect through the merge.
+      const deletesOk = await flushRemoteDeletes();
 
       const cursor = await loadCursor();
       const cursorUsable =
@@ -251,7 +331,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       const fetchResult = await syncFetch<T & { _updated_at: string }>(
         table, isFullFetch ? null : cursor
       );
-      if (!fetchResult.ok) { setSyncStatus("error"); return; }
+      if (!fetchResult.ok) { setSyncStatus("error"); return false; }
       const { rows: remote, deletedIds, serverMax } = fetchResult;
 
       // First sync of a device that already has data against an empty remote →
@@ -259,11 +339,14 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       // means "nothing changed", never "remote is empty".
       if (isFullFetch && remote.length === 0 && deletedIds.length === 0 && preSnapshot.length > 0) {
         const ok = await syncUpsert(table, preSnapshot);
-        if (!ok) { setSyncStatus("error"); return; }
+        if (!ok) { setSyncStatus("error"); return false; }
+        for (const t of preSnapshot) dirtyIdsRef.current.delete(t.id);
+        persistDirty();
         lastSyncAtRef.current = Date.now();
+        if (!deletesOk) { setSyncStatus("error"); return false; }
         setSyncStatus("synced");
         setLastSynced(new Date().toISOString());
-        return;
+        return true;
       }
 
       const merged = doMerge(preSnapshot, remote, deletedIds);
@@ -306,19 +389,24 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         const ok = await syncUpsert(table, toUpsert);
         if (!ok) {
           for (const t of toUpsert) dirtyIdsRef.current.add(t.id);
+          persistDirty();
           setSyncStatus("error");
-          return;
+          return false;
         }
+        for (const t of toUpsert) dirtyIdsRef.current.delete(t.id);
+        persistDirty();
       }
 
       advanceCursor(serverMax);
       lastSyncAtRef.current = Date.now();
+      if (!deletesOk) { setSyncStatus("error"); return false; }
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
+      return true;
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [doMerge, loadCursor, advanceCursor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doMerge, loadCursor, advanceCursor, flushRemoteDeletes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Initial load ─────────────────────────────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -329,6 +417,18 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
 
     loadLocal().then(async (raw) => {
       clearTimeout(loadTimeout);
+      // Re-hydrate unsynced work from the previous session: edits whose upload
+      // debounce never fired, and deletes whose tombstone never went out. Both
+      // are retried by the performSync below.
+      const [storedDirty, storedDeletes] = await Promise.all([
+        storage.get<string[]>(dirtyKey),
+        storage.get<string[]>(pendingDeleteKey),
+      ]);
+      for (const id of storedDirty ?? []) dirtyIdsRef.current.add(id);
+      for (const id of storedDeletes ?? []) {
+        pendingRemoteDeletesRef.current.add(id);
+        pendingDeletesRef.current.add(id); // guards doMerge from resurrecting it
+      }
       let local = raw;
       if (onLoad) {
         const result = onLoad(raw);
@@ -338,6 +438,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
           localDirtyRef.current.add(id);
         }
       }
+      if (dirtyIdsRef.current.size > 0) persistDirty();
       // Keep the ref fresh synchronously — performSync below may run before
       // React re-renders and the itemsRef effect catches up.
       itemsRef.current = local;
@@ -367,8 +468,29 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   // ─── Manual sync ─────────────────────────────────────────────────────────────
   // Always runs (no throttle — every caller is a user gesture). Pass
   // { full: true } for a full reconciliation fetch (Settings → Sync now).
-  const syncNow = useCallback(async (opts?: { full?: boolean }) => {
-    await performSync(opts);
+  // Resolves false when anything failed, so callers can surface it honestly.
+  const syncNow = useCallback(async (opts?: { full?: boolean }): Promise<boolean> => {
+    return performSync(opts);
+  }, [performSync]);
+
+  // ─── Periodic pull while visible ─────────────────────────────────────────────
+  // Push is event-driven (edits), but pull needs a clock: an always-visible
+  // window otherwise never learns about other devices' changes until a
+  // visibility flip or relaunch. Throttled by the same min-interval as
+  // foreground syncs so the two triggers don't double up.
+  useEffect(() => {
+    const tick = () => {
+      if (!loadedRef.current) return;
+      if (Platform.OS === "web") {
+        if (typeof document !== "undefined" && document.hidden) return;
+      } else if (AppState.currentState !== "active") {
+        return;
+      }
+      if (Date.now() - lastSyncAtRef.current < FOREGROUND_SYNC_MIN_INTERVAL_MS) return;
+      performSync();
+    };
+    const id = setInterval(tick, PULL_INTERVAL_MS);
+    return () => clearInterval(id);
   }, [performSync]);
 
   // ─── Foreground / background transitions ─────────────────────────────────────

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { Platform } from "react-native";
 import { storage } from "./storage";
-import { syncDelete } from "./supabase";
 import { dbLoadDumps, dbSaveDumps } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 import { getLocalDateStr } from "./utils";
@@ -26,7 +25,7 @@ type DumpsData = {
 type DumpsSync = {
   syncStatus: SyncStatus;
   lastSynced: string | null;
-  syncNow: (opts?: { full?: boolean }) => Promise<void>;
+  syncNow: (opts?: { full?: boolean }) => Promise<boolean>;
 };
 
 type DumpsActions = {
@@ -66,7 +65,7 @@ function newId() {
 export function DumpProvider({ children }: { children: React.ReactNode }) {
   const {
     items: dumps, setItems: setDumps, loaded, syncStatus, lastSynced,
-    itemsRef: dumpsRef, pendingDeletesRef,
+    itemsRef: dumpsRef,
     markDirty, markLocallyDeleted, syncNow,
   } = useSyncedCollection<Dump>({
     table: "dumps",
@@ -112,21 +111,16 @@ export function DumpProvider({ children }: { children: React.ReactNode }) {
   const deleteDump = useCallback((id: string): (() => void) => {
     const deleted = dumpsRef.current.find(d => d.id === id);
     setDumps(prev => prev.filter(d => d.id !== id));
-    pendingDeletesRef.current.add(id);
+    // Removes the SQLite row on next flush AND queues the remote tombstone
+    // (retried by the sync hook until it lands).
     markLocallyDeleted(id);
-    const timer = setTimeout(() => {
-      syncDelete("dumps", id);
-      pendingDeletesRef.current.delete(id);
-    }, 3000);
     return () => {
-      clearTimeout(timer);
-      pendingDeletesRef.current.delete(id);
       if (deleted) {
-        markDirty(id);
+        markDirty(id); // cancels the queued tombstone / resurrects if sent
         setDumps(prev => [deleted, ...prev]);
       }
     };
-  }, [dumpsRef, pendingDeletesRef, markLocallyDeleted, markDirty, setDumps]);
+  }, [dumpsRef, markLocallyDeleted, markDirty, setDumps]);
 
   const dataValue    = useMemo(() => ({ dumps, loaded }), [dumps, loaded]);
   const syncValue    = useMemo(() => ({ syncStatus, lastSynced, syncNow }), [syncStatus, lastSynced, syncNow]);
