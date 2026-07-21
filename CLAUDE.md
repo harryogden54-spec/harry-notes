@@ -171,15 +171,18 @@ July 18 sync audit: Settings "Sync now" + status roll-up now cover today_items a
 spinner). Live-DB repairs done 2026-07-18 via Supabase MCP: 7 orphaned sync_key=NULL rows
 (6 notes, 1 course — pre-sync-key era) claimed under the active sync key; they were
 poisoning full-sync upsert batches with RLS violations (one bad row 403s the whole
-100-row chunk → whole domain errors + cursor never advances). Known remaining sync-engine
-gaps (documented in audit report, not yet fixed): task_categories seeds fixed ids
-"personal"/"uni" with a global id PK so any second sync key hits RLS on upsert forever
-(needs composite PK (id, sync_key) migration + onConflict change, deploy-before-migrate);
-no interval pull (an always-visible window only pulls on visibility flips ≥60s apart);
-in-memory dirty set = edits stranded until a full fetch if the tab dies inside the 1.5s
-debounce; delete tombstones fire-and-forget after 3s (close app sooner → deletes
-resurrect); LWW compares client clock vs server clock; no PostgREST row-limit guard
-(silent truncation at 1000 rows/table). Scriptable widget: repo file is valid (node
+100-row chunk → whole domain errors + cursor never advances). July 18 sync hardening (all the audit's engine gaps, second commit): upserts/tombstones
+target on_conflict=id,sync_key (per-row fallback when a chunk fails); syncFetch pages past
+the PostgREST 1000-row cap; dirty ids + pending tombstones persist to storage
+(sync:dirty:<table> / sync:pendingDelete:<table>) and re-hydrate + retry on launch —
+contexts no longer call syncDelete themselves (the hook owns tombstones); 90s periodic
+pull while visible; remote never overwrites rows with unpushed local edits; syncNow
+returns success and the Settings toast reports partial failure. Verified end-to-end on
+local dev against prod Supabase with a throwaway key. Migration 009 (unique (id,sync_key),
+additive) APPLIED live 2026-07-18. ⚠️ Migration 010 (drop id-only PK → composite PK) is
+written but NOT applied — apply it ONLY AFTER the 2026-07-18 client is deployed (old
+clients upsert with on_conflict=id, which 010 breaks). Until 010 runs, a second sync key
+still can't own the seeded task_categories ids (known, harmless for a single key). Scriptable widget: repo file is valid (node
 --check passes) — the reported "line 412 Unexpected identifier" comes from a corrupted
 paste; docs/scriptable-widget.md now mandates copying from the raw GitHub URL.
 In progress: —
