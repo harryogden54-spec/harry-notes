@@ -179,10 +179,12 @@ contexts no longer call syncDelete themselves (the hook owns tombstones); 90s pe
 pull while visible; remote never overwrites rows with unpushed local edits; syncNow
 returns success and the Settings toast reports partial failure. Verified end-to-end on
 local dev against prod Supabase with a throwaway key. Migration 009 (unique (id,sync_key),
-additive) APPLIED live 2026-07-18. ⚠️ Migration 010 (drop id-only PK → composite PK) is
-written but NOT applied — apply it ONLY AFTER the 2026-07-18 client is deployed (old
-clients upsert with on_conflict=id, which 010 breaks). Until 010 runs, a second sync key
-still can't own the seeded task_categories ids (known, harmless for a single key). Scriptable widget: repo file is valid (node
+additive) applied live 2026-07-18; client deployed 2026-07-21 (user-run npm run deploy);
+migration 010 (composite PK (id,sync_key) on all 7 tables, sync_key NOT NULL) APPLIED
+live 2026-07-21 and verified — a second sync key can now own the seeded task_categories
+ids, and key rotation no longer collides. Any client older than the 2026-07-18 bundle
+can no longer upsert (on_conflict=id has no matching constraint) — hard-refresh stale
+tabs/PWAs if one shows sync errors. Scriptable widget: repo file is valid (node
 --check passes) — the reported "line 412 Unexpected identifier" comes from a corrupted
 paste; docs/scriptable-widget.md now mandates copying from the raw GitHub URL.
 In progress: —
