@@ -7,7 +7,7 @@ import {
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
 // (The task-detail Modal is its own component and keeps all edges.)
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SideSafeArea } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -255,13 +255,13 @@ function TasksScreen() {
   if (!loaded) {
     return (
       <GradientBackground>
-        <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+        <SideSafeArea style={{ flex: 1 }}>
           <View style={{ padding: spacing[4], gap: spacing[3] }}>
             {[1, 2, 3, 4, 5].map(i => (
               <Skeleton key={i} height={52} borderRadius={10} />
             ))}
           </View>
-        </SafeAreaView>
+        </SideSafeArea>
       </GradientBackground>
     );
   }
@@ -270,7 +270,7 @@ function TasksScreen() {
 
   return (
     <GradientBackground>
-      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+      <SideSafeArea style={{ flex: 1 }}>
         {pillText && (
           <View style={{ alignItems: "center", paddingVertical: spacing[1] }}>
             <View style={{ backgroundColor: `${colors.accent}20`, borderRadius: 99, paddingHorizontal: spacing[3], paddingVertical: 3 }}>
@@ -507,7 +507,7 @@ function TasksScreen() {
         />
 
         <CategoriesManageModal visible={showCategoriesModal} onClose={() => setShowCategoriesModal(false)} />
-      </SafeAreaView>
+      </SideSafeArea>
     </GradientBackground>
   );
 }

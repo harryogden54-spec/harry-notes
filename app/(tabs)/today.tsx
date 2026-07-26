@@ -5,7 +5,7 @@ import {
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SideSafeArea } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
@@ -177,7 +177,7 @@ function TodayScreen() {
 
   return (
     <GradientBackground>
-      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+      <SideSafeArea style={{ flex: 1 }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
           {/* Time-picker modal */}
@@ -465,7 +465,7 @@ function TodayScreen() {
             )}
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </SideSafeArea>
     </GradientBackground>
   );
 }

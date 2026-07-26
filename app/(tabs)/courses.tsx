@@ -3,7 +3,7 @@ import {
   View, Pressable, ScrollView, Platform, RefreshControl, useWindowDimensions,
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SideSafeArea } from "@/components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useTheme } from "@/lib/useTheme";
@@ -82,18 +82,18 @@ function CoursesScreen() {
   if (!loaded) {
     return (
       <GradientBackground>
-        <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+        <SideSafeArea style={{ flex: 1 }}>
           <View style={{ padding: spacing[4], gap: spacing[3] }}>
             {[1, 2, 3].map(i => <Skeleton key={i} height={140} borderRadius={18} />)}
           </View>
-        </SafeAreaView>
+        </SideSafeArea>
       </GradientBackground>
     );
   }
 
   return (
     <GradientBackground>
-      <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+      <SideSafeArea style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom, ...webWideContentStyle }}
@@ -205,7 +205,7 @@ function CoursesScreen() {
           onClose={() => setEditorVisible(false)}
           table={editTarget}
         />
-      </SafeAreaView>
+      </SideSafeArea>
     </GradientBackground>
   );
 }

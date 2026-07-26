@@ -8,7 +8,7 @@ import {
 // Screens sit below PersistentHeader (which owns the top inset) and above the
 // tab bar (bottom inset) — pad the side notches only, or standalone-PWA/native
 // would double-pad the top.
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SideSafeArea } from "@/components/ui";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
@@ -420,7 +420,7 @@ function DashboardScreen() {
 
   return (
     <GradientBackground>
-    <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+    <SideSafeArea style={{ flex: 1 }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}
@@ -456,7 +456,7 @@ function DashboardScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-    </SafeAreaView>
+    </SideSafeArea>
     </GradientBackground>
   );
 }
