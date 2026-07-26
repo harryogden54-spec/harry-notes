@@ -206,7 +206,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                     backgroundColor: hovered ? `${colors.accent}0C` : "transparent",
                   }}
                 >
-                  <Ionicons name="pin" size={12} color={hovered ? colors.accent : colors.textTertiary} />
+                  <Ionicons name="star" size={12} color={hovered ? colors.accent : colors.textTertiary} />
                   {!collapsed && (
                     <Text numberOfLines={1} size="xs" color={hovered ? colors.textPrimary : colors.textSecondary} style={{ flex: 1 }}>
                       {n.title || "Untitled"}

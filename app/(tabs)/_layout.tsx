@@ -4,7 +4,7 @@ import { Platform, View, Pressable, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, getShadow } from "@/lib/theme";
+import { spacing, getShadow, transition } from "@/lib/theme";
 import { useFloatingBottom } from "@/lib/TabBarHeightContext";
 import { storage } from "@/lib/storage";
 import { useTasksActions } from "@/lib/TasksContext";
@@ -89,9 +89,7 @@ export default function TabLayout() {
             ...(Platform.OS === "web" ? {
               // Diagonal accent gradient + lit top edge (same language as cards/buttons).
               backgroundImage: `linear-gradient(135deg, ${colors.accentHover}, ${colors.accent} 70%)`,
-              transitionProperty: "transform, background-color, box-shadow",
-              transitionDuration: "150ms",
-              transitionTimingFunction: "ease-out",
+              ...transition("transform, background-color, box-shadow"),
               transform: [{ scale: pressed ? 0.94 : hovered ? 1.06 : 1 }],
             } : {}),
           } as any)}

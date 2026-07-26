@@ -153,20 +153,30 @@ export const radius = {
   "2xl": 20,
 } as const;
 
+/**
+ * Type scale.
+ *
+ * The steps up to `base` are deliberately unchanged — they carry dense UI (rows,
+ * chips, metadata) and nudging them reflows a lot for no gain. Everything above
+ * `base` was widened: headings used to sit only 2px apart from each other and
+ * only 2–5px above body, so a screen read as one flat texture with no visible
+ * hierarchy. The gap between body (15) and a page title (30) is now a real ratio
+ * rather than a hint.
+ */
 export const typography = {
   "2xs": { fontSize: 10, lineHeight: 14 },
   xs:    { fontSize: 12, lineHeight: 16 },
   sm:    { fontSize: 13, lineHeight: 18 },
-  base:  { fontSize: 15, lineHeight: 22 },
-  lg:    { fontSize: 17, lineHeight: 24 },
-  xl:    { fontSize: 20, lineHeight: 28 },
-  "2xl": { fontSize: 24, lineHeight: 32 },
-  "3xl": { fontSize: 30, lineHeight: 38 },
+  base:  { fontSize: 15, lineHeight: 23 },
+  lg:    { fontSize: 18, lineHeight: 26 },
+  xl:    { fontSize: 22, lineHeight: 30 },
+  "2xl": { fontSize: 26, lineHeight: 34, letterSpacing: -0.2 },
+  "3xl": { fontSize: 32, lineHeight: 40, letterSpacing: -0.4 },
   // Atelier editorial styles
   /** Screen greetings / hero titles — confident, tightly-tracked. */
-  display: { fontSize: 34, lineHeight: 40, letterSpacing: -0.5 },
-  /** Page titles (Tasks/Notes headers) — design spec: 28/700/−0.5. */
-  title:   { fontSize: 28, lineHeight: 34, letterSpacing: -0.5 },
+  display: { fontSize: 40, lineHeight: 46, letterSpacing: -1 },
+  /** Page titles (Tasks/Notes headers). */
+  title:   { fontSize: 30, lineHeight: 36, letterSpacing: -0.6 },
   /** Uppercase section labels — small, wide-tracked, textTertiary. */
   label:   { fontSize: 12, lineHeight: 16, letterSpacing: 0.8 },
 } as const;
@@ -174,20 +184,35 @@ export const typography = {
 export type ColorScheme = "dark" | "light";
 
 // ─── Elevation (Atelier) ──────────────────────────────────────────────────────
-// One shadow language for the whole app. Rules:
+// One shadow language for the whole app. Which surface gets which level:
 //   content cards  → hairline bgBorder border + "sm"
 //   floating bits  → "md" (FAB, toasts)
-//   overlays       → "overlay" (modals, command palette, detail sheets)
+//   overlays       → "overlay" (modals, detail sheets)
+//
+// Surface ladder — use it semantically, not decoratively:
+//   bgPrimary   → the page itself
+//   bgSecondary → static containers (cards, header, tab bar)
+//   bgTertiary  → interactive/raised state (hover, open dropdown, pressed row)
+// A tertiary surface should mean "you can act on this".
+//
+// Borders vs shadows: pick one per scheme rather than stacking both.
+//   dark  → hairline border + the 1px lit top edge carry the depth. A drop
+//           shadow over #0D0D0D is nearly invisible while still costing paint,
+//           so dark shadows are minimal and `xs` drops out entirely.
+//   light → shadows do the work; borders are already there but recede.
+// Overlays keep a real shadow in both schemes — they have to detach from the
+// scrim to read as floating.
+//
 // RN-web converts these shadow* props to box-shadow, so one definition serves
 // both platforms; elevation covers Android.
 
 export type ShadowLevel = "xs" | "sm" | "md" | "overlay";
 
 const SHADOW_SPECS: Record<ShadowLevel, { dark: number; light: number; radius: number; offsetY: number; elevation: number }> = {
-  xs:      { dark: 0.20, light: 0.05, radius: 3,  offsetY: 1,  elevation: 1 },
-  sm:      { dark: 0.26, light: 0.08, radius: 8,  offsetY: 2,  elevation: 2 },
-  md:      { dark: 0.34, light: 0.12, radius: 16, offsetY: 6,  elevation: 6 },
-  overlay: { dark: 0.45, light: 0.20, radius: 32, offsetY: 16, elevation: 16 },
+  xs:      { dark: 0,    light: 0.06, radius: 3,  offsetY: 1,  elevation: 1 },
+  sm:      { dark: 0.10, light: 0.10, radius: 8,  offsetY: 2,  elevation: 2 },
+  md:      { dark: 0.30, light: 0.16, radius: 16, offsetY: 6,  elevation: 6 },
+  overlay: { dark: 0.50, light: 0.24, radius: 32, offsetY: 16, elevation: 16 },
 };
 
 function opacityToHexAlpha(o: number): string {
@@ -208,15 +233,20 @@ export function getShadow(
   // RN Web warns that shadow*/elevation style props are deprecated in favour
   // of boxShadow — return the CSS form on web, the native form elsewhere.
   if (Platform.OS === "web") {
-    const drop = `0px ${s.offsetY}px ${s.radius}px ${color}${opacityToHexAlpha(opacity)}`;
+    const drop = opacity > 0
+      ? `0px ${s.offsetY}px ${s.radius}px ${color}${opacityToHexAlpha(opacity)}`
+      : null;
     // Card levels get a 1px inner top highlight — a crisp lit edge that reads
-    // as depth without heavier shadows. Overlay/xs levels stay single-layer.
+    // as depth without heavier shadows, and on dark it is most of the depth.
     if (level === "sm" || level === "md") {
       const edge = scheme === "dark" ? "rgba(255,255,255,0.055)" : "rgba(255,255,255,0.75)";
-      return { boxShadow: `inset 0 1px 0 ${edge}, ${drop}` };
+      return { boxShadow: drop ? `inset 0 1px 0 ${edge}, ${drop}` : `inset 0 1px 0 ${edge}` };
     }
-    return { boxShadow: drop };
+    // No shadow at all rather than a transparent one — a 00-alpha box-shadow
+    // still creates a paint layer.
+    return drop ? { boxShadow: drop } : {};
   }
+  if (opacity <= 0) return { elevation: 0 };
   return {
     shadowColor: color,
     shadowOffset: { width: 0, height: s.offsetY },
@@ -261,10 +291,54 @@ export const motion = {
   fast: 150,
   base: 200,
   slow: 300,
+  /**
+   * One easing for every transition in the app. Transitions were previously
+   * declared ad-hoc with `ease-out` or nothing at all, so nothing shared a
+   * personality. Decelerating curve: quick to start, settles softly — reads as
+   * responsive rather than floaty.
+   */
+  easing: "cubic-bezier(0.2, 0, 0, 1)",
+  /** Per-item delay for a list mount stagger, in ms. Small on purpose: enough to
+   *  read as sequence, not enough to make the list feel slow to arrive. */
+  stagger: 40,
+  /** Cap the stagger so a long list's last row isn't delayed absurdly. */
+  staggerMaxItems: 8,
   /** Standard pressable feedback. */
   pressOpacity: 0.85,
   pressScale: 0.98,
 } as const;
+
+/** Web-only CSS transition shorthand using the shared curve. No-op elsewhere. */
+export function transition(
+  properties: string,
+  duration: number = motion.fast,
+): Record<string, string> {
+  if (Platform.OS !== "web") return {};
+  return {
+    transitionProperty: properties,
+    transitionDuration: `${duration}ms`,
+    transitionTimingFunction: motion.easing,
+  };
+}
+
+/**
+ * Staggered mount animation for item `index` in a list. Web only.
+ *
+ * Note this has to be an *animation*, not a transition with a delay: on first
+ * paint there is no state change to transition from, so transitionDelay would do
+ * nothing on mount and would instead lag every subsequent hover. The `hn-rise`
+ * keyframes live in global.css.
+ */
+export function mountStagger(index: number): Record<string, string> {
+  if (Platform.OS !== "web") return {};
+  return {
+    animationName: "hn-rise",
+    animationDuration: `${motion.base}ms`,
+    animationTimingFunction: motion.easing,
+    animationDelay: `${Math.min(index, motion.staggerMaxItems) * motion.stagger}ms`,
+    animationFillMode: "both",
+  };
+}
 
 // ─── Priority colours ─────────────────────────────────────────────────────────
 // Keys into ThemeTokens so priorities follow the active theme/scheme.

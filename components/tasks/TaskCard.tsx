@@ -3,7 +3,7 @@ import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox } from "@/components/ui";
-import { spacing, getShadow } from "@/lib/theme";
+import { spacing, getShadow, transition } from "@/lib/theme";
 import { getTodayStr } from "@/lib/utils";
 import type { Task } from "@/lib/TasksContext";
 import { PRIORITY_CONFIG, formatDate } from "./constants";
@@ -83,9 +83,7 @@ export const TaskCard = React.memo(function TaskCard({
           // @ts-ignore web-only CSS — smooth hover lift. No backdrop blur:
           // dozens of live blur layers hurt paint perf for no visible gain
           // over the smooth gradient background.
-          transitionProperty: "transform, box-shadow, background-color, border-color",
-          transitionDuration: "150ms",
-          transitionTimingFunction: "ease-out",
+          ...transition("transform, box-shadow, background-color, border-color"),
           transform: [{ translateY: hovered && !pressed ? -1 : 0 }, { scale: pressed ? 0.99 : 1 }],
           cursor: "pointer",
         } : {}),

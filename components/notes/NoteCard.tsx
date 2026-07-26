@@ -3,20 +3,27 @@ import { View, Pressable, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui";
-import { spacing, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
+import { spacing, fontFamily, getNotePastelIndex, getShadow, transition, mountStagger } from "@/lib/theme";
 import { useTheme } from "@/lib/useTheme";
 import { useNotesActions } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
 import { timeAgo, notePreview } from "./utils";
 
-type Props = { note: Note; onOpen: () => void; pageCount?: number };
+type Props = {
+  note: Note;
+  onOpen: () => void;
+  pageCount?: number;
+  /** Position in the grid, for the mount stagger. Not the pastel index — that
+   *  is a hash of the id and would give a random delay rather than a sequence. */
+  index?: number;
+};
 
 /**
  * Note card per the redesign (artboard 1d): a neutral floating surface with
  * the note's pastel as a small identity dot in the meta row — not a
  * full-pastel background.
  */
-export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }: Props) {
+export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount, index = 0 }: Props) {
   const { pinNote } = useNotesActions();
   const { colors, notePastels, scheme } = useTheme();
   const [hovered, setHovered] = useState(false);
@@ -42,16 +49,17 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }
         ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
         ...(Platform.OS === "web" ? {
           // @ts-ignore web-only CSS — smooth hover lift (no backdrop blur; see TaskCard)
-          transitionProperty: "transform, box-shadow, background-color",
-          transitionDuration: "150ms",
-          transitionTimingFunction: "ease-out",
+          ...transition("transform, box-shadow, background-color"),
+          ...mountStagger(index),
           transform: [{ translateY: hovered && !pressed ? -1 : 0 }, { scale: pressed ? 0.99 : 1 }],
           cursor: "pointer",
         } : {}),
       })}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-        {note.pinned && <Ionicons name="pin" size={11} color={colors.accent} />}
+        {/* Star, not a pin — the app's icon is a star, so it doubles as the
+            signature mark. See lib/theme.ts elevation notes. */}
+        {note.pinned && <Ionicons name="star" size={11} color={colors.accent} />}
         <Text size="sm" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? colors.textPrimary : colors.textTertiary }}>
           {note.title || "Untitled"}
         </Text>

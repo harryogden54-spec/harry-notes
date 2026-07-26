@@ -157,14 +157,12 @@ function DashboardScreen() {
 
   // ─── Header ───────────────────────────────────────────────────────────────────
 
-  // Web: ink → accent gradient across the greeting; plain text on native.
-  const greetingGradient = Platform.OS === "web" ? ({
-    backgroundImage: `linear-gradient(100deg, ${colors.textPrimary} 45%, ${colors.accent} 110%)`,
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    alignSelf: "flex-start",
-  } as any) : undefined;
-
+  // The greeting used to carry an ink → accent gradient on web. Dropped as part
+  // of the accent-restraint pass: the accent now means "this is the primary
+  // action", and it can't mean that while it is also decorating a heading, the
+  // FAB, the progress rings and the background wash on the same screen. Reinstate
+  // by restoring the linear-gradient + WebkitBackgroundClip style here if you
+  // preferred it.
   const greetingText = mounted ? greeting() : "Good morning";
   const dateText     = now ? formatHeaderDate(now) : "";
 
@@ -181,12 +179,12 @@ function DashboardScreen() {
     <View style={{ paddingTop: isWide ? spacing[8] : spacing[4], paddingBottom: isWide ? spacing[5] : spacing[3] }}>
       {isWide ? (
         <>
-          <Text size="display" weight="bold" style={greetingGradient}>{greetingText}</Text>
+          <Text size="display" weight="bold">{greetingText}</Text>
           <Text size="sm" secondary style={{ marginTop: spacing[1] }}>{dateText}</Text>
         </>
       ) : (
         <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing[3] }}>
-          <Text size="2xl" weight="bold" style={greetingGradient} numberOfLines={1}>{greetingText}</Text>
+          <Text size="2xl" weight="bold" numberOfLines={1}>{greetingText}</Text>
           <Text size="xs" secondary numberOfLines={1}>{dateText}</Text>
         </View>
       )}

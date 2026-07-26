@@ -54,9 +54,9 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
 function NoteCardGrid({ notes, onOpen, pageCounts }: { notes: Note[]; onOpen: (id: string) => void; pageCounts?: Map<string, number> }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[4] }}>
-      {notes.map(note => (
+      {notes.map((note, i) => (
         <View key={note.id} style={{ width: "47%" as any, flexGrow: 1 }}>
-          <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} />
+          <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} index={i} />
         </View>
       ))}
     </View>

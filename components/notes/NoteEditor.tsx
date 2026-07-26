@@ -457,7 +457,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             style={{ padding: spacing[1] }}
           >
             <Ionicons
-              name={note.pinned ? "pin" : "pin-outline"}
+              name={note.pinned ? "star" : "star-outline"}
               size={16}
               color={note.pinned ? colors.accent : colors.textTertiary}
             />

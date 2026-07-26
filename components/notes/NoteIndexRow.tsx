@@ -3,7 +3,7 @@ import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, getNotePastelIndex, getShadow } from "@/lib/theme";
+import { spacing, getNotePastelIndex, getShadow, transition } from "@/lib/theme";
 import type { Note } from "@/lib/NotesContext";
 import { timeAgo, notePreview } from "./utils";
 
@@ -37,16 +37,14 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
         ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
         ...(Platform.OS === "web" ? {
           // @ts-ignore web-only CSS — smooth hover lift
-          transitionProperty: "transform, box-shadow, background-color, border-color",
-          transitionDuration: "150ms",
-          transitionTimingFunction: "ease-out",
+          ...transition("transform, box-shadow, background-color, border-color"),
           transform: [{ translateY: hovered && !pressed ? -1 : 0 }, { scale: pressed ? 0.99 : 1 }],
           cursor: "pointer",
         } : {}),
       })}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-        {note.pinned && <Ionicons name="pin" size={10} color={colors.accent} />}
+        {note.pinned && <Ionicons name="star" size={10} color={colors.accent} />}
         <Text size="sm" weight={isSelected ? "semibold" : "medium"} numberOfLines={1} style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}>
           {note.title || "Untitled"}
         </Text>
