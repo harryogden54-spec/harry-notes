@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View, Pressable, ScrollView, Platform, RefreshControl, useWindowDimensions,
 } from "react-native";
@@ -10,10 +10,18 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, getShadow } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
+import { storage } from "@/lib/storage";
 import { webWideContentStyle } from "@/lib/webLayout";
 import { useCoursesData, useCoursesActions, useCoursesSync, tableProgress, type CourseTable } from "@/lib/CoursesContext";
 import { useToast } from "@/lib/ToastContext";
 import { CourseTableCard, TableEditorModal, ProgressRing } from "@/components/courses";
+
+const COLLAPSED_KEY = "courses_collapsed";
+
+/** True when every table is condensed (and there is at least one). */
+function sortedIdsAllIn(collapsed: string[], tables: CourseTable[]): boolean {
+  return tables.length > 0 && tables.every(t => collapsed.includes(t.id));
+}
 
 function CoursesScreen() {
   const { colors, scheme } = useTheme();
@@ -28,6 +36,25 @@ function CoursesScreen() {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editTarget, setEditTarget]       = useState<CourseTable | null>(null);
   const [refreshing, setRefreshing]       = useState(false);
+
+  // Condensed tables, persisted locally (a view preference, not synced data).
+  const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
+  useEffect(() => {
+    storage.get<string[]>(COLLAPSED_KEY).then(v => { if (Array.isArray(v)) setCollapsedIds(v); });
+  }, []);
+  const toggleCollapsed = useCallback((id: string) => {
+    setCollapsedIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      storage.set(COLLAPSED_KEY, next);
+      return next;
+    });
+  }, []);
+  const allCollapsed = sortedIdsAllIn(collapsedIds, tables);
+  const toggleAll = useCallback(() => {
+    const next = allCollapsed ? [] : tables.map(t => t.id);
+    setCollapsedIds(next);
+    storage.set(COLLAPSED_KEY, next);
+  }, [allCollapsed, tables]);
 
   const { sorted, overall } = useMemo(() => {
     const sorted = [...tables].sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -117,13 +144,29 @@ function CoursesScreen() {
             />
           ) : (
             <View style={{ gap: spacing[4] }}>
+              {sorted.length > 1 && (
+                <Pressable
+                  onPress={toggleAll}
+                  hitSlop={6}
+                  style={{ alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: spacing[1] }}
+                >
+                  <Ionicons name={allCollapsed ? "chevron-down" : "chevron-up"} size={13} color={colors.textTertiary} />
+                  <Text size="xs" tertiary>{allCollapsed ? "Expand all" : "Condense all"}</Text>
+                </Pressable>
+              )}
               {sorted.map(table => {
                 const progress = tableProgress(table);
-                return isDesktop ? (
+                const isCollapsed = collapsedIds.includes(table.id);
+                // Condensed on desktop drops the side ring panel — the header
+                // carries the ring, and a 132px panel beside a single header row
+                // looks like a mistake.
+                return isDesktop && !isCollapsed ? (
                   <View key={table.id} style={{ flexDirection: "row", gap: spacing[3], alignItems: "stretch" }}>
                     <View style={{ flex: 1 }}>
                       <CourseTableCard
                         table={table}
+                        collapsed={isCollapsed}
+                        onToggleCollapse={() => toggleCollapsed(table.id)}
                         onEdit={() => { setEditTarget(table); setEditorVisible(true); }}
                         onDelete={() => handleDelete(table)}
                       />
@@ -146,6 +189,8 @@ function CoursesScreen() {
                     key={table.id}
                     table={table}
                     ringInHeader
+                    collapsed={isCollapsed}
+                    onToggleCollapse={() => toggleCollapsed(table.id)}
                     onEdit={() => { setEditTarget(table); setEditorVisible(true); }}
                     onDelete={() => handleDelete(table)}
                   />

@@ -14,12 +14,15 @@ type Props = {
   /** Mobile: render a small progress ring inside the header (desktop shows a
    *  separate ring panel beside the card instead, per the mockup). */
   ringInHeader?: boolean;
+  /** Condensed to header only — title, row/tick count and progress ring. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 };
 
 /** One Courses table: title bar with edit/delete, column headers, editable
  *  rows (text cells inline-editable, tickbox cells as circular checkboxes),
  *  and an add-row action. */
-export function CourseTableCard({ table, onEdit, onDelete, ringInHeader }: Props) {
+export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collapsed, onToggleCollapse }: Props) {
   const { colors, scheme } = useTheme();
   const { addRow, deleteRow, updateCell } = useCoursesActions();
   const progress = tableProgress(table);
@@ -39,16 +42,32 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader }: Props
       <View style={{
         flexDirection: "row", alignItems: "center", gap: spacing[3],
         paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-        borderBottomWidth: 1, borderBottomColor: `${colors.bgBorder}88`,
+        // No divider when condensed — the header IS the card.
+        borderBottomWidth: collapsed ? 0 : 1, borderBottomColor: `${colors.bgBorder}88`,
       }}>
-        <View style={{ flex: 1, gap: 1 }}>
+        {onToggleCollapse && (
+          <Pressable
+            onPress={onToggleCollapse}
+            hitSlop={8}
+            accessibilityLabel={collapsed ? `Expand ${table.title || "table"}` : `Collapse ${table.title || "table"}`}
+            style={({ hovered }: any) => ({ padding: spacing[1], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}
+          >
+            <Ionicons name={collapsed ? "chevron-forward" : "chevron-down"} size={15} color={colors.textTertiary} />
+          </Pressable>
+        )}
+        {/* Title is also a collapse affordance — a chevron alone is a small target. */}
+        <Pressable onPress={onToggleCollapse} disabled={!onToggleCollapse} style={{ flex: 1, gap: 1 }}>
           <Text size="lg" weight="semibold" numberOfLines={1}>{table.title || "Untitled table"}</Text>
           <Text size="xs" tertiary>
             {table.rows.length} row{table.rows.length !== 1 ? "s" : ""}
             {progress.total > 0 ? ` · ${progress.ticked}/${progress.total} ticked` : ""}
           </Text>
-        </View>
-        {ringInHeader && progress.total > 0 && <ProgressRing ticked={progress.ticked} total={progress.total} size={38} />}
+        </Pressable>
+        {/* Condensed always shows the ring, whatever the platform — progress is
+            the whole point of a collapsed row. */}
+        {(ringInHeader || collapsed) && progress.total > 0 && (
+          <ProgressRing ticked={progress.ticked} total={progress.total} size={38} />
+        )}
         <Pressable onPress={onEdit} hitSlop={8} accessibilityLabel="Edit table"
           style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}>
           {({ hovered }: any) => (
@@ -63,6 +82,7 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader }: Props
         </Pressable>
       </View>
 
+      {collapsed ? null : <>
       {/* Column headers */}
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[3], paddingTop: spacing[2.5], paddingBottom: spacing[1.5] }}>
         {table.columns.map(col => (
@@ -146,6 +166,7 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader }: Props
         <Ionicons name="add" size={14} color={colors.accent} />
         <Text size="xs" weight="medium" style={{ color: colors.accent }}>Add row</Text>
       </Pressable>
+      </>}
     </View>
   );
 }
