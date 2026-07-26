@@ -197,10 +197,33 @@ can no longer upsert (on_conflict=id has no matching constraint) — hard-refres
 tabs/PWAs if one shows sync errors. Scriptable widget: repo file is valid (node
 --check passes) — the reported "line 412 Unexpected identifier" comes from a corrupted
 paste; docs/scriptable-widget.md now mandates copying from the raw GitHub URL.
-In progress: 2026-07-26 session — sync verification, iOS PWA tab-bar spacing, Dump d/m/y date
-dropdowns, header sync chip, Settings trim, AUDIT.md.
+July 26 batch: sync re-verified end to end against prod (RLS policies key on
+`request_sync_key()` not `auth.uid()`; 7-day cursor degrades to a full reconciliation fetch;
+tombstones persist + retry; all 7 collections wired) — no engine bug found; `today_items` is
+empty server-side only because no device has Today items, proven by a throwaway-key probe
+(push → row lands, server-side insert → pulled + cursor advances, server-side tombstone →
+row removed locally; probe rows deleted). Bottom-inset ownership: `Platform.OS === "ios"` is
+false in the iOS home-screen PWA, so every iOS-tuned bottom offset took the shorter Android
+value while the ~34px home-indicator inset was still reserved — FAB stack (bottom 76) and
+toasts (72) sat behind an 89px tab bar. MobileTabBar now pads itself by the inset and
+publishes its height (`lib/TabBarHeightContext.tsx`: `useScrollBottomPadding`,
+`useFloatingBottom`); the effect-based report is load-bearing because react-native-web's
+onLayout (ResizeObserver) never delivered an initial callback. Dropped `layout.tabBarHeight`
+and `fabBottom.ios`. Dump: `components/ui/Select.tsx` (anchored panel, NOT a nested RN Modal —
+a dismissed one lingered in the DOM on web) + `DateFieldDMY` replace the calendar picker;
+`note_date` is optional end to end, empty is the default, day clamps to the month/year, stored
+format unchanged (`data jsonb`, no migration). Header sync chip is now tappable with a
+"Never synced" state; `lib/useSyncStatus.ts` owns the aggregate + the single `useSyncAll`
+trigger over all 7 domains (was 5 — Dumps and Categories were missing) and Settings reuses it;
+unused `SyncStatusBadge` deleted. Settings trimmed: sync status → one expandable row, sync key
+→ one row + sheet, exports behind a Backup disclosure, Archive-completed split into its own
+group, About card → footer version line. `AUDIT.md` at repo root has the full findings list.
+In progress: —
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
 Not started: Settings screen full visual redesign (deferred, tracked separately);
+AUDIT.md follow-ups (delete/relocate the unreachable Lists + Calendar screens, `colors.scrim`
+token, `React.memo` on TaskRow, raw-`Text`-in-screens sweep, drop the deprecated context
+aliases — all unactioned, see AUDIT.md);
 calendar screen memoization polish (hidden screen, deferred); tech debt items in
 memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal);
 Supabase storage bucket (note images) policies not yet reviewed — table RLS shipped 2026-07-12.
