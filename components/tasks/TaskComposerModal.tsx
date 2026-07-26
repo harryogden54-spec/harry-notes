@@ -4,7 +4,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider } from "@/components/ui";
-import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow, layout } from "@/lib/theme";
 import { useTasksActions, type Task } from "@/lib/TasksContext";
 import { MetaRow } from "./MetaRow";
 import { DueDateSelector } from "./DueDateSelector";
@@ -154,14 +154,14 @@ export function TaskComposerModal({ visible, onClose, initialTitle, onCreated }:
 
   const content = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any} />
+      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any} />
       <Animated.View
         entering={FadeIn.duration(150)}
         exiting={FadeOut.duration(100)}
         style={{
           backgroundColor: colors.bgSecondary, borderRadius: radius["2xl"],
           borderWidth: 1, borderColor: colors.bgBorder,
-          width: "90%" as any, maxWidth: 480,
+          width: "90%" as any, maxWidth: layout.panel.modal,
           ...getShadow("overlay", scheme),
           maxHeight: Platform.OS === "web" ? "85vh" as any : 620,
         }}

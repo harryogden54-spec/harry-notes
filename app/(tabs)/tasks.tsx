@@ -15,7 +15,7 @@ import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-na
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
-import { spacing, radius, getShadow } from "@/lib/theme";
+import { spacing, radius, getShadow, layout } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webWideContentStyle } from "@/lib/webLayout";
 import { useTasksData, useTasksActions, useTasksSync, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
@@ -480,14 +480,14 @@ function TasksScreen() {
             >
               <Pressable
                 onPress={() => setSelectedTaskId(null)}
-                style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any}
+                style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any}
               />
             </Animated.View>
             <Animated.View
               entering={SlideInRight.duration(220)}
               exiting={SlideOutRight.duration(180)}
               style={{
-                position: "absolute", top: 0, right: 0, bottom: 0, width: 420,
+                position: "absolute", top: 0, right: 0, bottom: 0, width: layout.panel.drawer,
                 backgroundColor: colors.bgPrimary,
                 borderLeftWidth: 1, borderLeftColor: colors.bgBorder,
                 ...getShadow("overlay", scheme),

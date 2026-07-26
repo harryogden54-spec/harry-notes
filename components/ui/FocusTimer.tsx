@@ -143,7 +143,7 @@ export function FocusTimer() {
               alignItems: "center", justifyContent: "center",
             }}
           >
-            <Ionicons name={running ? "pause" : "play"} size={16} color="#fff" />
+            <Ionicons name={running ? "pause" : "play"} size={16} color={colors.textInverse} />
           </Pressable>
           {(running || remaining !== PRESETS[mode]) && (
             <Pressable

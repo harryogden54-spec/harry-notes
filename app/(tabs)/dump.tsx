@@ -10,7 +10,7 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, GradientBackground, EmptyState, DateFieldDMY } from "@/components/ui";
-import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow, layout } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { useDumpsData, useDumpsActions, useDumpsSync, type DumpTag } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
@@ -106,13 +106,13 @@ function DumpEditModal({
   return (
     <Modal visible transparent animationType="fade" onRequestClose={save}>
       <Pressable
-        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: spacing[6] }}
+        style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: "center", alignItems: "center", padding: spacing[6] }}
         onPress={save}
       >
         <Pressable
           onPress={() => {}}
           style={{
-            width: 360, maxWidth: "95%" as any,
+            width: layout.panel.card, maxWidth: "95%" as any,
             backgroundColor: colors.bgSecondary,
             borderRadius: radius["2xl"],
             borderWidth: 1, borderColor: colors.bgBorder,

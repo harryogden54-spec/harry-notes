@@ -239,7 +239,7 @@ export function TaskRow({ task, onPress }: Props) {
   function renderCompleteAction() {
     return (
       <View style={{ backgroundColor: colors.accent, justifyContent: "center", alignItems: "center", width: 80 }}>
-        <Ionicons name="checkmark-done-outline" size={22} color="#fff" />
+        <Ionicons name="checkmark-done-outline" size={22} color={colors.textInverse} />
       </View>
     );
   }
@@ -247,7 +247,7 @@ export function TaskRow({ task, onPress }: Props) {
   function renderDeleteAction() {
     return (
       <View style={{ backgroundColor: colors.danger, justifyContent: "center", alignItems: "center", width: 80 }}>
-        <Ionicons name="trash-outline" size={20} color="#fff" />
+        <Ionicons name="trash-outline" size={20} color={colors.textInverse} />
       </View>
     );
   }

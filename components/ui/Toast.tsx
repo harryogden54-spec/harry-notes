@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { useToast, useToastState } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, getShadow } from "@/lib/theme";
+import { spacing, radius, getShadow, layout } from "@/lib/theme";
 import { useFloatingBottom } from "@/lib/TabBarHeightContext";
 
 export function ToastContainer() {
@@ -25,7 +25,7 @@ export function ToastContainer() {
         // Desktop web: bottom-right stack (a full-width toast on a 1280px
         // window reads as a system banner, not a toast). Mobile: full width.
         ...(Platform.OS === "web"
-          ? { right: spacing[5], left: undefined, width: 380, maxWidth: "90%" as any }
+          ? { right: spacing[5], left: undefined, width: layout.panel.toast, maxWidth: "90%" as any }
           : { left: spacing[4], right: spacing[4] }),
         gap: spacing[2],
         zIndex: 9999,

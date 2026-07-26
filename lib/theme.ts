@@ -25,10 +25,13 @@ export type ThemeTokens = {
   success: string;
   warning: string;
   danger: string;
+  /** Modal / sheet backdrop. One opacity for the whole app — call sites used to
+   *  hardcode #00000055, rgba(0,0,0,0.5), 0.55 and 0.6 interchangeably. */
+  scrim: string;
 };
 
-const SEMANTIC_DARK  = { success: "#3DD68C", warning: "#F5A623", danger: "#F26464" } as const;
-const SEMANTIC_LIGHT = { success: "#1E8A5A", warning: "#B86E00", danger: "#C0392B" } as const;
+const SEMANTIC_DARK  = { success: "#3DD68C", warning: "#F5A623", danger: "#F26464", scrim: "#0000008C" } as const;
+const SEMANTIC_LIGHT = { success: "#1E8A5A", warning: "#B86E00", danger: "#C0392B", scrim: "#00000073" } as const;
 
 // ─── Named themes (6) ─────────────────────────────────────────────────────────
 
@@ -234,6 +237,22 @@ export const layout = {
   fabBottom:    { default: 76 },
   gutter:       { mobile: 20, desktop: 32 },
   maxWidth:     { narrow: 720, wide: 1200 },
+  /** Widths for floating surfaces. Previously ad-hoc literals — 340, 360, 380,
+   *  420 and two 480s across six files — with no way to tell which were meant
+   *  to match. Anchored dropdowns keep their own default in Select.tsx: that is
+   *  sized to its trigger, not to this scale. */
+  panel: {
+    /** Desktop side column (notes list beside the editor). */
+    column: 340,
+    /** Small centred modal card (dump editor). */
+    card:   360,
+    /** Toast on wide viewports. */
+    toast:  380,
+    /** Right-hand detail drawer (task detail). */
+    drawer: 420,
+    /** Standard centred modal max width (quick-add, task composer). */
+    modal:  480,
+  },
 } as const;
 
 // ─── Motion ───────────────────────────────────────────────────────────────────

@@ -40,6 +40,8 @@ module.exports = {
         success: "#3DD68C",
         warning: "#F5A623",
         danger:  "#F26464",
+        // Modal / sheet backdrop (dark default; runtime wins via useTheme)
+        scrim:   "#0000008C",
 
         // ── Per-theme surface tokens (static fallbacks; runtime wins) ─────────
         nord: {

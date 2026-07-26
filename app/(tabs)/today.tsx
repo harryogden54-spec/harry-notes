@@ -183,7 +183,7 @@ function TodayScreen() {
           {/* Time-picker modal */}
           <Modal visible={timePickerFor !== null} transparent animationType="slide" onRequestClose={() => setTimePickerFor(null)}>
             <Pressable
-              style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
+              style={{ flex: 1, justifyContent: "flex-end", backgroundColor: colors.scrim }}
               onPress={() => setTimePickerFor(null)}
             >
               <Pressable onPress={() => {}}>

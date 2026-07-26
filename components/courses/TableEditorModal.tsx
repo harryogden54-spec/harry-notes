@@ -85,7 +85,7 @@ export function TableEditorModal({ visible, onClose, table }: Props) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-        <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any} />
+        <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any} />
         <Animated.View
           entering={FadeIn.duration(150)}
           exiting={FadeOut.duration(100)}

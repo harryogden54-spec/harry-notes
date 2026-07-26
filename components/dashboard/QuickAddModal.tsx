@@ -7,7 +7,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily, getShadow, THEMES, type ThemeId } from "@/lib/theme";
+import { spacing, radius, fontFamily, getShadow, layout, THEMES, type ThemeId } from "@/lib/theme";
 import { parseNaturalDate } from "@/lib/utils";
 import { type TaskCategory, type UniCourse, useTasksData } from "@/lib/TasksContext";
 import { useNotesData, useNotesActions } from "@/lib/NotesContext";
@@ -139,7 +139,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
 
   const content = (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "#00000055" } as any} />
+      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any} />
       <Animated.View
         entering={FadeIn.duration(150)}
         exiting={FadeOut.duration(100)}
@@ -147,7 +147,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
           backgroundColor: colors.bgSecondary, borderRadius: radius["2xl"],
           borderWidth: 1, borderColor: colors.bgBorder,
           padding: mode === "add-task" ? 0 : spacing[5], gap: spacing[3],
-          width: "90%" as any, maxWidth: 480,
+          width: "90%" as any, maxWidth: layout.panel.modal,
           ...getShadow("overlay", scheme),
           maxHeight: Platform.OS === "web" ? (mode === "add-task" ? "85vh" : "70vh") as any : (mode === "add-task" ? 640 : 560),
         }}

@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
-import { spacing, radius, getShadow } from "@/lib/theme";
+import { spacing, radius, getShadow, layout } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import { storage } from "@/lib/storage";
@@ -395,7 +395,7 @@ function NotesScreen() {
         <View style={{ flex: 1, flexDirection: "row" }}>
           {/* Left column — New note button + floating note bubbles (no divider:
               cards sit directly on the gradient, per Harry's mockup) */}
-          <View style={{ width: 340, flexShrink: 0 }}>
+          <View style={{ width: layout.panel.column, flexShrink: 0 }}>
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={{ paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: scrollBottom }}

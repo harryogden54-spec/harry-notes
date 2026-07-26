@@ -72,7 +72,7 @@ function RecurrenceModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
-        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}
+        style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: "flex-end" }}
         onPress={onClose}
       >
         <Pressable

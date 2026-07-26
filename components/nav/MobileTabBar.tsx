@@ -116,7 +116,7 @@ export function MobileTabBar() {
       <Modal visible={moreOpen} transparent animationType="none" onRequestClose={() => setMoreOpen(false)} statusBarTranslucent>
         <View style={{ flex: 1, justifyContent: "flex-end" }}>
           <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={{ position: "absolute", inset: 0 } as any}>
-            <Pressable onPress={() => setMoreOpen(false)} style={{ flex: 1, backgroundColor: "#00000055" }} />
+            <Pressable onPress={() => setMoreOpen(false)} style={{ flex: 1, backgroundColor: colors.scrim }} />
           </Animated.View>
           <Animated.View
             entering={SlideInDown.duration(240)}
