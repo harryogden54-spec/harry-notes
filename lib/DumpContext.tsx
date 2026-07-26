@@ -30,7 +30,7 @@ type DumpsSync = {
 };
 
 type DumpsActions = {
-  addDump: (opts: { tag: DumpTag; note_date?: string }) => string;
+  addDump: (opts: { tag: DumpTag; note_date?: string; content?: string }) => string;
   updateDump: (id: string, updates: Partial<Omit<Dump, "id" | "created_at">>) => void;
   deleteDump: (id: string) => () => void;
 };
@@ -88,12 +88,14 @@ export function DumpProvider({ children }: { children: React.ReactNode }) {
     normalizeRemote: (row) => normalizeDump(row),
   });
 
-  const addDump = useCallback((opts: { tag: DumpTag; note_date?: string }): string => {
+  const addDump = useCallback((opts: { tag: DumpTag; note_date?: string; content?: string }): string => {
     const id  = newId();
     const now = new Date().toISOString();
     const dump: Dump = {
       id,
-      content: "",
+      // Normally empty (the row is created, then typed into). The share target
+      // supplies content up-front so the capture lands in one state update.
+      content: opts.content ?? "",
       tag: opts.tag,
       note_date: opts.note_date,
       filed: false,

@@ -115,6 +115,8 @@ function AppShell() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: "modal" }} />
+        {/* PWA share-target landing route — redirects to Dump once the capture lands. */}
+        <Stack.Screen name="share" options={{ headerShown: false }} />
       </Stack>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor, pointerEvents: "none" }, fadeStyle]} />
     </NavThemeProvider>
