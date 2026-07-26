@@ -22,23 +22,6 @@ function TasksIllustration({ accent, tertiary }: { accent: string; tertiary: str
   );
 }
 
-function CalendarIllustration({ accent, tertiary }: { accent: string; tertiary: string }) {
-  return (
-    <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
-      <View style={{ width: 52, height: 50, borderRadius: 10, borderWidth: 2, borderColor: `${accent}60`, overflow: "hidden" }}>
-        {/* Header band */}
-        <View style={{ height: 14, backgroundColor: `${accent}30`, width: "100%", borderBottomWidth: 1, borderBottomColor: `${accent}40` }} />
-        {/* Dot grid */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", padding: 6, gap: 4 }}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <View key={i} style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: i === 2 ? accent : `${tertiary}40` }} />
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
-
 function NotesIllustration({ accent, tertiary }: { accent: string; tertiary: string }) {
   return (
     <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
@@ -83,7 +66,6 @@ function SearchIllustration({ accent, tertiary }: { accent: string; tertiary: st
 
 const ILLUSTRATIONS = {
   tasks:    TasksIllustration,
-  calendar: CalendarIllustration,
   notes:    NotesIllustration,
   sticky:   NotesIllustration,
   lists:    ListsIllustration,

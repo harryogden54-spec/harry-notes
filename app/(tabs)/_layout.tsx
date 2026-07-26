@@ -73,8 +73,6 @@ export default function TabLayout() {
           <RouteFade>
             <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
               {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
-              <Tabs.Screen name="calendar" options={{ href: null }} />
-              <Tabs.Screen name="lists" options={{ href: null }} />
             </Tabs>
           </RouteFade>
         </View>
@@ -155,8 +153,6 @@ export default function TabLayout() {
         screenOptions={{ headerShown: false }}
       >
         {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
-        <Tabs.Screen name="calendar" options={{ href: null }} />
-        <Tabs.Screen name="lists"   options={{ href: null }} />
       </Tabs>
     </>
   );

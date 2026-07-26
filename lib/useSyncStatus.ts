@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useTasksSync } from "./TasksContext";
-import { useListsSync } from "./ListsContext";
 import { useNotesSync } from "./NotesContext";
 import { useCoursesSync } from "./CoursesContext";
 import { useTodaySync } from "./TodayContext";
@@ -26,7 +25,6 @@ export type SyncDomain = {
 export function useSyncDomains(): SyncDomain[] {
   const tasks      = useTasksSync();
   const notes      = useNotesSync();
-  const lists      = useListsSync();
   const dumps      = useDumpsSync();
   const courses    = useCoursesSync();
   const categories = useCategoriesSync();
@@ -35,7 +33,6 @@ export function useSyncDomains(): SyncDomain[] {
   return [
     { label: "Tasks",      status: tasks.syncStatus,      lastSynced: tasks.lastSynced },
     { label: "Notes",      status: notes.syncStatus,      lastSynced: notes.lastSynced },
-    { label: "Lists",      status: lists.syncStatus,      lastSynced: lists.lastSynced },
     { label: "Dumps",      status: dumps.syncStatus,      lastSynced: dumps.lastSynced },
     { label: "Courses",    status: courses.syncStatus,    lastSynced: courses.lastSynced },
     { label: "Categories", status: categories.syncStatus, lastSynced: categories.lastSynced },
@@ -76,7 +73,6 @@ export function useSyncAll(): {
   const domains = useSyncDomains();
   const { syncNow: syncTasks }      = useTasksSync();
   const { syncNow: syncNotes }      = useNotesSync();
-  const { syncNow: syncLists }      = useListsSync();
   const { syncNow: syncDumps }      = useDumpsSync();
   const { syncNow: syncCourses }    = useCoursesSync();
   const { syncNow: syncCategories } = useCategoriesSync();
@@ -84,12 +80,12 @@ export function useSyncAll(): {
 
   const syncAll = useCallback(async () => {
     const results = await Promise.all([
-      syncTasks({ full: true }), syncNotes({ full: true }), syncLists({ full: true }),
+      syncTasks({ full: true }), syncNotes({ full: true }),
       syncDumps({ full: true }), syncCourses({ full: true }),
       syncCategories({ full: true }), syncToday({ full: true }),
     ]);
     return results.every(Boolean);
-  }, [syncTasks, syncNotes, syncLists, syncDumps, syncCourses, syncCategories, syncToday]);
+  }, [syncTasks, syncNotes, syncDumps, syncCourses, syncCategories, syncToday]);
 
   return { ...rollUp(domains), domains, syncAll };
 }

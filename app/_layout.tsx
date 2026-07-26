@@ -15,11 +15,8 @@ import { requestNotificationPermission, scheduleTaskReminders } from "@/lib/noti
 import { useTasksData } from "@/lib/TasksContext";
 import { TasksProvider } from "@/lib/TasksContext";
 import { TaskCategoriesProvider } from "@/lib/TaskCategoriesContext";
-import { useListsData } from "@/lib/ListsContext";
 import { useNotesData, useNotesActions } from "@/lib/NotesContext";
-import { migrateListsToNotes } from "@/lib/migrateListsToNotes";
 import { migrateBlocksToBody } from "@/lib/migrateBlocksToBody";
-import { ListsProvider } from "@/lib/ListsContext";
 import { NotesProvider } from "@/lib/NotesContext";
 import { DumpProvider } from "@/lib/DumpContext";
 import { CoursesProvider } from "@/lib/CoursesContext";
@@ -28,9 +25,7 @@ import { ThemeProvider, useThemeContext } from "@/lib/ThemeContext";
 import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
 import { ToastContainer } from "@/components/ui";
-import { CommandPaletteProvider } from "@/lib/CommandPaletteContext";
 import { TabBarHeightProvider } from "@/lib/TabBarHeightContext";
-import { CommandPalette } from "@/components/CommandPalette";
 import { applyMobileViewport } from "@/lib/webViewport";
 
 // Fix iOS Safari input-focus auto-zoom before first paint (no-op off web).
@@ -48,7 +43,6 @@ function AppShell() {
   const { scheme, themeReady } = useThemeContext();
   const { colors } = useTheme();
   const { tasks, loaded: tasksLoaded } = useTasksData();
-  const { lists, loaded: listsLoaded } = useListsData();
   const { notes, loaded: notesLoaded } = useNotesData();
   const { bulkAddNotes, updateNote: updateNoteFn } = useNotesActions();
   // On web, both Inter and Ionicons are declared via CSS @font-face in
@@ -86,17 +80,13 @@ function AppShell() {
     initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
   }, [fontsLoaded]);
 
-  // One-time migration: convert existing lists → notes with checkbox blocks,
-  // then convert any block-based notes into markdown bodies (order matters so
-  // freshly-migrated lists are converted too).
+  // One-time migration: convert any block-based notes into markdown bodies.
+  // (The lists → notes migration retired with the Lists screen.)
   useEffect(() => {
-    if (!listsLoaded || !notesLoaded) return;
-    (async () => {
-      await migrateListsToNotes(lists, notes, bulkAddNotes);
-      await migrateBlocksToBody(notes, updateNoteFn);
-    })().catch(console.error);
+    if (!notesLoaded) return;
+    migrateBlocksToBody(notes, updateNoteFn).catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listsLoaded, notesLoaded]);
+  }, [notesLoaded]);
 
   // Fingerprint only id+due_date — title changes do not affect scheduling and
   // were causing cancelAllScheduledNotificationsAsync on every keystroke.
@@ -136,7 +126,6 @@ function AppShell() {
         <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
         <Stack.Screen name="settings/appearance" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
-      <CommandPalette />
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: overlayColor, pointerEvents: "none" }, fadeStyle]} />
     </NavThemeProvider>
   );
@@ -148,27 +137,23 @@ export default function RootLayout() {
       <ThemeProvider>
         <TasksProvider>
           <TaskCategoriesProvider>
-          <ListsProvider>
             <NotesProvider>
               <DumpProvider>
               <CoursesProvider>
               <TodayProvider>
               <ToastProvider>
-                <CommandPaletteProvider>
-                  {/* Must wrap both AppShell and ToastContainer: the tab bar
-                      reports its height from inside the navigator, the toast
-                      container reads it from outside. */}
-                  <TabBarHeightProvider>
-                    <AppShell />
-                    <ToastContainer />
-                  </TabBarHeightProvider>
-                </CommandPaletteProvider>
+                {/* Must wrap both AppShell and ToastContainer: the tab bar
+                    reports its height from inside the navigator, the toast
+                    container reads it from outside. */}
+                <TabBarHeightProvider>
+                  <AppShell />
+                  <ToastContainer />
+                </TabBarHeightProvider>
               </ToastProvider>
               </TodayProvider>
               </CoursesProvider>
               </DumpProvider>
             </NotesProvider>
-          </ListsProvider>
           </TaskCategoriesProvider>
         </TasksProvider>
       </ThemeProvider>

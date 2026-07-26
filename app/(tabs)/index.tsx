@@ -13,7 +13,6 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
@@ -83,7 +82,6 @@ function TodayPanel() {
 function DashboardScreen() {
   const { colors, notePastels, scheme } = useTheme();
   const scrollBottom = useScrollBottomPadding(spacing[24]);
-  const { open: openPalette }  = useCommandPalette();
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
   const { syncNow: syncTasks } = useTasksSync();
@@ -174,9 +172,6 @@ function DashboardScreen() {
         </Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
-        <Pressable onPress={openPalette} hitSlop={12} style={{ padding: spacing[1] }}>
-          <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
-        </Pressable>
         <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1] }}>
           <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
         </Pressable>

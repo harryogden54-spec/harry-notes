@@ -389,33 +389,10 @@ export async function dbSaveTasks(tasks: any[], changes?: SaveChanges): Promise<
   }));
 }
 
-export async function dbLoadLists(): Promise<any[]> {
-  const rows = await getDb().getAllAsync<Record<string, any>>(
-    "SELECT * FROM lists ORDER BY created_at ASC"
-  );
-  return rows.map(r => ({
-    id: r.id,
-    name: r.name,
-    color: r.color,
-    pinned: !!r.pinned,
-    items: r.items ? tryParse(r.items) ?? [] : [],
-    created_at: r.created_at,
-    updated_at: r.updated_at,
-  }));
-}
-
-export async function dbSaveLists(lists: any[], changes?: SaveChanges): Promise<void> {
-  enqueue("lists", toReq(lists, changes), (req) => runSave("lists", req, async (db, l) => {
-    await db.runAsync(
-      `INSERT OR REPLACE INTO lists (id,name,color,pinned,items,created_at,updated_at) VALUES (?,?,?,?,?,?,?)`,
-      [
-        l.id, l.name, l.color, l.pinned ? 1 : 0,
-        JSON.stringify(l.items ?? []),
-        l.created_at, l.updated_at ?? l.created_at,
-      ]
-    );
-  }));
-}
+// The Lists feature was removed — its June migration folded lists into notes
+// with checkbox blocks. The `lists` SQLite table is deliberately left in the
+// schema: dropping it would need a SCHEMA_VERSION bump and destroy the only
+// on-device copy of the pre-migration data for no gain.
 
 export async function dbLoadNotes(): Promise<any[]> {
   const rows = await getDb().getAllAsync<Record<string, any>>(
