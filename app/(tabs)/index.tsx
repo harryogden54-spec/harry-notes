@@ -151,31 +151,39 @@ function DashboardScreen() {
 
   // ─── Header ───────────────────────────────────────────────────────────────────
 
+  // Web: ink → accent gradient across the greeting; plain text on native.
+  const greetingGradient = Platform.OS === "web" ? ({
+    backgroundImage: `linear-gradient(100deg, ${colors.textPrimary} 45%, ${colors.accent} 110%)`,
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    alignSelf: "flex-start",
+  } as any) : undefined;
+
+  const greetingText = mounted ? greeting() : "Good morning";
+  const dateText     = now ? formatHeaderDate(now) : "";
+
+  // The settings gear that used to live here is gone — PersistentHeader carries
+  // one on every screen, so on mobile two were visible ~40px apart.
+  //
+  // Narrow gets a single line (greeting + date on one row) instead of
+  // display-size greeting over a date line: that block was 114px tall and
+  // pushed the first content card to y=222, so on a phone the answer to "what
+  // do I need to do" started below the fold. Gated on width, NOT
+  // `Platform.OS !== "web"` — that is false in the iOS home-screen PWA, which
+  // is exactly where the space matters most.
   const header = (
-    <View style={{ paddingTop: spacing[8], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-      <View style={{ flex: 1 }}>
-        <Text
-          size="display"
-          weight="bold"
-          // Web: ink → accent gradient across the greeting; plain text on native.
-          style={Platform.OS === "web" ? ({
-            backgroundImage: `linear-gradient(100deg, ${colors.textPrimary} 45%, ${colors.accent} 110%)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            alignSelf: "flex-start",
-          } as any) : undefined}
-        >
-          {mounted ? greeting() : "Good morning"}
-        </Text>
-        <Text size="sm" secondary style={{ marginTop: spacing[1] }}>
-          {now ? formatHeaderDate(now) : ""}
-        </Text>
-      </View>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: spacing[1] }}>
-        <Pressable onPress={() => router.push("/settings")} hitSlop={12} style={{ padding: spacing[1] }}>
-          <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
-        </Pressable>
-      </View>
+    <View style={{ paddingTop: isWide ? spacing[8] : spacing[4], paddingBottom: isWide ? spacing[5] : spacing[3] }}>
+      {isWide ? (
+        <>
+          <Text size="display" weight="bold" style={greetingGradient}>{greetingText}</Text>
+          <Text size="sm" secondary style={{ marginTop: spacing[1] }}>{dateText}</Text>
+        </>
+      ) : (
+        <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing[3] }}>
+          <Text size="2xl" weight="bold" style={greetingGradient} numberOfLines={1}>{greetingText}</Text>
+          <Text size="xs" secondary numberOfLines={1}>{dateText}</Text>
+        </View>
+      )}
     </View>
   );
 
@@ -421,7 +429,7 @@ function DashboardScreen() {
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Search tasks, lists, notes…"
+              placeholder="Search tasks and notes…"
               inputRef={searchRef}
               onSubmitEditing={() => {
                 const q = search.trim();
