@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
-import { spacing, radius, getShadow, layout } from "@/lib/theme";
+import { spacing, radius, getShadow, layout, transition } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import { storage } from "@/lib/storage";
@@ -51,11 +51,19 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
   );
 }
 
-function NoteCardGrid({ notes, onOpen, pageCounts }: { notes: Note[]; onOpen: (id: string) => void; pageCounts?: Map<string, number> }) {
+/** `tileWidth` is a flex basis, not a hard width — the wrapper still flexGrows,
+ *  so a short final row fills out. 47% gives two up (mobile), 23% four (desktop
+ *  browse view). */
+function NoteCardGrid({ notes, onOpen, pageCounts, tileWidth = "47%" }: {
+  notes: Note[];
+  onOpen: (id: string) => void;
+  pageCounts?: Map<string, number>;
+  tileWidth?: string;
+}) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[4] }}>
       {notes.map((note, i) => (
-        <View key={note.id} style={{ width: "47%" as any, flexGrow: 1 }}>
+        <View key={note.id} style={{ width: tileWidth as any, flexGrow: 1 }}>
           <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} index={i} />
         </View>
       ))}
@@ -385,9 +393,88 @@ function NotesScreen() {
     );
   }
 
-  // ── Desktop: two-pane layout ──────────────────────────────────────────────────
+  // ── Desktop ───────────────────────────────────────────────────────────────────
   const selFound = selectedNote ? notes.find(n => n.id === selectedNote) ?? null : null;
   const openNote = selFound?.parent_id ? notes.find(n => n.id === selFound.parent_id) ?? selFound : selFound;
+
+  // Shared by both desktop layouts.
+  const newNoteButton = (
+    <Pressable
+      onPress={handleNewNote}
+      style={({ hovered, pressed }: any) => ({
+        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing[2],
+        paddingVertical: spacing[3],
+        borderRadius: 18,
+        backgroundColor: colors.textPrimary,
+        opacity: hovered && !pressed ? 0.92 : 1,
+        ...getShadow("md", scheme),
+        ...transition("opacity, transform"),
+        ...(Platform.OS === "web" ? { transform: [{ scale: pressed ? 0.98 : 1 }] } : {}),
+      } as any)}
+    >
+      <Ionicons name="add" size={15} color={colors.bgPrimary} />
+      <Text size="sm" weight="semibold" style={{ color: colors.bgPrimary }}>New note</Text>
+    </Pressable>
+  );
+
+  // Nothing open → browse. A 340px list column beside a large empty placeholder
+  // wasted most of the window; tiles use the whole width and make the notes
+  // themselves the content rather than an index of them.
+  if (!openNote) {
+    return (
+      <GradientBackground>
+        <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: spacing[6], paddingTop: spacing[5], paddingBottom: scrollBottom }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+          >
+            <View style={{ alignSelf: "center", width: "100%", maxWidth: layout.maxWidth.wide }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], marginBottom: spacing[4] }}>
+                <Text size="title" weight="bold" style={{ flex: 1 }}>Notes</Text>
+                <View style={{ width: 150 }}>{newNoteButton}</View>
+              </View>
+
+              {allNotes.length > 1 && (
+                <View style={{ marginBottom: spacing[3] }}>
+                  <SearchBar value={search} onChange={setSearch} placeholder="Search notes…" />
+                </View>
+              )}
+
+              {(allNotes.length > 0 || archivedNotes.length > 0) && controls}
+
+              {allNotes.length === 0 ? (
+                <View style={{ paddingVertical: spacing[10], alignItems: "center" }}>
+                  <EmptyState type="notes" title="No notes yet" subtitle="Tap New note to capture a thought." />
+                </View>
+              ) : pinnedNotes.length === 0 && restNotes.length === 0 ? (
+                <View style={{ paddingVertical: spacing[10], alignItems: "center" }}>
+                  <EmptyState type="notes" title="No notes match" subtitle={noMatchSubtitle} />
+                </View>
+              ) : (
+                <>
+                  {pinnedNotes.length > 0 && (
+                    <View style={{ marginBottom: spacing[6] }}>
+                      <SectionLabel label="Pinned" count={pinnedNotes.length} />
+                      <NoteCardGrid notes={pinnedNotes} onOpen={id => setSelectedNote(id)} pageCounts={pageCounts} tileWidth="23%" />
+                    </View>
+                  )}
+                  {restNotes.length > 0 && (
+                    <View>
+                      <SectionLabel label="All notes" count={restNotes.length} />
+                      <NoteCardGrid notes={restNotes} onOpen={id => setSelectedNote(id)} pageCounts={pageCounts} tileWidth="23%" />
+                    </View>
+                  )}
+                </>
+              )}
+
+              {archiveSection}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </GradientBackground>
+    );
+  }
 
   return (
     <GradientBackground>
@@ -402,26 +489,7 @@ function NotesScreen() {
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
             >
               {/* New note — the column's primary action, top of the stack */}
-              <Pressable
-                onPress={handleNewNote}
-                style={({ hovered, pressed }: any) => ({
-                  flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing[2],
-                  paddingVertical: spacing[3],
-                  borderRadius: 18,
-                  backgroundColor: colors.textPrimary,
-                  marginBottom: spacing[3],
-                  opacity: hovered && !pressed ? 0.92 : 1,
-                  ...getShadow("md", scheme),
-                  ...(Platform.OS === "web" ? {
-                    transitionProperty: "opacity, transform",
-                    transitionDuration: "150ms",
-                    transform: [{ scale: pressed ? 0.98 : 1 }],
-                  } : {}),
-                } as any)}
-              >
-                <Ionicons name="add" size={15} color={colors.bgPrimary} />
-                <Text size="sm" weight="semibold" style={{ color: colors.bgPrimary }}>New note</Text>
-              </Pressable>
+              <View style={{ marginBottom: spacing[3] }}>{newNoteButton}</View>
 
               {allNotes.length > 1 && (
                 <View style={{ marginBottom: spacing[3] }}>
