@@ -37,6 +37,16 @@ One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Erro
 
 `react-native-web`'s own internal `<Modal>` implementation (`ModalAnimation.js`) still triggers the deprecated-`pointerEvents`-as-a-prop console warning on web. All of *our* call sites were fixed (they use the `style.pointerEvents` form) — this residual warning comes from inside the library itself, not app code, and isn't fixable without a `patch-package` override or an RN-Web upgrade. The deploy pipeline has no patch step, so **accepted as a known, harmless, cosmetic console warning** rather than patched. Revisit if/when RN-Web is upgraded.
 
+## Browser testing
+
+When verifying UI changes, use the Claude Code built-in browser pane
+(Ctrl+Shift+B in the desktop app's Code tab) pointed at the local dev
+server. Do NOT launch an external Chrome window, and do NOT use the
+Claude in Chrome extension for routine verification.
+
+Take screenshots from the built-in pane. If the dev server is not
+running, start it and wait for the ready line before navigating.
+
 ## Architecture
 
 **Stack:** Expo SDK 54 · expo-router v6 · React Native 0.81 · NativeWind v4 (Tailwind CSS) · expo-sqlite · Supabase (sync)
@@ -187,9 +197,11 @@ can no longer upsert (on_conflict=id has no matching constraint) — hard-refres
 tabs/PWAs if one shows sync errors. Scriptable widget: repo file is valid (node
 --check passes) — the reported "line 412 Unexpected identifier" comes from a corrupted
 paste; docs/scriptable-widget.md now mandates copying from the raw GitHub URL.
-In progress: —
+In progress: 2026-07-26 session — sync verification, iOS PWA tab-bar spacing, Dump d/m/y date
+dropdowns, header sync chip, Settings trim, AUDIT.md.
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
-Not started: calendar screen memoization polish (hidden screen, deferred); tech debt items in
+Not started: Settings screen full visual redesign (deferred, tracked separately);
+calendar screen memoization polish (hidden screen, deferred); tech debt items in
 memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal);
 Supabase storage bucket (note images) policies not yet reviewed — table RLS shipped 2026-07-12.
 
