@@ -8,14 +8,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { THEMES } from "@/lib/theme";
-import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
-import { useCategoriesSync } from "@/lib/TaskCategoriesContext";
-import { useListsSync } from "@/lib/ListsContext";
-import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/NotesContext";
+import { useTasksData, useTasksActions } from "@/lib/TasksContext";
+import { useNotesData, useNotesActions, type Note } from "@/lib/NotesContext";
 import { notesToZip, pickMarkdownFiles } from "@/lib/notesExport";
-import { useCoursesSync } from "@/lib/CoursesContext";
-import { useDumpsSync } from "@/lib/DumpContext";
-import { useTodaySync } from "@/lib/TodayContext";
+import { useSyncAll } from "@/lib/useSyncStatus";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
@@ -143,15 +139,11 @@ function formatRelativeTime(iso: string | null): string {
 export default function SettingsScreen() {
   const { colors }     = useTheme();
   const { scheme, toggle, themeId } = useThemeContext();
-  const { syncStatus: taskSync, syncNow: syncTasks, lastSynced: taskLastSynced } = useTasksSync();
+  // One source for sync state and the manual trigger, shared with the header
+  // chip — see lib/useSyncStatus.ts.
+  const { status: overallSync, lastSynced, domains: syncDomains, syncAll } = useSyncAll();
   const { tasks } = useTasksData();
   const { clearCompleted } = useTasksActions();
-  const { syncStatus: listSync, syncNow: syncLists, lastSynced: listLastSynced } = useListsSync();
-  const { syncStatus: noteSync, syncNow: syncNotes, lastSynced: noteLastSynced } = useNotesSync();
-  const { syncStatus: courseSync, syncNow: syncCourses, lastSynced: courseLastSynced } = useCoursesSync();
-  const { syncStatus: dumpSync, syncNow: syncDumps, lastSynced: dumpLastSynced } = useDumpsSync();
-  const { syncStatus: categorySync, syncNow: syncCategories, lastSynced: categoryLastSynced } = useCategoriesSync();
-  const { syncStatus: todaySync, syncNow: syncToday, lastSynced: todayLastSynced } = useTodaySync();
   const { notes } = useNotesData();
   const { bulkAddNotes } = useNotesActions();
   const { showToast } = useToast();
@@ -197,32 +189,17 @@ export default function SettingsScreen() {
     }
   }
 
-  const domainStatuses = [taskSync, listSync, noteSync, courseSync, categorySync, dumpSync, todaySync];
-  const overallSync = domainStatuses.includes("error") ? "error"
-    : domainStatuses.includes("syncing") ? "syncing"
-    : domainStatuses.every(s => s === "synced") ? "synced"
-    : "idle";
-
-  const allSyncTimes = [taskLastSynced, listLastSynced, noteLastSynced, courseLastSynced, categoryLastSynced, dumpLastSynced, todayLastSynced].filter(Boolean) as string[];
-  const lastSynced   = allSyncTimes.length > 0
-    ? new Date(Math.max(...allSyncTimes.map(t => new Date(t).getTime()))).toISOString()
-    : null;
-
   const completedCount = tasks.filter(t => t.done).length;
   const currentTheme   = THEMES[themeId];
 
   async function handleSyncNow() {
-    // Manual sync is the reconciliation path: full fetch, ignoring the delta
-    // cursor, so it can repair any divergence the incremental sync missed.
-    // Must cover every synced domain — today_items was missed until 2026-07-18.
-    const results = await Promise.all([
-      syncTasks({ full: true }), syncNotes({ full: true }),
-      syncLists({ full: true }), syncDumps({ full: true }), syncCourses({ full: true }),
-      syncCategories({ full: true }), syncToday({ full: true }),
-    ]);
+    // Single shared trigger (lib/useSyncStatus.ts) — the same one the header
+    // chip uses, so there is no second sync path to keep in step. It is the
+    // reconciliation path: full fetch per domain, ignoring the delta cursor.
+    const ok = await syncAll();
     // Don't claim success when a domain failed — the old toast said "Synced
     // successfully" unconditionally, hiding real errors (e.g. RLS rejections).
-    showToast(results.every(Boolean)
+    showToast(ok
       ? "Synced successfully"
       : "Some items couldn't sync — check the status above and try again");
   }
@@ -461,8 +438,9 @@ export default function SettingsScreen() {
           <RowGroup>
             <Row label="Status"      right={<SyncDot status={overallSync} />} />
             <Row label="Last synced" right={<Text size="xs" style={{ color: colors.textSecondary }}>{formatRelativeTime(lastSynced)}</Text>} />
-            <Row label="Tasks"       right={<SyncDot status={taskSync} />} />
-            <Row label="Notes"       right={<SyncDot status={noteSync} />} />
+            {syncDomains.map(d => (
+              <Row key={d.label} label={d.label} right={<SyncDot status={d.status} />} />
+            ))}
             <Row
               label="Project"
               subtitle="vbegnnwyrbxiqdnzvhwk · eu-north-1"
