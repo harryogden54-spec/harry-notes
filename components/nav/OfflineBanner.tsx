@@ -4,11 +4,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui";
 import { useTheme } from "@/lib/useTheme";
 import { spacing } from "@/lib/theme";
-import { useTasksSync } from "@/lib/TasksContext";
+import { useSyncAll } from "@/lib/useSyncStatus";
 
 export function OfflineBanner() {
   const { colors } = useTheme();
-  const { syncStatus, syncNow } = useTasksSync();
+  // Roll-up, not Tasks alone: keyed on useTasksSync this banner stayed hidden
+  // while another domain was erroring, and its retry button re-synced Tasks —
+  // never the collection that had actually failed.
+  const { status: syncStatus, syncAll } = useSyncAll();
   const [networkOffline, setNetworkOffline] = useState(false);
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export function OfflineBanner() {
 
   return (
     <Pressable
-      onPress={() => syncNow()}
+      onPress={() => { void syncAll(); }}
       style={{
         flexDirection: "row", alignItems: "center", gap: spacing[2],
         paddingHorizontal: spacing[3], paddingVertical: spacing[1] + 2,

@@ -3,6 +3,7 @@ import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
 import { syncFetch, syncUpsert, syncDelete, SYNC_ENABLED } from "./supabase";
 import { getSyncKey } from "./syncKey";
+import { registerSyncDomain } from "./syncScheduler";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -40,9 +41,6 @@ const LOCAL_PERSIST_DEBOUNCE_MS = 800;
 const REMOTE_SYNC_DEBOUNCE_MS = 1500;
 // Automatic foreground syncs are throttled; explicit syncNow() is not.
 const FOREGROUND_SYNC_MIN_INTERVAL_MS = 60_000;
-// Periodic pull while the app is visible — without it, an always-open window
-// never sees other devices' changes until a visibility flip or relaunch.
-const PULL_INTERVAL_MS = 90_000;
 // A cursor older than this falls back to a full reconciliation fetch.
 const CURSOR_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -476,22 +474,23 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   // ─── Periodic pull while visible ─────────────────────────────────────────────
   // Push is event-driven (edits), but pull needs a clock: an always-visible
   // window otherwise never learns about other devices' changes until a
-  // visibility flip or relaunch. Throttled by the same min-interval as
-  // foreground syncs so the two triggers don't double up.
+  // visibility flip or relaunch.
+  //
+  // Cadence, visibility gating, serialisation across domains and failure
+  // backoff all live in lib/syncScheduler.ts — one heartbeat for the whole app
+  // instead of one timer per collection. See that file for why the old
+  // per-collection interval could strand a domain in `error` with nothing
+  // scheduled to clear it.
   useEffect(() => {
-    const tick = () => {
-      if (!loadedRef.current) return;
-      if (Platform.OS === "web") {
-        if (typeof document !== "undefined" && document.hidden) return;
-      } else if (AppState.currentState !== "active") {
-        return;
-      }
-      if (Date.now() - lastSyncAtRef.current < FOREGROUND_SYNC_MIN_INTERVAL_MS) return;
-      performSync();
-    };
-    const id = setInterval(tick, PULL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [performSync]);
+    return registerSyncDomain(table, async () => {
+      // Not loaded yet, or synced very recently by another trigger (foreground
+      // transition, manual). Report success: neither is a failure, and counting
+      // them as one would push a healthy domain into backoff.
+      if (!loadedRef.current) return true;
+      if (Date.now() - lastSyncAtRef.current < FOREGROUND_SYNC_MIN_INTERVAL_MS) return true;
+      return performSync();
+    });
+  }, [table, performSync]);
 
   // ─── Foreground / background transitions ─────────────────────────────────────
   // Foreground: throttled delta sync. Background/hidden: flush pending local
