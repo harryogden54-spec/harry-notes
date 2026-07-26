@@ -306,15 +306,3 @@ export function useTasksActions(): TasksActions {
   if (!ctx) throw new Error("useTasksActions must be used within TasksProvider");
   return ctx;
 }
-
-/**
- * @deprecated Compatibility alias — subscribes to all three contexts, so it
- * re-renders on every data AND sync change. Prefer useTasksData /
- * useTasksActions / useTasksSync.
- */
-export function useTasks(): TasksData & TasksSync & TasksActions {
-  const data    = useTasksData();
-  const sync    = useTasksSync();
-  const actions = useTasksActions();
-  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
-}

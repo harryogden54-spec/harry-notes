@@ -229,14 +229,3 @@ export function useNotesActions(): NotesActions {
   if (!ctx) throw new Error("useNotesActions must be used within NotesProvider");
   return ctx;
 }
-
-/**
- * @deprecated Compatibility alias — re-renders on every data AND sync change.
- * Prefer useNotesData / useNotesActions / useNotesSync.
- */
-export function useNotes(): NotesData & NotesSync & NotesActions {
-  const data    = useNotesData();
-  const sync    = useNotesSync();
-  const actions = useNotesActions();
-  return useMemo(() => ({ ...data, ...sync, ...actions }), [data, sync, actions]);
-}

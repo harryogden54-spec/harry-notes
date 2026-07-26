@@ -11,7 +11,7 @@ import { useNotesData, useNotesActions, type Note } from "@/lib/NotesContext";
 import { useTasksData } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr } from "@/lib/utils";
-import { blocksToMarkdown } from "@/lib/migrateBlocksToBody";
+import { blocksToMarkdown } from "@/components/notes/utils";
 import { pickAndUploadNoteImage } from "@/lib/storageImages";
 import { type Sel } from "./MarkdownToolbar";
 import { WikiLinkSuggestions } from "./WikiLinkSuggestions";

@@ -1,6 +1,6 @@
 import { Platform, LayoutAnimation } from "react-native";
 import { stripMarkdown } from "@/lib/utils";
-import type { Note } from "@/lib/NotesContext";
+import type { Note, Block } from "@/lib/NotesContext";
 
 export function animate() {
   if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -115,4 +115,27 @@ export function timeAgo(iso: string): string {
   if (hours < 24) return `${hours}h ago`;
   if (days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+/**
+ * Convert a legacy block-based note into a markdown body.
+ *
+ * The bulk one-time migration that used this was retired — it had been gated
+ * behind a `blocks_migrated_v1` flag since June and so no-opped forever on every
+ * existing install. This remains as NoteEditor's convert-on-open fallback, which
+ * is the real safety net: it also covers a block note arriving later via sync
+ * from a device that never ran the migration.
+ */
+export function blocksToMarkdown(blocks: Block[]): string {
+  return blocks
+    .map(b => {
+      const content = b.content ?? "";
+      switch (b.type) {
+        case "heading":  return `# ${content}`;
+        case "bullet":   return `- ${content}`;
+        case "checkbox": return `- [${b.checked ? "x" : " "}] ${content}`;
+        default:         return content;
+      }
+    })
+    .join("\n");
 }

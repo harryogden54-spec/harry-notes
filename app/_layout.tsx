@@ -15,8 +15,7 @@ import { requestNotificationPermission, scheduleTaskReminders } from "@/lib/noti
 import { useTasksData } from "@/lib/TasksContext";
 import { TasksProvider } from "@/lib/TasksContext";
 import { TaskCategoriesProvider } from "@/lib/TaskCategoriesContext";
-import { useNotesData, useNotesActions } from "@/lib/NotesContext";
-import { migrateBlocksToBody } from "@/lib/migrateBlocksToBody";
+import { useNotesData } from "@/lib/NotesContext";
 import { NotesProvider } from "@/lib/NotesContext";
 import { DumpProvider } from "@/lib/DumpContext";
 import { CoursesProvider } from "@/lib/CoursesContext";
@@ -43,8 +42,7 @@ function AppShell() {
   const { scheme, themeReady } = useThemeContext();
   const { colors } = useTheme();
   const { tasks, loaded: tasksLoaded } = useTasksData();
-  const { notes, loaded: notesLoaded } = useNotesData();
-  const { bulkAddNotes, updateNote: updateNoteFn } = useNotesActions();
+  const { loaded: notesLoaded } = useNotesData();
   // On web, both Inter and Ionicons are declared via CSS @font-face in
   // global.css pointing at /assets/fonts/. We must NOT load them via useFonts
   // on web: expo-font injects @font-face rules with Metro-hashed URLs that
@@ -79,14 +77,6 @@ function AppShell() {
     }
     initDb().catch(console.error).finally(() => SplashScreen.hideAsync());
   }, [fontsLoaded]);
-
-  // One-time migration: convert any block-based notes into markdown bodies.
-  // (The lists → notes migration retired with the Lists screen.)
-  useEffect(() => {
-    if (!notesLoaded) return;
-    migrateBlocksToBody(notes, updateNoteFn).catch(console.error);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notesLoaded]);
 
   // Fingerprint only id+due_date — title changes do not affect scheduling and
   // were causing cancelAllScheduledNotificationsAsync on every keystroke.
