@@ -11,7 +11,8 @@ export type Dump = {
   id: string;
   content: string;
   tag: DumpTag;
-  note_date: string; // YYYY-MM-DD
+  /** YYYY-MM-DD, or absent — a capture doesn't have to be about a day. */
+  note_date?: string;
   filed?: boolean;
   created_at: string;
   updated_at?: string;
@@ -29,7 +30,7 @@ type DumpsSync = {
 };
 
 type DumpsActions = {
-  addDump: (opts: { tag: DumpTag; note_date: string }) => string;
+  addDump: (opts: { tag: DumpTag; note_date?: string }) => string;
   updateDump: (id: string, updates: Partial<Omit<Dump, "id" | "created_at">>) => void;
   deleteDump: (id: string) => () => void;
 };
@@ -51,7 +52,8 @@ function normalizeDump(d: Dump): Dump {
     content:   typeof d.content   === "string" ? d.content   : "",
     tag:       (["journal","media","knowledge","todo"] as DumpTag[]).includes(d.tag as DumpTag)
                ? d.tag : "journal",
-    note_date: typeof d.note_date === "string" && d.note_date ? d.note_date : getLocalDateStr(),
+    // Absence is a real state now — don't substitute today's date for it.
+    note_date: typeof d.note_date === "string" && d.note_date ? d.note_date : undefined,
     filed:     !!d.filed,
     created_at: created,
     updated_at: typeof d.updated_at === "string" && d.updated_at ? d.updated_at : created,
@@ -86,7 +88,7 @@ export function DumpProvider({ children }: { children: React.ReactNode }) {
     normalizeRemote: (row) => normalizeDump(row),
   });
 
-  const addDump = useCallback((opts: { tag: DumpTag; note_date: string }): string => {
+  const addDump = useCallback((opts: { tag: DumpTag; note_date?: string }): string => {
     const id  = newId();
     const now = new Date().toISOString();
     const dump: Dump = {

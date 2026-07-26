@@ -9,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, GradientBackground, EmptyState, DatePicker } from "@/components/ui";
+import { Text, GradientBackground, EmptyState, DateFieldDMY } from "@/components/ui";
 import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { useDumpsData, useDumpsActions, useDumpsSync, type DumpTag } from "@/lib/DumpContext";
@@ -25,28 +25,26 @@ function getYesterdayStr(): string {
   return getLocalDateStr(d);
 }
 
-// Compact date row — quick chips for the common cases (today, yesterday)
-// with the full month-grid DatePicker only shown on demand. A dump capture
-// is meant to be frictionless; a ~360x495px calendar by default undercut
-// that.
-function CompactDateSelector({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+// Quick chips for the common cases (today, yesterday) alongside explicit
+// day/month/year dropdowns. A dump capture is meant to be frictionless: a
+// month-grid calendar was more ceremony than the field deserves, and most
+// captures want no date at all — which is now the default.
+function CompactDateSelector({ value, onChange }: { value?: string; onChange: (d?: string) => void }) {
   const { colors } = useTheme();
-  const [showPicker, setShowPicker] = useState(false);
   const today     = getLocalDateStr();
   const yesterday = getYesterdayStr();
   const presets = [
     { label: "Today", date: today },
     { label: "Yesterday", date: yesterday },
   ];
-  const isPreset = presets.some(p => p.date === value);
 
   return (
-    <View style={{ gap: spacing[1.5] }}>
+    <View style={{ gap: spacing[2] }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
         {presets.map(p => (
           <Pressable
             key={p.date}
-            onPress={() => { onChange(p.date); setShowPicker(false); }}
+            onPress={() => onChange(value === p.date ? undefined : p.date)}
             style={{
               paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
               borderRadius: radius["2xl"], borderWidth: 1,
@@ -57,13 +55,8 @@ function CompactDateSelector({ value, onChange }: { value: string; onChange: (d:
             <Text size="xs" style={{ color: value === p.date ? colors.accent : colors.textSecondary }}>{p.label}</Text>
           </Pressable>
         ))}
-        <Pressable onPress={() => setShowPicker(v => !v)}>
-          <Text size="xs" style={{ color: !isPreset ? colors.accent : colors.textTertiary }}>
-            {!isPreset ? value : "Pick date…"}
-          </Text>
-        </Pressable>
       </View>
-      {showPicker && <DatePicker value={value} onChange={d => { onChange(d ?? today); setShowPicker(false); }} />}
+      <DateFieldDMY value={value} onChange={onChange} />
     </View>
   );
 }
@@ -85,7 +78,7 @@ function DumpEditModal({
   id: string;
   initialContent: string;
   initialTag: DumpTag;
-  initialDate: string;
+  initialDate?: string;
   onClose: () => void;
   onDelete: () => void;
 }) {
@@ -93,7 +86,7 @@ function DumpEditModal({
   const { colors, scheme } = useTheme();
   const [content, setContent] = useState(initialContent);
   const [tag, setTag]         = useState<DumpTag>(initialTag);
-  const [date, setDate]       = useState(initialDate);
+  const [date, setDate]       = useState<string | undefined>(initialDate);
   const inputRef = useRef<RNTextInput | null>(null);
 
   useEffect(() => {
@@ -210,7 +203,7 @@ function DumpEditModal({
 // ─── Dump Card ────────────────────────────────────────────────────────────────
 
 function DumpCard({ content, tag, note_date, filed, onPress }: {
-  content: string; tag: DumpTag; note_date: string; filed: boolean; onPress: () => void;
+  content: string; tag: DumpTag; note_date?: string; filed: boolean; onPress: () => void;
 }) {
   const { colors, scheme } = useTheme();
 
@@ -286,7 +279,9 @@ function DumpScreen() {
 
   function handleAdd() {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const id = addDump({ tag: "journal", note_date: getLocalDateStr() });
+    // No date by default — the composer offers Today/Yesterday chips and the
+    // day/month/year dropdowns for the captures that actually want one.
+    const id = addDump({ tag: "journal" });
     setEditingId(id);
   }
 
@@ -389,7 +384,7 @@ function DumpScreen() {
             id={editingId}
             initialContent={editingDump?.content ?? ""}
             initialTag={editingDump?.tag ?? "journal"}
-            initialDate={editingDump?.note_date ?? getLocalDateStr()}
+            initialDate={editingDump?.note_date}
             onClose={() => setEditingId(null)}
             onDelete={() => handleDelete(editingId)}
           />
