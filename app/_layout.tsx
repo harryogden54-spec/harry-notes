@@ -29,6 +29,7 @@ import { useTheme } from "@/lib/useTheme";
 import { ToastProvider } from "@/lib/ToastContext";
 import { ToastContainer } from "@/components/ui";
 import { CommandPaletteProvider } from "@/lib/CommandPaletteContext";
+import { TabBarHeightProvider } from "@/lib/TabBarHeightContext";
 import { CommandPalette } from "@/components/CommandPalette";
 import { applyMobileViewport } from "@/lib/webViewport";
 
@@ -154,8 +155,13 @@ export default function RootLayout() {
               <TodayProvider>
               <ToastProvider>
                 <CommandPaletteProvider>
-                  <AppShell />
-                  <ToastContainer />
+                  {/* Must wrap both AppShell and ToastContainer: the tab bar
+                      reports its height from inside the navigator, the toast
+                      container reads it from outside. */}
+                  <TabBarHeightProvider>
+                    <AppShell />
+                    <ToastContainer />
+                  </TabBarHeightProvider>
                 </CommandPaletteProvider>
               </ToastProvider>
               </TodayProvider>

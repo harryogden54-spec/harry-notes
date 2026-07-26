@@ -4,7 +4,8 @@ import { Platform, View, Pressable, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, getShadow, layout } from "@/lib/theme";
+import { spacing, getShadow } from "@/lib/theme";
+import { useFloatingBottom } from "@/lib/TabBarHeightContext";
 import { storage } from "@/lib/storage";
 import { useTasksActions } from "@/lib/TasksContext";
 import { useNotesActions } from "@/lib/NotesContext";
@@ -18,6 +19,7 @@ export default function TabLayout() {
   const router = useRouter();
   const { addTask, updateTask } = useTasksActions();
   const { addNote } = useNotesActions();
+  const floatingBottom = useFloatingBottom();
 
   const autoCollapsed = width >= 768 && width < 900;
   const useSidebar = width >= 768;
@@ -109,7 +111,9 @@ export default function TabLayout() {
       <OfflineBanner />
       {/* Dual FAB */}
       <View
-        style={{ position: "absolute", bottom: Platform.OS === "ios" ? layout.fabBottom.ios : layout.fabBottom.default, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2], pointerEvents: "box-none" }}
+        // Derived from the tab bar's measured height — a Platform.OS === "ios"
+        // check here was false in the iOS PWA, so the stack sat behind the bar.
+        style={{ position: "absolute", bottom: floatingBottom, right: spacing[5], zIndex: 50, alignItems: "flex-end", gap: spacing[2], pointerEvents: "box-none" }}
       >
         <Pressable
           onPress={() => {

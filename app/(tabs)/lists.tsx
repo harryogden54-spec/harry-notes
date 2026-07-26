@@ -6,7 +6,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -24,6 +24,7 @@ const ScaleDecorator = Platform.OS !== "web"
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox, Divider, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import { useListsData, useListsActions, useListsSync, LIST_COLORS, type NoteList, type ListItemType, type ListItem } from "@/lib/ListsContext";
 import { useToast } from "@/lib/ToastContext";
@@ -61,6 +62,10 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 
 export function CreateListModal({ visible, onDone }: { visible: boolean; onDone: () => void }) {
   const { colors } = useTheme();
+  // A full-window Modal owns all its own insets — the sheet's bottom padding
+  // has to clear the home indicator. Platform.OS === "ios" used to stand in for
+  // that and is false in the iOS PWA.
+  const insets = useSafeAreaInsets();
   const { addList } = useListsActions();
   const [name, setName]             = useState("");
   const [color, setColor]           = useState(LIST_COLORS[0]);
@@ -110,7 +115,7 @@ export function CreateListModal({ visible, onDone }: { visible: boolean; onDone:
             borderColor: colors.bgBorder,
             padding: spacing[5],
             gap: spacing[4],
-            paddingBottom: Platform.OS === "ios" ? spacing[10] : spacing[5],
+            paddingBottom: insets.bottom + spacing[5],
           }}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Text size="lg" weight="bold">New list</Text>
@@ -659,6 +664,7 @@ export function ListCard({ list, isExpanded, onToggleExpand, otherLists }: {
 
 function ListsScreen() {
   const { colors } = useTheme();
+  const scrollBottom = useScrollBottomPadding();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
   const { lists, loaded } = useListsData();
@@ -810,7 +816,7 @@ function ListsScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16] }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom }}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />

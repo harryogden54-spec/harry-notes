@@ -12,6 +12,7 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-
 import { useTheme } from "@/lib/useTheme";
 import { Text, Surface, GradientBackground, FocusTimer } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasksData } from "@/lib/TasksContext";
 import { useTodayData, useTodayActions, useTodaySync, type TodayItem } from "@/lib/TodayContext";
@@ -42,6 +43,7 @@ function byOrder(a: TodayItem, b: TodayItem) {
 
 function TodayScreen() {
   const { colors } = useTheme();
+  const scrollBottom = useScrollBottomPadding(spacing[24]);
   const { tasks } = useTasksData();
   const { items: allItems } = useTodayData();
   const { addItem: addTodayItem, toggleItem, deleteItem, updateItemTime, moveItem, reorderActive } = useTodayActions();
@@ -226,7 +228,7 @@ function TodayScreen() {
 
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[{ padding: spacing[4], paddingBottom: spacing[24] }, webContentStyle]}
+            contentContainerStyle={[{ padding: spacing[4], paddingBottom: scrollBottom }, webContentStyle]}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               <RefreshControl

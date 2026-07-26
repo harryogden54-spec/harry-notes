@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useTheme } from "@/lib/useTheme";
 import { Text, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, getShadow } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webWideContentStyle } from "@/lib/webLayout";
 import { useCoursesData, useCoursesActions, useCoursesSync, tableProgress, type CourseTable } from "@/lib/CoursesContext";
 import { useToast } from "@/lib/ToastContext";
@@ -16,6 +17,7 @@ import { CourseTableCard, TableEditorModal, ProgressRing } from "@/components/co
 
 function CoursesScreen() {
   const { colors, scheme } = useTheme();
+  const scrollBottom = useScrollBottomPadding();
   const { tables, loaded } = useCoursesData();
   const { deleteTable } = useCoursesActions();
   const { syncNow } = useCoursesSync();
@@ -67,7 +69,7 @@ function CoursesScreen() {
       <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webWideContentStyle }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom, ...webWideContentStyle }}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />

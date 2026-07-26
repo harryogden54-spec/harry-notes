@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, GradientBackground, Surface, DatePicker, TaskRow, SectionHeader } from "@/components/ui";
 import { spacing, radius, fontFamily } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasksData, useTasksActions, type Task } from "@/lib/TasksContext";
 import { getTodayStr } from "@/lib/utils";
@@ -242,6 +243,7 @@ function WeekView({
 
 function CalendarScreen() {
   const { colors } = useTheme();
+  const scrollBottom = useScrollBottomPadding();
   const { tasks } = useTasksData();
   const today = getTodayStr();
 
@@ -311,7 +313,7 @@ function CalendarScreen() {
     <GradientBackground>
       <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={[{ padding: spacing[4], paddingBottom: spacing[16] }, webContentStyle]}
+          contentContainerStyle={[{ padding: spacing[4], paddingBottom: scrollBottom }, webContentStyle]}
         >
           {/* Header */}
           <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5], flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>

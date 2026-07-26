@@ -227,8 +227,11 @@ export function getShadow(
 // Previously magic numbers scattered across screens.
 
 export const layout = {
-  tabBarHeight: { ios: 88, default: 68 },
-  fabBottom:    { ios: 100, default: 76 },
+  // Pre-measurement fallback for floating UI (see lib/TabBarHeightContext.tsx).
+  // Once MobileTabBar reports its onLayout height, offsets derive from that —
+  // there is deliberately no per-platform value here, because Platform.OS is
+  // "web" in the iOS home-screen PWA and the .ios branch never fired there.
+  fabBottom:    { default: 76 },
   gutter:       { mobile: 20, desktop: 32 },
   maxWidth:     { narrow: 720, wide: 1200 },
 } as const;

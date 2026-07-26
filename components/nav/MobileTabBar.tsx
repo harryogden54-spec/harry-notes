@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Pressable, Platform, Modal } from "react-native";
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +8,22 @@ import { useRouter, usePathname } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, getShadow } from "@/lib/theme";
+import { useReportTabBarHeight } from "@/lib/TabBarHeightContext";
 import { NAV_ITEMS, MOBILE_BAR_NAMES, type NavItem } from "./navConfig";
+
+/**
+ * Everything in the bar above its bottom inset padding: borderTop (1) +
+ * paddingTop spacing[1.5] (6) + a tab's paddingVertical spacing[1] (8) + the
+ * 22px icon + 2px gap + the 2xs label's line box. Measured at 55px.
+ *
+ * This is reported synchronously so the FAB stack, toasts and scroll paddings
+ * are correct on the very first frame. onLayout below corrects it if the real
+ * height ever differs (e.g. a font-scale change) — but it cannot be the only
+ * source: react-native-web drives onLayout from a ResizeObserver that does not
+ * reliably deliver an initial callback, so a measurement-only approach leaves
+ * every consumer on its fallback value forever.
+ */
+const BAR_CONTENT_HEIGHT = 55;
 
 /**
  * Custom mobile bottom bar: four primary tabs + a "More" button that opens a
@@ -24,7 +39,14 @@ export function MobileTabBar() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const reportHeight = useReportTabBarHeight();
   const [moreOpen, setMoreOpen] = useState(false);
+
+  // The bar owns the bottom safe-area inset and publishes the resulting height.
+  const barPaddingBottom = Math.max(insets.bottom, spacing[2.5]);
+  useEffect(() => {
+    reportHeight(BAR_CONTENT_HEIGHT + barPaddingBottom);
+  }, [barPaddingBottom, reportHeight]);
 
   const barItems  = NAV_ITEMS.filter(i => MOBILE_BAR_NAMES.includes(i.name));
   const moreItems = NAV_ITEMS.filter(i => !MOBILE_BAR_NAMES.includes(i.name));
@@ -44,13 +66,18 @@ export function MobileTabBar() {
   return (
     <>
       <View
+        // The bar is the single owner of the bottom safe-area inset, and it
+        // publishes its resulting height so the FAB stack, the toasts and every
+        // screen's scroll padding can derive from a measured number instead of
+        // guessing per platform. See lib/TabBarHeightContext.tsx.
+        onLayout={e => reportHeight(e.nativeEvent.layout.height)}
         style={{
           flexDirection: "row",
           backgroundColor: colors.bgSecondary,
           borderTopWidth: 1,
           borderTopColor: colors.bgBorder,
           paddingTop: spacing[1.5],
-          paddingBottom: Math.max(insets.bottom, spacing[2.5]),
+          paddingBottom: barPaddingBottom,
         }}
       >
         {barItems.map(item => {

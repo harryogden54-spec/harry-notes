@@ -16,6 +16,7 @@ import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-na
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius, getShadow } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webWideContentStyle } from "@/lib/webLayout";
 import { useTasksData, useTasksActions, useTasksSync, type Task, type Priority, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
@@ -31,6 +32,7 @@ import {
 
 function TasksScreen() {
   const { colors, scheme } = useTheme();
+  const scrollBottom = useScrollBottomPadding();
   const { tasks, loaded } = useTasksData();
   const { addTask, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask, clearCompleted } = useTasksActions();
   const { syncStatus, syncNow } = useTasksSync();
@@ -255,7 +257,7 @@ function TasksScreen() {
             <ScrollView
               ref={scrollViewRef}
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16], ...webWideContentStyle }}
+              contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom, ...webWideContentStyle }}
               keyboardShouldPersistTaps="handled"
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />

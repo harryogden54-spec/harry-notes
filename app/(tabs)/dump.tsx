@@ -11,6 +11,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, GradientBackground, EmptyState, DatePicker } from "@/components/ui";
 import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { useDumpsData, useDumpsActions, useDumpsSync, type DumpTag } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
 import { getLocalDateStr } from "@/lib/utils";
@@ -255,6 +256,7 @@ function DumpScreen() {
   const { addDump, deleteDump } = useDumpsActions();
   const { syncNow } = useDumpsSync();
   const { showToast } = useToast();
+  const scrollBottom = useScrollBottomPadding();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -310,7 +312,7 @@ function DumpScreen() {
       <SafeAreaView edges={["left", "right"]} style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16] }}
+          contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
         >
           {/* Header */}

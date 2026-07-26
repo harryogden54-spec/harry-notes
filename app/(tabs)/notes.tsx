@@ -12,6 +12,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
 import { spacing, radius, getShadow } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import { storage } from "@/lib/storage";
 import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/NotesContext";
@@ -64,6 +65,7 @@ function NoteCardGrid({ notes, onOpen, pageCounts }: { notes: Note[]; onOpen: (i
 
 function NotesScreen() {
   const { colors, scheme } = useTheme();
+  const scrollBottom = useScrollBottomPadding();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
 
@@ -317,7 +319,7 @@ function NotesScreen() {
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[16] }}
+              contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom }}
               keyboardShouldPersistTaps="handled"
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
             >
@@ -396,7 +398,7 @@ function NotesScreen() {
           <View style={{ width: 340, flexShrink: 0 }}>
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: spacing[16] }}
+              contentContainerStyle={{ paddingHorizontal: spacing[4], paddingTop: spacing[5], paddingBottom: scrollBottom }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
             >
               {/* New note — the column's primary action, top of the stack */}

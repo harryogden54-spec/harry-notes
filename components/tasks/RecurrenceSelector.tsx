@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Pressable, ScrollView, Modal, Platform, SafeAreaView } from "react-native";
+import { View, Pressable, ScrollView, Modal, SafeAreaView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
@@ -64,6 +65,9 @@ function RecurrenceModal({
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  // Sheet clears the home indicator from the measured inset — the old
+  // Platform.OS === "ios" check is false in the iOS PWA.
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -75,7 +79,7 @@ function RecurrenceModal({
           style={{
             backgroundColor: colors.bgSecondary,
             borderTopLeftRadius: 20, borderTopRightRadius: 20,
-            paddingBottom: Platform.OS === "ios" ? spacing[8] : spacing[6],
+            paddingBottom: insets.bottom + spacing[6],
             paddingTop: spacing[4],
           }}
           onPress={e => e.stopPropagation()}

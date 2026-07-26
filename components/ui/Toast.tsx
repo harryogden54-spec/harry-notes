@@ -4,19 +4,24 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./Text";
 import { useToast, useToastState } from "@/lib/ToastContext";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, getShadow, layout } from "@/lib/theme";
+import { spacing, radius, getShadow } from "@/lib/theme";
+import { useFloatingBottom } from "@/lib/TabBarHeightContext";
 
 export function ToastContainer() {
   const toasts = useToastState();
   const { dismissToast } = useToast();
   const { colors, scheme } = useTheme();
+  // Sits just above the FAB stack, both derived from the tab bar's measured
+  // height. The old Platform.OS === "ios" branch left toasts behind the tab
+  // bar in the iOS PWA, where Platform.OS is "web".
+  const floatingBottom = useFloatingBottom();
   if (toasts.length === 0) return null;
 
   return (
     <View
       style={{
         position: "absolute",
-        bottom: Platform.OS === "ios" ? layout.fabBottom.ios + 4 : layout.fabBottom.default - 4,
+        bottom: floatingBottom + 4,
         // Desktop web: bottom-right stack (a full-width toast on a 1280px
         // window reads as a system banner, not a toast). Mobile: full width.
         ...(Platform.OS === "web"

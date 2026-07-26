@@ -16,6 +16,7 @@ import { useTheme } from "@/lib/useTheme";
 import { useCommandPalette } from "@/lib/CommandPaletteContext";
 import { Text, SearchBar, Surface, GlassCard, GradientBackground, Skeleton, SectionHeader, TaskRow } from "@/components/ui";
 import { spacing, fontFamily, getNotePastelIndex, getShadow } from "@/lib/theme";
+import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext";
 import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import { useToast } from "@/lib/ToastContext";
@@ -81,6 +82,7 @@ function TodayPanel() {
 
 function DashboardScreen() {
   const { colors, notePastels, scheme } = useTheme();
+  const scrollBottom = useScrollBottomPadding(spacing[24]);
   const { open: openPalette }  = useCommandPalette();
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
@@ -415,7 +417,7 @@ function DashboardScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingVertical: spacing[2], paddingBottom: spacing[24] }}
+          contentContainerStyle={{ paddingVertical: spacing[2], paddingBottom: scrollBottom }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
         >
