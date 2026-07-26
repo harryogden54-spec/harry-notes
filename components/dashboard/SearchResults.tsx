@@ -110,7 +110,7 @@ export function SearchResults({ tasks, notes, query, onTaskPress, onAdd }: Props
           <GlassCard style={{ overflow: "hidden" }}>
             {matchTasks.map((t: Task, i: number) => (
               <View key={t.id} style={i === matchTasks.length - 1 ? { borderBottomWidth: 0 } : undefined}>
-                <TaskRow task={t} onPress={() => onTaskPress(t.id)} />
+                <TaskRow task={t} onPress={onTaskPress} />
               </View>
             ))}
           </GlassCard>

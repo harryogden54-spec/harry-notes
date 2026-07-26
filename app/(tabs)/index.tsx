@@ -133,6 +133,12 @@ function DashboardScreen() {
   const handleGoToTasks   = useCallback(() => router.push("/(tabs)/tasks"), [router]);
   const handleGoToNotes   = useCallback(() => router.push("/(tabs)/notes"), [router]);
   const handleGoToDump    = useCallback(() => router.push("/(tabs)/dump"), [router]);
+  // One stable callback shared by every TaskRow (list + search results) — a
+  // per-row arrow would defeat TaskRow's memo.
+  const handleTaskPress   = useCallback(
+    (id: string) => router.push(`/(tabs)/tasks?taskId=${id}` as any),
+    [router]
+  );
 
   // Genuinely fresh install — no tasks or notes at all (not just none open),
   // so the dashboard doesn't end up with a lot of empty vertical space.
@@ -260,7 +266,7 @@ function DashboardScreen() {
         <GlassCard style={{ overflow: "hidden" }}>
           {tasksCardItems.map((task, i) => (
             <View key={task.id} style={i === tasksCardItems.length - 1 && tasksOverflow <= 0 ? { borderBottomWidth: 0 } : undefined}>
-              <TaskRow task={task} onPress={() => router.push(`/(tabs)/tasks?taskId=${task.id}` as any)} />
+              <TaskRow task={task} onPress={handleTaskPress} />
             </View>
           ))}
           {tasksOverflow > 0 && (
@@ -441,7 +447,7 @@ function DashboardScreen() {
               <View style={{ marginTop: spacing[3] }}>
                 <SearchResults
                   tasks={tasks} notes={notes} query={search.trim()}
-                  onTaskPress={id => router.push(`/(tabs)/tasks?taskId=${id}` as any)}
+                  onTaskPress={handleTaskPress}
                   onAdd={title => { addTask(title); setSearch(""); showToast(`Added: ${title}`); }}
                 />
               </View>

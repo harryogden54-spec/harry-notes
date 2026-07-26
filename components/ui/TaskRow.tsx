@@ -16,7 +16,10 @@ import { getTodayStr, getTomorrowStr, formatDueDate, PRIORITY_COLOR } from "@/li
 
 interface Props {
   task: Task;
-  onPress: () => void;
+  /** Receives the task id rather than closing over it, so callers can pass one
+   *  stable callback for every row. With a per-row arrow the memo below is
+   *  worthless — the prop changes identity on every parent render. */
+  onPress: (id: string) => void;
 }
 
 function RowContent({ task, onPress }: Props) {
@@ -63,7 +66,7 @@ function RowContent({ task, onPress }: Props) {
 
   return (
     <Pressable
-      onPress={renaming ? undefined : onPress}
+      onPress={renaming ? undefined : () => onPress(task.id)}
       accessibilityLabel={`${task.title}, ${task.done ? "completed" : "incomplete"}`}
       accessibilityRole="button"
       accessibilityHint={Platform.OS !== "web" ? "Swipe right to complete, swipe left to delete" : undefined}
@@ -100,6 +103,12 @@ function RowContent({ task, onPress }: Props) {
             />
           ) : (
             <Pressable
+              // Must forward onPress: this inner Pressable exists only to carry
+              // the rename gestures, but on react-native-web it handles the
+              // click itself rather than letting it bubble to the row. Without
+              // this, tapping the title — most of the row's area — did nothing,
+              // so dashboard and search-result task rows could not be opened.
+              onPress={renaming ? undefined : () => onPress(task.id)}
               onLongPress={startRename}
               // @ts-ignore
               onDoubleClick={Platform.OS === "web" ? startRename : undefined}
@@ -225,7 +234,12 @@ function WebTaskRow({ task, onPress }: Props) {
   );
 }
 
-export function TaskRow({ task, onPress }: Props) {
+/**
+ * Rendered in a loop on the dashboard and in search results, so a parent
+ * re-render used to rebuild every row and re-create its swipe handlers.
+ * Memoised on task identity + the (now stable) onPress.
+ */
+export const TaskRow = React.memo(function TaskRow({ task, onPress }: Props) {
   const { colors } = useTheme();
   const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
@@ -278,4 +292,4 @@ export function TaskRow({ task, onPress }: Props) {
       <RowContent task={task} onPress={onPress} />
     </Swipeable>
   );
-}
+});

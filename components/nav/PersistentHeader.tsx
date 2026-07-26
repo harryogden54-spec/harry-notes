@@ -27,21 +27,20 @@ function syncChipLabel(status: string, lastSynced: string | null, mounted: boole
   return `Synced ${Math.floor(m / 60)}h ago`;
 }
 
-export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) {
-  const { colors, scheme } = useTheme();
-  const router = useRouter();
-  const { toggle } = useThemeContext();
+/**
+ * Owns the useSyncAll subscription so the header around it doesn't.
+ *
+ * The header is the one component mounted on every screen, and useSyncAll reads
+ * six sync contexts — so with the subscription at header level, every domain's
+ * status change (including each background pull) re-rendered the wordmark,
+ * theme toggle and settings gear too. Keeping it in this leaf confines those
+ * renders to the chip.
+ */
+const SyncChip = React.memo(function SyncChip() {
+  const { colors } = useTheme();
   const { status, lastSynced, syncAll } = useSyncAll();
   const { showToast } = useToast();
   const mounted = useMounted();
-  // Standalone PWA / native render under the status bar — the header owns the
-  // top inset (screens below no longer pad their own top).
-  const insets = useSafeAreaInsets();
-
-  function toggleScheme() {
-    toggle();
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }
 
   const chipLabel = syncChipLabel(status, lastSynced, mounted);
   const chipColor = status === "error" ? colors.danger : status === "syncing" ? colors.accent : colors.textTertiary;
@@ -51,6 +50,50 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
     if (Platform.OS !== "web") Haptics.selectionAsync();
     const ok = await syncAll();
     showToast(ok ? "Synced" : "Some items couldn't sync — try again");
+  }
+
+  if (!chipLabel) return null;
+
+  // Quiet status text that also *is* the manual-sync control — one chip
+  // serving mobile and desktop, driven by the shared useSyncAll trigger
+  // (no parallel sync path).
+  return (
+    <Pressable
+      onPress={handleSyncPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`${chipLabel}. Tap to sync now.`}
+      // @ts-ignore web-only tooltip
+      title={Platform.OS === "web" ? "Sync now" : undefined}
+      style={({ hovered }: any) => ({
+        flexDirection: "row", alignItems: "center", gap: 4,
+        paddingHorizontal: spacing[1.5], paddingVertical: 2,
+        borderRadius: radius.sm,
+        backgroundColor: hovered ? colors.bgTertiary : "transparent",
+        ...(Platform.OS === "web" ? {
+          cursor: status === "syncing" ? "default" : "pointer",
+          transitionProperty: "background-color",
+          transitionDuration: "120ms",
+        } : {}),
+      } as any)}
+    >
+      <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: chipColor }} />
+      <Text size="xs" color={chipColor}>{chipLabel}</Text>
+    </Pressable>
+  );
+});
+
+export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) {
+  const { colors, scheme } = useTheme();
+  const router = useRouter();
+  const { toggle } = useThemeContext();
+  // Standalone PWA / native render under the status bar — the header owns the
+  // top inset (screens below no longer pad their own top).
+  const insets = useSafeAreaInsets();
+
+  function toggleScheme() {
+    toggle();
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   return (
@@ -71,33 +114,7 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
         </View>
       ) : <View style={{ width: 40 }} />}
       <View style={{ flex: 1, alignItems: "center" }}>
-        {/* Quiet status text that also *is* the manual-sync control — one chip
-            serving mobile and desktop, driven by the shared useSyncAll trigger
-            (no parallel sync path). */}
-        {chipLabel && (
-          <Pressable
-            onPress={handleSyncPress}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${chipLabel}. Tap to sync now.`}
-            // @ts-ignore web-only tooltip
-            title={Platform.OS === "web" ? "Sync now" : undefined}
-            style={({ hovered }: any) => ({
-              flexDirection: "row", alignItems: "center", gap: 4,
-              paddingHorizontal: spacing[1.5], paddingVertical: 2,
-              borderRadius: radius.sm,
-              backgroundColor: hovered ? colors.bgTertiary : "transparent",
-              ...(Platform.OS === "web" ? {
-                cursor: status === "syncing" ? "default" : "pointer",
-                transitionProperty: "background-color",
-                transitionDuration: "120ms",
-              } : {}),
-            } as any)}
-          >
-            <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: chipColor }} />
-            <Text size="xs" color={chipColor}>{chipLabel}</Text>
-          </Pressable>
-        )}
+        <SyncChip />
       </View>
       <Pressable
         onPress={toggleScheme}
