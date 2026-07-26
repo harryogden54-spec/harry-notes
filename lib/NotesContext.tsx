@@ -119,6 +119,11 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
     normalizeRemote: (row) => normalizeNote(row),
     // Never un-archive a locally-archived note when remote wins.
     mergeRow: (local, remote) => ({ ...remote, archived: remote.archived ?? local.archived }),
+    // Note bodies are the one field where last-write-wins actually costs you
+    // writing: edit the same note on two devices and the later push replaced the
+    // earlier one wholesale. Merged line-by-line instead; genuinely overlapping
+    // edits become an inline conflict block rather than a silent winner.
+    mergeTextField: "body",
   });
 
   const addNote = useCallback((init?: Partial<Pick<Note, "title" | "body" | "parent_id" | "page_order">>): string => {

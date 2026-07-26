@@ -49,10 +49,13 @@ export async function setSyncKey(key: string): Promise<void> {
   }
   // The delta cursors belong to the previous key's dataset — drop them so the
   // next sync does a full fetch against the new key.
-  await Promise.all(
-    ["tasks", "notes", "lists", "dumps", "courses", "task_categories", "today_items"]
-      .map(t => storage.remove(`sync:cursor:${t}`))
-  );
+  // Cursors AND merge bases belong to the previous key's dataset — a stale base
+  // would make the next three-way merge diff against someone else's text.
+  const tables = ["tasks", "notes", "dumps", "courses", "task_categories", "today_items"];
+  await Promise.all([
+    ...tables.map(t => storage.remove(`sync:cursor:${t}`)),
+    ...tables.map(t => storage.remove(`sync:base:${t}`)),
+  ]);
 }
 
 /**

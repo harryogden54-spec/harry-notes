@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import { storage } from "./storage";
-import { syncFetch, syncUpsert, syncDelete, SYNC_ENABLED } from "./supabase";
+import { syncFetch, syncFetchByIds, syncUpsert, syncDelete, SYNC_ENABLED } from "./supabase";
 import { getSyncKey } from "./syncKey";
 import { registerSyncDomain } from "./syncScheduler";
+import { mergeThreeWay } from "./textMerge";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -32,6 +33,17 @@ type Config<T extends HasId> = {
   normalizeRemote?: (row: T) => T;
   /** How to merge when remote wins (has newer updated_at). Defaults to replacing local. */
   mergeRow?: (local: T, remote: T) => T;
+  /**
+   * Opt in to a three-way merge for one long-text field (notes.body).
+   *
+   * Without it the engine is last-write-wins per row in both directions. The
+   * merge below already refuses to let remote clobber an unpushed local edit,
+   * but the reverse was unguarded: a device holding a stale copy would push its
+   * whole row and silently discard the other device's text. Declaring the field
+   * here makes the push path fetch the server's current value first and merge
+   * line-by-line instead of overwriting.
+   */
+  mergeTextField?: Extract<keyof T, string>;
 };
 
 // Local persistence (AsyncStorage mirror + SQLite) — short debounce so typing
@@ -47,7 +59,7 @@ const CURSOR_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   const {
     table, storageKey, loadLocal, saveLocal,
-    onLoad, normalizeRemote, mergeRow,
+    onLoad, normalizeRemote, mergeRow, mergeTextField,
   } = config;
 
   const [items, setItems]           = useState<T[]>([]);
@@ -78,9 +90,14 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   const pendingRemoteDeletesRef = useRef<Set<string>>(new Set());
   // undefined = not yet loaded from storage; null = no cursor stored.
   const cursorRef         = useRef<string | null | undefined>(undefined);
+  // Value of mergeTextField as of the last time this device and the server
+  // agreed on a row — the common ancestor a three-way merge needs. Updated after
+  // a successful push and after accepting a remote row.
+  const baseTextRef       = useRef<Record<string, string>>({});
   const cursorKey         = `sync:cursor:${table}`;
   const dirtyKey          = `sync:dirty:${table}`;
   const pendingDeleteKey  = `sync:pendingDelete:${table}`;
+  const baseTextKey       = `sync:base:${table}`;
 
   useEffect(() => { itemsRef.current = items; }, [items]);
 
@@ -94,6 +111,18 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   }, []);
   const persistPendingDeletes = useCallback(() => {
     storage.set(pendingDeleteKey, Array.from(pendingRemoteDeletesRef.current));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Record the agreed-with-server value of the merge field for a row. */
+  const setBaseText = useCallback((id: string, value: unknown) => {
+    if (!mergeTextField) return;
+    baseTextRef.current[id] = typeof value === "string" ? value : "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const persistBaseText = useCallback(() => {
+    if (!mergeTextField) return;
+    storage.set(baseTextKey, baseTextRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -177,6 +206,62 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table]);
 
+  /**
+   * Three-way merge one row's text field against a known remote version.
+   * Returns the row unchanged when there is nothing to reconcile, so callers can
+   * use referential equality to detect "did anything merge".
+   */
+  const mergeRowText = useCallback((local: T, remote: T | undefined): T => {
+    if (!mergeTextField || !remote) return local;
+    const localText  = String((local as any)[mergeTextField] ?? "");
+    const remoteText = String((remote as any)[mergeTextField] ?? "");
+    if (localText === remoteText) return local;
+    const base = baseTextRef.current[local.id] ?? "";
+    const { text } = mergeThreeWay(base, localText, remoteText);
+    if (text === localText) return local;
+    return { ...local, [mergeTextField]: text, updated_at: new Date().toISOString() } as T;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Apply merged rows to local state so the device doesn't keep its pre-merge
+   *  text and re-diverge on the next edit. */
+  const applyMerged = useCallback((patched: T[]) => {
+    if (patched.length === 0) return;
+    const byId = new Map(patched.map(p => [p.id, p]));
+    for (const p of patched) localDirtyRef.current.add(p.id);
+    const next = itemsRef.current.map(t => byId.get(t.id) ?? t);
+    itemsRef.current = next;
+    setItems(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Merge dirty rows against the server before pushing, so a stale device can't
+   * discard another device's edit. Costs one extra fetch, and only for tables
+   * that declare mergeTextField and only when there is something to push.
+   *
+   * On a failed lookup it returns the input unchanged — degrading to the previous
+   * last-write-wins behaviour beats blocking the push entirely.
+   */
+  const mergeBeforePush = useCallback(async (dirty: T[]): Promise<T[]> => {
+    if (!mergeTextField || dirty.length === 0) return dirty;
+
+    const res = await syncFetchByIds<T>(table, dirty.map(d => d.id));
+    if (!res.ok) return dirty;
+
+    const remoteById = new Map(res.rows.map(r => [r.id, r]));
+    const out: T[] = [];
+    const patched: T[] = [];
+    for (const local of dirty) {
+      const merged = mergeRowText(local, remoteById.get(local.id));
+      out.push(merged);
+      if (merged !== local) patched.push(merged);
+    }
+    applyMerged(patched);
+    return out;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, mergeRowText, applyMerged]);
+
   // ─── Remote upload (debounced, dirty-only) ───────────────────────────────────
   const flushRemoteNow = useCallback(async () => {
     if (syncDebounce.current) { clearTimeout(syncDebounce.current); syncDebounce.current = null; }
@@ -195,10 +280,16 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     persistDirty();
     setSyncStatus("syncing");
     try {
-      const ok = dirty.length === 0 || await syncUpsert(table, dirty);
+      const toPush = await mergeBeforePush(dirty);
+      const ok = toPush.length === 0 || await syncUpsert(table, toPush);
       if (!ok) {
         for (const id of pushedIds) dirtyIds.add(id);
         persistDirty();
+      } else if (mergeTextField) {
+        // Server now holds exactly what we pushed — that is the new common
+        // ancestor for the next merge.
+        for (const row of toPush) setBaseText(row.id, (row as any)[mergeTextField]);
+        persistBaseText();
       }
       const deletesOk = await flushRemoteDeletes();
       if (!ok || !deletesOk) {
@@ -264,6 +355,8 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       if (idx === -1) {
         merged.push(rem);
         localDirtyRef.current.add(rem.id);
+        // Local now equals remote → new common ancestor for the text merge.
+        if (mergeTextField) baseTextRef.current[rem.id] = String((rem as any)[mergeTextField] ?? "");
       } else {
         const localUp  = merged[idx].updated_at ?? merged[idx].created_at;
         const remoteUp = _updated_at ?? rem.updated_at ?? "";
@@ -274,6 +367,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         if (remoteUp > localUp && !dirtyIdsRef.current.has(rem.id)) {
           merged[idx] = mergeRow ? mergeRow(merged[idx], rem) : rem;
           localDirtyRef.current.add(rem.id);
+          if (mergeTextField) baseTextRef.current[rem.id] = String((rem as any)[mergeTextField] ?? "");
         }
       }
     }
@@ -287,6 +381,8 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       removeIds.add(id);
       localDeletesRef.current.add(id);
       localDirtyRef.current.delete(id);
+      // Don't let the merge-base map grow forever with dead ids.
+      if (mergeTextField) delete baseTextRef.current[id];
     }
     // Strip items pending deletion — remote may have returned them before the
     // delete propagated, or a sibling mutation may have re-added them locally.
@@ -372,7 +468,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       // the local DB fully so orphaned rows can't linger.
       if (isFullFetch) fullSaveRef.current = true;
 
-      const toUpsert = finalMerged.filter(t => {
+      let toUpsert = finalMerged.filter(t => {
         if (dirtyIdsRef.current.has(t.id)) return true;
         const rem = remoteMap.get(t.id);
         // Not in the response: on a delta that just means "unchanged on the
@@ -383,6 +479,23 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         const remoteUp = rem._updated_at ?? rem.updated_at ?? "";
         return localUp > remoteUp;
       });
+      // This path uploads too, so it needs the same three-way merge as the
+      // debounced push — otherwise a dirty row pushed from here still clobbers
+      // the other device. No extra fetch needed: doMerge deliberately left dirty
+      // rows alone, and the remote version of each is already in remoteMap.
+      if (mergeTextField && toUpsert.length > 0) {
+        const patched: T[] = [];
+        const nextUpsert = toUpsert.map(row => {
+          const merged = mergeRowText(row, remoteMap.get(row.id) as T | undefined);
+          if (merged !== row) patched.push(merged);
+          return merged;
+        });
+        if (patched.length > 0) {
+          toUpsert = nextUpsert;
+          applyMerged(patched);
+        }
+      }
+
       if (toUpsert.length > 0) {
         const ok = await syncUpsert(table, toUpsert);
         if (!ok) {
@@ -392,10 +505,15 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
           return false;
         }
         for (const t of toUpsert) dirtyIdsRef.current.delete(t.id);
+        if (mergeTextField) {
+          for (const t of toUpsert) setBaseText(t.id, (t as any)[mergeTextField]);
+        }
         persistDirty();
       }
 
       advanceCursor(serverMax);
+      // doMerge updated the merge bases in place for every row it accepted.
+      persistBaseText();
       lastSyncAtRef.current = Date.now();
       if (!deletesOk) { setSyncStatus("error"); return false; }
       setSyncStatus("synced");
@@ -418,10 +536,12 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       // Re-hydrate unsynced work from the previous session: edits whose upload
       // debounce never fired, and deletes whose tombstone never went out. Both
       // are retried by the performSync below.
-      const [storedDirty, storedDeletes] = await Promise.all([
+      const [storedDirty, storedDeletes, storedBase] = await Promise.all([
         storage.get<string[]>(dirtyKey),
         storage.get<string[]>(pendingDeleteKey),
+        mergeTextField ? storage.get<Record<string, string>>(baseTextKey) : Promise.resolve(null),
       ]);
+      if (storedBase) baseTextRef.current = storedBase;
       for (const id of storedDirty ?? []) dirtyIdsRef.current.add(id);
       for (const id of storedDeletes ?? []) {
         pendingRemoteDeletesRef.current.add(id);

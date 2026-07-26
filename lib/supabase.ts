@@ -123,6 +123,54 @@ export async function syncFetch<T extends { id: string }>(
   }
 }
 
+/**
+ * Fetch specific rows by id, ignoring the delta cursor.
+ *
+ * Used by the three-way merge on the push path: before overwriting a row we need
+ * the server's current version of it, regardless of whether the cursor has seen
+ * it. Chunked because ids go in the query string via `in.(…)` and a long dirty
+ * set would blow the URL length limit.
+ */
+export async function syncFetchByIds<T extends { id: string }>(
+  table: string,
+  ids: string[]
+): Promise<FetchResult<T>> {
+  if (!SYNC_ENABLED) return EMPTY_OK;
+  if (ids.length === 0) return EMPTY_OK;
+
+  const syncKey = await getSyncKey();
+  if (!syncKey) return EMPTY_OK;
+
+  const ID_CHUNK = 50;
+  try {
+    const rows: T[] = [];
+    const deletedIds: string[] = [];
+    let serverMax: string | null = null;
+    for (let i = 0; i < ids.length; i += ID_CHUNK) {
+      const { data, error } = await supabase
+        .from(table)
+        .select("id, data, updated_at, deleted")
+        .eq("sync_key", syncKey)
+        .in("id", ids.slice(i, i + ID_CHUNK));
+      if (error) {
+        console.warn(`syncFetchByIds ${table}:`, error.message);
+        return { ok: false, error: error.message };
+      }
+      for (const row of (data ?? []) as any[]) {
+        if (typeof row.updated_at === "string" && (!serverMax || row.updated_at > serverMax)) {
+          serverMax = row.updated_at;
+        }
+        if (row.deleted) deletedIds.push(row.id);
+        else rows.push({ ...row.data, _updated_at: row.updated_at } as T);
+      }
+    }
+    return { ok: true, rows, deletedIds, serverMax };
+  } catch (e: any) {
+    console.warn(`syncFetchByIds ${table}: network error`, e);
+    return { ok: false, error: e?.message ?? "network error" };
+  }
+}
+
 export async function syncUpsert<T extends { id: string }>(
   table: string,
   items: T[]

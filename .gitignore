@@ -43,3 +43,6 @@ yarn-error.*
 
 # deploy output
 deploy.log
+
+# npm run test:merge scratch output
+/.test-out
