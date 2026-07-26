@@ -7,6 +7,7 @@ import { spacing, getShadow, transition } from "@/lib/theme";
 import { getTodayStr } from "@/lib/utils";
 import type { Task } from "@/lib/TasksContext";
 import { PRIORITY_CONFIG, formatDate } from "./constants";
+import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import { CategoryBadge } from "./CategoryBadge";
 
 type Props = {
@@ -56,6 +57,9 @@ export const TaskCard = React.memo(function TaskCard({
   const priorityCfg   = task.priority ? PRIORITY_CONFIG[task.priority] : undefined;
   const subtasks      = task.subtasks ?? [];
   const doneSubtasks  = subtasks.filter(s => s.done).length;
+  // Board columns are top level, so only a subcategory adds information here.
+  const { categories } = useCategoriesData();
+  const isSubCategory = !!categories.find(c => c.id === task.category)?.parent_id;
 
   const borderColor =
     highlighted || selected ? colors.accent :
@@ -108,7 +112,7 @@ export const TaskCard = React.memo(function TaskCard({
         >
           {task.title}
         </Text>
-        {(task.due_date || priorityCfg || subtasks.length > 0 || (task.category === "uni" && task.uniCourse)) && (
+        {(task.due_date || priorityCfg || subtasks.length > 0 || isSubCategory || (task.category === "uni" && task.uniCourse)) && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
             {task.due_date && (
               <MetaPill
@@ -125,7 +129,9 @@ export const TaskCard = React.memo(function TaskCard({
             {subtasks.length > 0 && (
               <MetaPill icon="git-branch-outline" label={`${doneSubtasks}/${subtasks.length}`} tint={colors.bgTertiary} textColor={colors.textSecondary} />
             )}
-            {task.category === "uni" && task.uniCourse && (
+            {/* Legacy uni-course badge, or a subcategory — a plain top-level
+                category needs no badge, its column already says it. */}
+            {((task.category === "uni" && task.uniCourse) || isSubCategory) && (
               <CategoryBadge category={task.category} uniCourse={task.uniCourse} />
             )}
           </View>

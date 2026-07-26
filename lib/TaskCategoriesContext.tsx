@@ -12,9 +12,40 @@ export type Category = {
    *  at render time via resolveAccentSwatch(). Never a raw hex value. */
   color: AccentId;
   order: number;
+  /**
+   * Parent category id — set makes this a subcategory (e.g. Uni → Structures).
+   * Absent means top level. Exactly one level is supported: a subcategory can
+   * never itself be a parent, which `addCategory` enforces.
+   *
+   * No migration needed — task_categories stores the whole row as `data` jsonb,
+   * so this is additive and older clients simply ignore the field.
+   */
+  parent_id?: string;
   created_at: string;
   updated_at?: string;
 };
+
+/** Top-level categories, in order. */
+export function topLevel(categories: Category[]): Category[] {
+  return categories.filter(c => !c.parent_id).sort((a, b) => a.order - b.order);
+}
+
+/** Children of `parentId`, in order. */
+export function childrenOf(categories: Category[], parentId: string): Category[] {
+  return categories.filter(c => c.parent_id === parentId).sort((a, b) => a.order - b.order);
+}
+
+/**
+ * The top-level category a task's category id belongs to — itself if it is top
+ * level, its parent if it is a subcategory. Used for board grouping so a task
+ * filed under a subcategory still appears in its parent's column.
+ */
+export function rootCategoryId(categories: Category[], id?: string): string | undefined {
+  if (!id) return undefined;
+  const cat = categories.find(c => c.id === id);
+  if (!cat) return id;
+  return cat.parent_id ?? cat.id;
+}
 
 // Back-compat seed — every task created before categories became
 // user-editable data stores category: "personal" | "uni". Seeding these two
@@ -40,12 +71,15 @@ type CategoriesSync = {
 };
 
 type CategoriesActions = {
-  addCategory: (name: string, color?: AccentId) => string;
+  /** `parentId` makes it a subcategory. Nesting deeper than one level is
+   *  collapsed to the grandparent rather than rejected. */
+  addCategory: (name: string, color?: AccentId, parentId?: string) => string;
   updateCategory: (id: string, updates: Partial<Omit<Category, "id" | "created_at">>) => void;
-  /** Removes the category itself only. Callers (the manage-categories UI)
-   *  must reassign any tasks referencing this id to Uncategorized (i.e. set
-   *  task.category to undefined via useTasksActions) BEFORE calling this —
-   *  tasks live in a sibling context this one has no access to. */
+  /** Removes the category **and its subcategories**. Callers (the
+   *  manage-categories UI) must reassign any tasks referencing those ids to
+   *  Uncategorized (i.e. set task.category to undefined via useTasksActions)
+   *  BEFORE calling this — tasks live in a sibling context this one has no
+   *  access to. Use `childrenOf` to enumerate the ids that will go. */
   deleteCategory: (id: string) => void;
   /** Persists a full reorder — pass every category id in the new order. */
   reorderCategories: (orderedIds: string[]) => void;
@@ -72,6 +106,7 @@ function normalizeCategory(c: Category): Category {
                   ? c.color as AccentId
                   : "indigo",
     order:      typeof c.order === "number" ? c.order : 0,
+    parent_id:  typeof c.parent_id === "string" && c.parent_id ? c.parent_id : undefined,
     created_at: typeof c.created_at === "string" && c.created_at ? c.created_at : EPOCH,
   };
 }
@@ -118,12 +153,19 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
     normalizeRemote: (row) => normalizeCategory(row),
   });
 
-  const addCategory = useCallback((name: string, color: AccentId = "indigo"): string => {
+  const addCategory = useCallback((name: string, color: AccentId = "indigo", parentId?: string): string => {
     const id  = newId();
     const now = new Date().toISOString();
-    const maxOrder = categoriesRef.current.reduce((m, c) => Math.max(m, c.order ?? 0), -1);
+    const all = categoriesRef.current;
+    // Only one level of nesting: if the requested parent is itself a child, hang
+    // the new category off its parent instead of building a third level.
+    const requested = parentId ? all.find(c => c.id === parentId) : undefined;
+    const parent_id = requested ? (requested.parent_id ?? requested.id) : undefined;
+    // Order is scoped to the sibling set, so children sort within their parent.
+    const siblings = all.filter(c => (c.parent_id ?? undefined) === parent_id);
+    const maxOrder = siblings.reduce((m, c) => Math.max(m, c.order ?? 0), -1);
     markDirty(id);
-    setCategories(prev => [...prev, stamp({ id, name, color, order: maxOrder + 1, created_at: now })]);
+    setCategories(prev => [...prev, stamp({ id, name, color, order: maxOrder + 1, parent_id, created_at: now })]);
     return id;
   }, [markDirty, setCategories, categoriesRef]);
 
@@ -133,11 +175,14 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
   }, [markDirty, setCategories]);
 
   const deleteCategory = useCallback((id: string) => {
-    setCategories(prev => prev.filter(c => c.id !== id));
+    // Cascade to subcategories — a child whose parent is gone would be
+    // unreachable in every picker while still being referenced by tasks.
+    const doomed = [id, ...categoriesRef.current.filter(c => c.parent_id === id).map(c => c.id)];
+    setCategories(prev => prev.filter(c => !doomed.includes(c.id)));
     // Removes the SQLite row on next flush AND queues the remote tombstone
     // (retried by the sync hook until it lands).
-    markLocallyDeleted(id);
-  }, [markLocallyDeleted, setCategories]);
+    for (const d of doomed) markLocallyDeleted(d);
+  }, [markLocallyDeleted, setCategories, categoriesRef]);
 
   const reorderCategories = useCallback((orderedIds: string[]) => {
     const orderMap = new Map(orderedIds.map((id, i) => [id, i]));

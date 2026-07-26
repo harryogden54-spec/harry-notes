@@ -4,7 +4,7 @@ import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanim
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, resolveAccentSwatch } from "@/lib/theme";
-import { useCategoriesData } from "@/lib/TaskCategoriesContext";
+import { useCategoriesData, topLevel, rootCategoryId } from "@/lib/TaskCategoriesContext";
 import type { Task } from "@/lib/TasksContext";
 import { TaskCard } from "./TaskCard";
 
@@ -32,8 +32,11 @@ export function CategoryColumns({
 }: Props) {
   const { scheme } = useTheme();
   const { categories } = useCategoriesData();
-  const sorted = [...categories].sort((a, b) => a.order - b.order);
-  const knownIds = new Set(sorted.map(c => c.id));
+  // Columns are top level only; a task filed under a subcategory still belongs
+  // in its parent's column, so group by root id. The subcategory itself shows on
+  // the card via CategoryBadge.
+  const sorted = topLevel(categories);
+  const knownIds = new Set(categories.map(c => c.id));
   const uncategorized = tasks.filter(t => !t.category || !knownIds.has(t.category));
 
   function renderCard(t: Task) {
@@ -75,7 +78,7 @@ export function CategoryColumns({
     id: cat.id,
     label: cat.name,
     color: resolveAccentSwatch(cat.color, scheme).color,
-    items: tasks.filter(t => t.category === cat.id),
+    items: tasks.filter(t => rootCategoryId(categories, t.category) === cat.id),
   }));
 
   return (

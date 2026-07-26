@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, GradientBackground, Divider } from "@/components/ui";
 import { spacing, radius, fontFamily, ACCENT_OPTIONS, resolveAccentSwatch, type AccentId } from "@/lib/theme";
-import { useCategoriesData, useCategoriesActions, type Category } from "@/lib/TaskCategoriesContext";
+import { useCategoriesData, useCategoriesActions, topLevel, childrenOf, type Category } from "@/lib/TaskCategoriesContext";
 import { useTasksData, useTasksActions } from "@/lib/TasksContext";
 
 type Props = {
@@ -44,15 +44,21 @@ function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: Acc
 }
 
 function CategoryRow({
-  category, index, count, isFirst, isLast, onMoveUp, onMoveDown,
+  category, count, isFirst, isLast, onMoveUp, onMoveDown,
+  isSub = false, descendantIds = [], onAddSub,
 }: {
   category: Category;
-  index: number;
+  /** Tasks filed here **and** in any subcategory — what a delete would move. */
   count: number;
   isFirst: boolean;
   isLast: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  /** Renders compact and indented; subcategories have no children of their own. */
+  isSub?: boolean;
+  /** Subcategory ids, so deleting a parent can reassign their tasks too. */
+  descendantIds?: string[];
+  onAddSub?: () => void;
 }) {
   const { colors, scheme } = useTheme();
   const { updateCategory, deleteCategory } = useCategoriesActions();
@@ -71,10 +77,12 @@ function CategoryRow({
 
   function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return; }
-    // Reassign this category's tasks to Uncategorized before removing it —
-    // deleteCategory only touches task_categories, it has no access to tasks
-    // (sibling context).
-    tasks.filter(t => t.category === category.id).forEach(t => updateTask(t.id, { category: undefined }));
+    // Reassign tasks to Uncategorized before removing — deleteCategory only
+    // touches task_categories, it has no access to tasks (sibling context).
+    // Includes subcategory tasks, because deleteCategory cascades to children.
+    const doomed = new Set([category.id, ...descendantIds]);
+    tasks.filter(t => t.category && doomed.has(t.category))
+         .forEach(t => updateTask(t.id, { category: undefined }));
     deleteCategory(category.id);
     setConfirmDelete(false);
   }
@@ -82,7 +90,8 @@ function CategoryRow({
   return (
     <View style={{
       borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder,
-      backgroundColor: colors.bgSecondary, padding: spacing[3], gap: spacing[2.5],
+      backgroundColor: isSub ? colors.bgTertiary : colors.bgSecondary,
+      padding: isSub ? spacing[2.5] : spacing[3], gap: spacing[2.5],
     }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5] }}>
         <Pressable
@@ -125,9 +134,11 @@ function CategoryRow({
           {count} task{count !== 1 ? "s" : ""}
         </Text>
         {confirmDelete ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], flexWrap: "wrap" }}>
             <Text size="xs" style={{ color: colors.danger }}>
-              {count > 0 ? `Move ${count} task${count !== 1 ? "s" : ""} to Uncategorized?` : "Delete category?"}
+              {descendantIds.length > 0
+                ? `Delete this and ${descendantIds.length} subcategor${descendantIds.length === 1 ? "y" : "ies"}${count > 0 ? `, moving ${count} task${count !== 1 ? "s" : ""} to Uncategorized` : ""}?`
+                : count > 0 ? `Move ${count} task${count !== 1 ? "s" : ""} to Uncategorized?` : "Delete category?"}
             </Text>
             <Pressable onPress={handleDelete}
               style={{ paddingHorizontal: spacing[2], paddingVertical: 3, borderRadius: radius.sm, backgroundColor: colors.danger }}>
@@ -139,9 +150,18 @@ function CategoryRow({
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={handleDelete} hitSlop={6}>
-            <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
+            {onAddSub && (
+              <Pressable onPress={onAddSub} hitSlop={6} accessibilityLabel={`Add subcategory to ${category.name}`}
+                style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                <Ionicons name="add" size={13} color={colors.accent} />
+                <Text size="xs" style={{ color: colors.accent }}>Subcategory</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
+              <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
+            </Pressable>
+          </View>
         )}
       </View>
     </View>
@@ -154,15 +174,19 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
   const { addCategory, reorderCategories } = useCategoriesActions();
   const { tasks } = useTasksData();
   const [newName, setNewName] = useState("");
+  // Draft subcategory name per parent; a non-null entry also opens its input.
+  const [subDrafts, setSubDrafts] = useState<Record<string, string>>({});
 
-  const sorted = [...categories].sort((a, b) => a.order - b.order);
+  const roots = topLevel(categories);
   const countFor = (id: string) => tasks.filter(t => t.category === id).length;
 
-  function move(id: string, direction: "up" | "down") {
-    const idx = sorted.findIndex(c => c.id === id);
+  /** Reorder within a sibling set. `order` is sibling-scoped, so passing just
+   *  those ids is enough — reorderCategories only touches the ids it is given. */
+  function move(siblings: Category[], id: string, direction: "up" | "down") {
+    const idx = siblings.findIndex(c => c.id === id);
     const swap = direction === "up" ? idx - 1 : idx + 1;
-    if (idx === -1 || swap < 0 || swap >= sorted.length) return;
-    const next = [...sorted];
+    if (idx === -1 || swap < 0 || swap >= siblings.length) return;
+    const next = [...siblings];
     [next[idx], next[swap]] = [next[swap], next[idx]];
     reorderCategories(next.map(c => c.id));
   }
@@ -174,6 +198,16 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
     const nextAccent = ACCENT_OPTIONS[categories.length % ACCENT_OPTIONS.length].id;
     addCategory(trimmed, nextAccent);
     setNewName("");
+  }
+
+  function handleAddSub(parentId: string) {
+    const trimmed = (subDrafts[parentId] ?? "").trim();
+    if (!trimmed) return;
+    // Subcategories inherit the parent's colour — the badge shows them as one
+    // family, so a separate accent would be noise.
+    const parent = categories.find(c => c.id === parentId);
+    addCategory(trimmed, parent?.color ?? "indigo", parentId);
+    setSubDrafts(d => ({ ...d, [parentId]: "" }));
   }
 
   return (
@@ -188,18 +222,72 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing[4], paddingBottom: spacing[8], gap: spacing[3] }}>
-            {sorted.map((cat, i) => (
-              <CategoryRow
-                key={cat.id}
-                category={cat}
-                index={i}
-                count={countFor(cat.id)}
-                isFirst={i === 0}
-                isLast={i === sorted.length - 1}
-                onMoveUp={() => move(cat.id, "up")}
-                onMoveDown={() => move(cat.id, "down")}
-              />
-            ))}
+            {roots.map((cat, i) => {
+              const subs = childrenOf(categories, cat.id);
+              const subIds = subs.map(s => s.id);
+              const draft = subDrafts[cat.id];
+              return (
+                <View key={cat.id} style={{ gap: spacing[2] }}>
+                  <CategoryRow
+                    category={cat}
+                    // What a delete would move: this category plus its children.
+                    count={countFor(cat.id) + subIds.reduce((n, id) => n + countFor(id), 0)}
+                    descendantIds={subIds}
+                    isFirst={i === 0}
+                    isLast={i === roots.length - 1}
+                    onMoveUp={() => move(roots, cat.id, "up")}
+                    onMoveDown={() => move(roots, cat.id, "down")}
+                    onAddSub={() => setSubDrafts(d => ({ ...d, [cat.id]: d[cat.id] ?? "" }))}
+                  />
+
+                  {subs.map((sub, j) => (
+                    <View key={sub.id} style={{ marginLeft: spacing[5] }}>
+                      <CategoryRow
+                        category={sub}
+                        isSub
+                        count={countFor(sub.id)}
+                        isFirst={j === 0}
+                        isLast={j === subs.length - 1}
+                        onMoveUp={() => move(subs, sub.id, "up")}
+                        onMoveDown={() => move(subs, sub.id, "down")}
+                      />
+                    </View>
+                  ))}
+
+                  {draft !== undefined && (
+                    <View style={{ marginLeft: spacing[5], flexDirection: "row", gap: spacing[2], alignItems: "center" }}>
+                      <TextInput
+                        value={draft}
+                        onChangeText={v => setSubDrafts(d => ({ ...d, [cat.id]: v }))}
+                        onSubmitEditing={() => handleAddSub(cat.id)}
+                        autoFocus
+                        placeholder={`Subcategory of ${cat.name}`}
+                        placeholderTextColor={colors.textTertiary}
+                        returnKeyType="done"
+                        style={[
+                          { flex: 1, color: colors.textPrimary, fontSize: 13, fontFamily: fontFamily.medium,
+                            paddingVertical: spacing[2], paddingHorizontal: spacing[2.5],
+                            backgroundColor: colors.bgTertiary, borderRadius: radius.md, borderWidth: 1, borderColor: colors.bgBorder },
+                          // @ts-ignore
+                          { outlineStyle: "none" },
+                        ]}
+                      />
+                      <Pressable onPress={() => handleAddSub(cat.id)}
+                        style={{ paddingHorizontal: spacing[2.5], paddingVertical: spacing[2], borderRadius: radius.md,
+                                 backgroundColor: draft.trim() ? colors.accent : colors.bgTertiary }}>
+                        <Text size="xs" weight="semibold" style={{ color: draft.trim() ? colors.textInverse : colors.textTertiary }}>Add</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setSubDrafts(d => { const n = { ...d }; delete n[cat.id]; return n; })}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
 
             <Divider />
 
