@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, TextInput, Pressable, Platform, Modal, ScrollView } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { View, TextInput, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider } from "@/components/ui";
-import { spacing, radius, fontFamily, getShadow, layout } from "@/lib/theme";
+import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useTasksActions, type Task } from "@/lib/TasksContext";
-import { MetaRow } from "./MetaRow";
 import { DueDateSelector } from "./DueDateSelector";
 import { CategorySelector } from "./CategorySelector";
 import { PrioritySelector } from "./PrioritySelector";
@@ -23,8 +21,9 @@ type FormProps = {
  * modal (title, description, due date, category+course, priority,
  * subtasks). Self-sufficient — creates the task itself via
  * useTasksActions rather than taking an onAdd callback, so it can be
- * embedded both in a standalone modal (TaskComposerModal) and inside
- * the command palette (QuickAddModal).
+ * embedded in the command palette (QuickAddModal). The standalone
+ * TaskComposerModal wrapper is gone — creating a task now opens the same
+ * TaskDetailModal that editing uses.
  */
 export function TaskComposerForm({ initialTitle = "", onClose, onCreated }: FormProps) {
   const { colors } = useTheme();
@@ -137,49 +136,5 @@ function MetaRowLabel({ label, children }: { label: string; children: React.Reac
       <Text size="xs" weight="semibold" style={{ color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.6 }}>{label}</Text>
       {children}
     </View>
-  );
-}
-
-type ModalProps = {
-  visible: boolean;
-  onClose: () => void;
-  initialTitle?: string;
-  onCreated?: (id: string) => void;
-};
-
-/** Standalone popup wrapper around TaskComposerForm — design 1b "New task" modal. */
-export function TaskComposerModal({ visible, onClose, initialTitle, onCreated }: ModalProps) {
-  const { colors, scheme } = useTheme();
-  if (!visible) return null;
-
-  const content = (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
-      <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any} />
-      <Animated.View
-        entering={FadeIn.duration(150)}
-        exiting={FadeOut.duration(100)}
-        style={{
-          backgroundColor: colors.bgSecondary, borderRadius: radius["2xl"],
-          borderWidth: 1, borderColor: colors.bgBorder,
-          width: "90%" as any, maxWidth: layout.panel.modal,
-          ...getShadow("overlay", scheme),
-          maxHeight: Platform.OS === "web" ? "85vh" as any : 620,
-        }}
-      >
-        <ScrollView contentContainerStyle={{ padding: spacing[5] }} keyboardShouldPersistTaps="handled">
-          <TaskComposerForm initialTitle={initialTitle} onClose={onClose} onCreated={onCreated} />
-        </ScrollView>
-      </Animated.View>
-    </View>
-  );
-
-  // Real <Modal> on every platform — RNW portals it to the document root, so
-  // it can't lose the paint-order fight with animated cards later in the DOM
-  // (the previous inline position:absolute overlay was anchored to whatever
-  // component mounted it and rendered UNDER the task board).
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      {content}
-    </Modal>
   );
 }

@@ -11,7 +11,7 @@ import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import { Chip } from "./Chip";
 import { formatDate } from "./constants";
 import { PrioritySelector } from "./PrioritySelector";
-import { TaskComposerModal } from "./TaskComposerModal";
+
 
 type Props = {
   onAdd: (
@@ -22,10 +22,12 @@ type Props = {
     priority?: Priority,
   ) => void;
   inputRef: React.RefObject<TextInput | null>;
-  onTaskCreated?: (id: string) => void;
+  /** "Full form" — the screen creates the task and opens the detail modal on it,
+   *  so creating and editing share one surface. */
+  onExpand?: (title: string) => void;
 };
 
-export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
+export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
   const { colors, scheme } = useTheme();
   const { categories } = useCategoriesData();
   const sortedCategories = [...categories].sort((a, b) => a.order - b.order);
@@ -33,7 +35,6 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
   const uniColor = resolveAccentSwatch(uniCat?.color ?? "orchid", scheme).color;
   const [value, setValue]               = useState("");
   const [focused, setFocused]           = useState(false);
-  const [showComposer, setShowComposer] = useState(false);
   const [quickDate, setQuickDate]       = useState<string | undefined>();
   const [quickCat, setQuickCat]         = useState<TaskCategory | undefined>();
   const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
@@ -94,7 +95,11 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
               <Text size="xs" weight="medium" style={{ color: colors.textInverse }}>Add</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => setShowComposer(true)} hitSlop={8} accessibilityLabel="More task options">
+          <Pressable
+            onPress={() => { onExpand?.(value); setValue(""); }}
+            hitSlop={8}
+            accessibilityLabel="More task options"
+          >
             <Ionicons name="expand-outline" size={15} color={colors.textTertiary} />
           </Pressable>
         </View>
@@ -217,12 +222,6 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
           </Animated.View>
         )}
       </View>
-      <TaskComposerModal
-        visible={showComposer}
-        onClose={() => setShowComposer(false)}
-        initialTitle={value}
-        onCreated={id => { setValue(""); onTaskCreated?.(id); }}
-      />
     </Surface>
   );
 }

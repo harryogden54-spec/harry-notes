@@ -12,7 +12,7 @@ import { parseNaturalDate } from "@/lib/utils";
 import { type TaskCategory, type UniCourse, useTasksData } from "@/lib/TasksContext";
 import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { useThemeContext } from "@/lib/ThemeContext";
-import { TaskComposerForm } from "@/components/tasks/TaskComposerModal";
+import { TaskComposerForm } from "@/components/tasks/TaskComposerForm";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 

@@ -2,16 +2,16 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   View, TextInput, Pressable, ScrollView,
-  KeyboardAvoidingView, Platform, RefreshControl, Modal,
+  KeyboardAvoidingView, Platform, RefreshControl,
   type ScrollView as RNScrollView, useWindowDimensions,
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
-// (The full-window task-detail Modal below keeps all edges.)
+// (The task-detail Modal is its own component and keeps all edges.)
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
@@ -24,11 +24,23 @@ import { storage } from "@/lib/storage";
 import { getTodayStr, getNextWeekStr } from "@/lib/utils";
 
 import {
-  Chip, AddTaskRow, Section, TaskDetailPanel, EmptyDetailPane, CategoryColumns,
+  Chip, AddTaskRow, Section, TaskDetailModal, EmptyDetailPane, CategoryColumns,
   CategoriesManageModal,
   PRIORITY_CONFIG, type SortBy,
   isOverdue, isToday, applySort, matchesSearch,
 } from "@/components/tasks";
+
+/** Nothing was entered — safe to discard when the detail modal closes. */
+function isBlankTask(t: Task): boolean {
+  return !t.title.trim()
+    && !t.due_date
+    && !t.priority
+    && !t.category
+    && !t.description?.trim()
+    && !t.recurrence
+    && (t.subtasks ?? []).length === 0
+    && (t.tags ?? []).length === 0;
+}
 
 function TasksScreen() {
   const { colors, scheme } = useTheme();
@@ -43,7 +55,6 @@ function TasksScreen() {
 
   const [expandedId, setExpandedId]             = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId]     = useState<string | null>(null);
-  const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [search, setSearch]                     = useState("");
   const [filterPriority, setFilterPriority]     = useState<Priority | null>(null);
   const [focusMode, setFocusMode]               = useState(false);
@@ -115,31 +126,39 @@ function TasksScreen() {
       });
     }
     setExpandedId(id);
-    if (isDesktop) setSelectedTaskId(id);
+    // Open the detail on the new task — previously desktop-only, now everywhere,
+    // since there is one detail surface. If this interrupts adding several tasks
+    // in a row, drop this line and the quick-add row goes back to staying put.
+    setSelectedTaskId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [addTask, updateTask, isDesktop]);
+  }, [addTask, updateTask]);
 
-  // Called after TaskComposerModal creates a task itself (it owns addTask/updateTask
-  // directly) — just needs to select/expand the new task the same way handleAdd does.
-  const handleTaskCreated = useCallback((id: string) => {
+  // "Full form" from the inline row: create the task straight away and open the
+  // detail modal on it. TaskDetailPanel edits live, so there is no draft state to
+  // keep in parallel — and closeDetail below removes it again if it was left
+  // untouched, so an abandoned expand doesn't litter the board.
+  const handleExpandNew = useCallback((title: string) => {
+    const id = addTask(title.trim());
     setExpandedId(id);
-    if (isDesktop) setSelectedTaskId(id);
-  }, [isDesktop]);
+    setSelectedTaskId(id);
+  }, [addTask]);
+
+  /** Discard a task that was created by expanding and then left completely empty. */
+  const closeDetail = useCallback(() => {
+    const open = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
+    if (open && isBlankTask(open)) deleteTask(open.id);
+    setSelectedTaskId(null);
+  }, [selectedTaskId, tasks, deleteTask]);
 
   const handleToggleExpand = useCallback((id: string) => {
-    if (isDesktop) {
-      setSelectedTaskId(prev => prev === id ? null : id);
-    } else {
-      setExpandedId(prev => prev === id ? null : id);
-      setSelectedTaskId(id);
-      setShowMobileDetail(true);
-    }
-  }, [isDesktop]);
+    setExpandedId(prev => prev === id ? null : id);
+    setSelectedTaskId(prev => prev === id ? null : id);
+  }, []);
 
   const handleDelete = useCallback((id: string) => {
     const undo = deleteTask(id);
     setExpandedId(null);
-    if (selectedTaskId === id) { setSelectedTaskId(null); setShowMobileDetail(false); }
+    if (selectedTaskId === id) setSelectedTaskId(null);
     showToast("Task deleted", { label: "Undo", onPress: undo });
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   }, [deleteTask, showToast, selectedTaskId]);
@@ -313,7 +332,7 @@ function TasksScreen() {
                 </Text>
               </View>
 
-              <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} onTaskCreated={handleTaskCreated} />
+              <AddTaskRow onAdd={handleAdd} inputRef={addInputRef} onExpand={handleExpandNew} />
 
               {/* Filters — collapsed by default so an uncluttered list is the norm */}
               {tasks.length > 0 && (
@@ -481,51 +500,11 @@ function TasksScreen() {
           </KeyboardAvoidingView>
         </View>
 
-        {/* Desktop task detail — slide-over drawer on top of the board, not a permanent split */}
-        {isDesktop && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (
-          <View style={{ position: "absolute", inset: 0 } as any}>
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              exiting={FadeOut.duration(150)}
-              style={{ position: "absolute", inset: 0 } as any}
-            >
-              <Pressable
-                onPress={() => setSelectedTaskId(null)}
-                style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any}
-              />
-            </Animated.View>
-            <Animated.View
-              entering={SlideInRight.duration(220)}
-              exiting={SlideOutRight.duration(180)}
-              style={{
-                position: "absolute", top: 0, right: 0, bottom: 0, width: layout.panel.drawer,
-                backgroundColor: colors.bgPrimary,
-                borderLeftWidth: 1, borderLeftColor: colors.bgBorder,
-                ...getShadow("overlay", scheme),
-              }}
-            >
-              <TaskDetailPanel task={tasks.find(t => t.id === selectedTaskId)!} onClose={() => setSelectedTaskId(null)} />
-            </Animated.View>
-          </View>
-        )}
-
-        {/* Mobile task detail modal */}
-        {!isDesktop && showMobileDetail && selectedTaskId && tasks.find(t => t.id === selectedTaskId) && (
-          <Modal visible={showMobileDetail} animationType="slide"
-            onRequestClose={() => { setShowMobileDetail(false); setSelectedTaskId(null); }}
-            statusBarTranslucent
-          >
-            <GradientBackground>
-              {/* Full-window modal — covers the status bar, so keep all edges. */}
-              <SafeAreaView style={{ flex: 1 }}>
-                <TaskDetailPanel
-                  task={tasks.find(t => t.id === selectedTaskId)!}
-                  onClose={() => { setShowMobileDetail(false); setSelectedTaskId(null); }}
-                />
-              </SafeAreaView>
-            </GradientBackground>
-          </Modal>
-        )}
+        {/* One detail surface for create and edit, desktop and mobile. */}
+        <TaskDetailModal
+          task={selectedTaskId ? tasks.find(t => t.id === selectedTaskId) ?? null : null}
+          onClose={closeDetail}
+        />
 
         <CategoriesManageModal visible={showCategoriesModal} onClose={() => setShowCategoriesModal(false)} />
       </SafeAreaView>
