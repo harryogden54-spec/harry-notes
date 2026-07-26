@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, ScrollView, Platform, Image } from "react-native";
+import { View, Pressable, ScrollView, Platform, Image } from "react-native";
+import { Text } from "@/components/ui";
 import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius } from "@/lib/theme";
 import { useNotesData } from "@/lib/NotesContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import type { NavItem } from "./navConfig";
@@ -87,7 +88,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
           {!collapsed && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
               <Image source={require("@/assets/images/icon.png")} style={{ width: 20, height: 20, borderRadius: 5 }} />
-              <Text style={{ fontSize: 22, fontFamily: fontFamily.bold, color: colors.textPrimary, letterSpacing: -1 }}>
+              <Text size="2xl" weight="bold" style={{ letterSpacing: -1 }}>
                 harry.
               </Text>
             </View>
@@ -145,11 +146,11 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                     color={active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary}
                   />
                   {!collapsed && (
-                    <Text style={{
-                      fontSize: 13,
-                      fontFamily: active ? fontFamily.semibold : fontFamily.regular,
-                      color: active ? colors.textPrimary : hovered ? colors.textPrimary : colors.textSecondary,
-                    }}>
+                    <Text
+                      size="sm"
+                      weight={active ? "semibold" : "regular"}
+                      color={active || hovered ? colors.textPrimary : colors.textSecondary}
+                    >
                       {item.label}
                     </Text>
                   )}
@@ -169,7 +170,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                     // @ts-ignore
                     whiteSpace: "nowrap",
                   }}>
-                    <Text style={{ fontSize: 12, fontFamily: fontFamily.medium, color: colors.textPrimary }}>
+                    <Text size="xs" weight="medium">
                       {item.label}
                     </Text>
                   </View>
@@ -183,7 +184,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
         {pinnedNotes.length > 0 && (
           <View style={{ marginTop: spacing[5], paddingHorizontal: collapsed ? 0 : spacing[2] }}>
             {!collapsed && (
-              <Text style={{ fontSize: 11, fontFamily: fontFamily.semibold, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 1, paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
+              <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase", paddingHorizontal: spacing[3], marginBottom: spacing[2] }}>
                 Pinned
               </Text>
             )}
@@ -207,7 +208,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                 >
                   <Ionicons name="pin" size={12} color={hovered ? colors.accent : colors.textTertiary} />
                   {!collapsed && (
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, fontFamily: fontFamily.regular, color: hovered ? colors.textPrimary : colors.textSecondary }}>
+                    <Text numberOfLines={1} size="xs" color={hovered ? colors.textPrimary : colors.textSecondary} style={{ flex: 1 }}>
                       {n.title || "Untitled"}
                     </Text>
                   )}
@@ -239,7 +240,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
       >
         <Ionicons name="settings-outline" size={18} color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary} />
         {!collapsed && (
-          <Text style={{ fontSize: 13, fontFamily: fontFamily.regular, color: hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary }}>
+          <Text size="sm" color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary}>
             Settings
           </Text>
         )}

@@ -1,11 +1,12 @@
 import React from "react";
-import { View, Text, Pressable, Platform, Image } from "react-native";
+import { View, Pressable, Platform, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius } from "@/lib/theme";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { useSyncAll } from "@/lib/useSyncStatus";
 import { useToast } from "@/lib/ToastContext";
@@ -64,7 +65,7 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
       {showTitle ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
           <Image source={require("@/assets/images/icon.png")} style={{ width: 16, height: 16, borderRadius: 4 }} />
-          <Text style={{ fontFamily: fontFamily.bold, fontSize: 15, color: colors.textPrimary, letterSpacing: -0.5 }}>
+          <Text size="base" weight="bold" style={{ letterSpacing: -0.5 }}>
             harry.
           </Text>
         </View>
@@ -94,7 +95,7 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
             } as any)}
           >
             <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: chipColor }} />
-            <Text style={{ fontSize: 11, fontFamily: fontFamily.regular, color: chipColor }}>{chipLabel}</Text>
+            <Text size="xs" color={chipColor}>{chipLabel}</Text>
           </Pressable>
         )}
       </View>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, Platform } from "react-native";
+import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, fontFamily } from "@/lib/theme";
+import { spacing } from "@/lib/theme";
 import { useTasksSync } from "@/lib/TasksContext";
 
 export function OfflineBanner() {
@@ -31,7 +32,7 @@ export function OfflineBanner() {
         borderBottomWidth: 1, borderBottomColor: `${colors.warning}30`,
       }}>
         <Ionicons name="cloud-offline-outline" size={13} color={colors.warning} />
-        <Text style={{ fontSize: 11, fontFamily: fontFamily.medium, color: colors.warning, flex: 1 }}>
+        <Text size="xs" weight="medium" color={colors.warning} style={{ flex: 1 }}>
           Offline — changes will sync when reconnected
         </Text>
       </View>
@@ -51,7 +52,7 @@ export function OfflineBanner() {
       }}
     >
       <Ionicons name="cloud-offline-outline" size={13} color={colors.danger} />
-      <Text style={{ fontSize: 11, fontFamily: fontFamily.medium, color: colors.danger, flex: 1 }}>
+      <Text size="xs" weight="medium" color={colors.danger} style={{ flex: 1 }}>
         Sync failed — tap to retry
       </Text>
       <Ionicons name="refresh-outline" size={13} color={colors.danger} />
