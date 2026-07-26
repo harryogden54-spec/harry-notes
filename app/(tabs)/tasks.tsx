@@ -100,9 +100,20 @@ function TasksScreen() {
     }
   }, [params.create, params.taskId, isDesktop]);
 
-  const handleAdd = useCallback((title: string, due_date?: string, category?: TaskCategory, uniCourse?: UniCourse) => {
+  const handleAdd = useCallback((
+    title: string,
+    due_date?: string,
+    category?: TaskCategory,
+    uniCourse?: UniCourse,
+    priority?: Priority,
+  ) => {
     const id = addTask(title, due_date);
-    if (category) updateTask(id, { category, uniCourse: category === "uni" ? uniCourse : undefined });
+    if (category || priority) {
+      updateTask(id, {
+        ...(category ? { category, uniCourse: category === "uni" ? uniCourse : undefined } : {}),
+        ...(priority ? { priority } : {}),
+      });
+    }
     setExpandedId(id);
     if (isDesktop) setSelectedTaskId(id);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

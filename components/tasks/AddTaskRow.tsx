@@ -6,14 +6,21 @@ import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, DatePicker, Surface } from "@/components/ui";
 import { spacing, radius, resolveAccentSwatch } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate } from "@/lib/utils";
-import { UNI_COURSES, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
+import { UNI_COURSES, type TaskCategory, type UniCourse, type Priority } from "@/lib/TasksContext";
 import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import { Chip } from "./Chip";
 import { formatDate } from "./constants";
+import { PrioritySelector } from "./PrioritySelector";
 import { TaskComposerModal } from "./TaskComposerModal";
 
 type Props = {
-  onAdd: (title: string, date?: string, category?: TaskCategory, uniCourse?: UniCourse) => void;
+  onAdd: (
+    title: string,
+    date?: string,
+    category?: TaskCategory,
+    uniCourse?: UniCourse,
+    priority?: Priority,
+  ) => void;
   inputRef: React.RefObject<TextInput | null>;
   onTaskCreated?: (id: string) => void;
 };
@@ -30,9 +37,10 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
   const [quickDate, setQuickDate]       = useState<string | undefined>();
   const [quickCat, setQuickCat]         = useState<TaskCategory | undefined>();
   const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
+  const [quickPriority, setQuickPriority] = useState<Priority | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const showOptions = focused || value.length > 0 || !!quickDate || !!quickCat;
+  const showOptions = focused || value.length > 0 || !!quickDate || !!quickCat || !!quickPriority;
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
   const nextWeek = getNextWeekStr();
@@ -45,10 +53,11 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
     if (!t) return;
     const finalTitle = !quickDate && nlpDate ? (nlpClean.trim() || t) : t;
     const finalDate  = quickDate ?? (nlpDate ?? undefined);
-    onAdd(finalTitle, finalDate, quickCat, quickCat === "uni" ? quickCourse : undefined);
+    onAdd(finalTitle, finalDate, quickCat, quickCat === "uni" ? quickCourse : undefined, quickPriority);
     setValue("");
     setQuickDate(undefined);
     setQuickCat(undefined);
+    setQuickPriority(undefined);
     setShowDatePicker(false);
   }
 
@@ -192,6 +201,16 @@ export function AddTaskRow({ onAdd, inputRef, onTaskCreated }: Props) {
                       ))}
                     </View>
                   )}
+                </View>
+              </View>
+
+              {/* Urgency row — same inline treatment as date and category, so the
+                  three things worth setting at capture time are all here without
+                  expanding the full composer. */}
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[1.5], flexWrap: "wrap" }}>
+                <Text size="xs" style={{ color: colors.textTertiary, width: 32, marginTop: 3 }}>Urg.</Text>
+                <View style={{ flex: 1 }}>
+                  <PrioritySelector value={quickPriority} onChange={setQuickPriority} />
                 </View>
               </View>
             </View>
