@@ -106,14 +106,17 @@ Always prefer these over raw RN primitives to keep styling consistent.
 - Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
 
 ## Current state
-Built: tasks (category board + composer modal), notes (Pinned/All Notes sections, WYSIWYG editor
-on web, sort Recent/Added/A–Z, archive, `//tag` inline tags + filter chips), courses (custom
-checkbox-progress tables + rings, migration 004), lists, calendar tabs, dump (frictionless capture,
-migration 003), settings screen, theme system (6 themes: Obsidian/Nord/Graphite/Evergreen/Solar/Ember;
+Built: tasks (category board with one level of subcategories + a single centred create/edit
+modal), notes (Pinned/All Notes sections, WYSIWYG editor on web, desktop tile view when nothing
+is open, sort Recent/Added/A–Z, archive, `//tag` inline tags + filter chips), courses (custom
+checkbox-progress tables + rings, condensable, migration 004), dump (frictionless capture,
+migration 003, PWA share target), settings screen, theme system (6 themes: Obsidian/Nord/Graphite/Evergreen/Solar/Ember;
 10 accents incl. Slate/Mono grayscale; header button = light/dark toggle), Supabase sync,
 Atelier design system (shadow/type/layout/motion tokens + per-theme kits in `lib/theme.ts`),
 split data/sync/actions contexts, delta-cursor sync with tombstones,
 mobile nav = 4 tabs + More sheet (custom `MobileTabBar`; desktop sidebar shows everything).
+Six nav items only — Home/Today/Tasks/Notes/Courses/Dump. Lists, Calendar and the command
+palette were deleted 2026-07-27; do not reintroduce them or reference `ListsContext`.
 "Early July Changes" programme (Claude Design redesign, WYSIWYG editor, accent palette, PWA icon
 fix, UI polish sweep) shipped 2026-07-03; Courses page + nav declutter + modal/zoom/editor fixes
 shipped 2026-07-05 — full history + decisions in `docs/plans/early-july-changes.md`.
@@ -218,15 +221,61 @@ trigger over all 7 domains (was 5 — Dumps and Categories were missing) and Set
 unused `SyncStatusBadge` deleted. Settings trimmed: sync status → one expandable row, sync key
 → one row + sheet, exports behind a Backup disclosure, Archive-completed split into its own
 group, About card → footer version line. `AUDIT.md` at repo root has the full findings list.
+July 27 batch (all deployed, master fast-forwarded to match production — the
+long-standing master drift is gone): **Lists, Calendar and the command palette
+deleted** (~2,080 lines; both Supabase tables kept as backup, the dashboard
+magnifier went with the palette). **Sync scheduler** — `lib/syncScheduler.ts`
+replaces six independent 90s pull timers with one heartbeat walking domains
+serially plus exponential backoff; that was the "Sync failed / Courses" bug (a
+partly-failed concurrent burst left one domain in `error` with nothing scheduled
+to clear it, and the least-edited collection never got a write to clear it).
+`OfflineBanner` was also keyed on Tasks alone. **Three-way merge for note
+bodies** — `lib/textMerge.ts`, line-based diff3 against a `sync:base:<table>`
+common ancestor, merged on BOTH upload paths (debounced push via new
+`syncFetchByIds`, and inside `performSync` which has the remote rows already);
+overlapping edits produce an inline git-style conflict block, never a silent
+winner; `npm run test:merge` runs 25 assertions + a 4000-case no-data-loss fuzz.
+**PWA share target** into Dump (`app/share.tsx`, manifest `share_target`) — but
+**iOS Safari does not implement Web Share Target**, so on the primary device it
+needs the Shortcut in `docs/share-target.md`; GET not POST because Pages is
+static, so shared files are out of scope. **PWA padding bands fixed** —
+`react-native-safe-area-context@5.6.2` disagrees with itself: native fills a
+missing `edges` entry with `'off'`, the web build leaves it `undefined` and
+`getEdgeValue`'s `default:` is `'additive'`, so `edges={["left","right"]}` ADDED
+the top/bottom insets on web on top of the header and tab bar that already own
+them. Use `components/ui/SideSafeArea` (explicit object form) for anything under
+the app chrome — never the array shorthand. **Dashboard/search task rows were
+unopenable** (TaskRow's title sits in an inner Pressable with no onPress; RN-Web
+handles the click there instead of bubbling) — pre-existing, confirmed on the
+live site. Task create+edit unified into one centred `TaskDetailModal`
+(TaskComposerModal deleted, file renamed TaskComposerForm.tsx since QuickAddModal
+still embeds the form — that is now the last duplicate create surface, see
+AUDIT.md). One level of **task subcategories** (`Category.parent_id`, additive to
+the jsonb row, no migration; board columns stay top-level and group by
+`rootCategoryId`; `order` is sibling-scoped; delete cascades). Urgency on the
+inline new-task row; desktop notes tile view when nothing is open; courses
+condense; design pass (widened type scale, borders-vs-shadows per scheme,
+semantic elevation ladder, one `motion.easing` + `transition()`, notes-grid mount
+stagger via `hn-rise` keyframes, and the icon's **star** replacing the pin on
+pinned notes). Also removed the dashboard greeting's accent gradient as part of
+accent restraint — the one change that reverses an earlier deliberate choice;
+the spot is commented in `app/(tabs)/index.tsx`.
+
 In progress: —
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
-Not started: Settings screen full visual redesign (deferred, tracked separately);
-AUDIT.md follow-ups (delete/relocate the unreachable Lists + Calendar screens, `colors.scrim`
-token, `React.memo` on TaskRow, raw-`Text`-in-screens sweep, drop the deprecated context
-aliases — all unactioned, see AUDIT.md);
-calendar screen memoization polish (hidden screen, deferred); tech debt items in
-memory (two-browser sync drill, deprecated `useTasks()`/`useNotes()`/`useLists()` alias removal);
-Supabase storage bucket (note images) policies not yet reviewed — table RLS shipped 2026-07-12.
+Awaiting confirmation: the PWA padding fix could not be verified locally — the
+web safe-area provider reads `env(safe-area-inset-*)` once at mount via a hidden
+probe div whose listener uses the legacy `webkitTransitionEnd` event Chrome no
+longer fires, so insets can't be simulated after load. Needs an on-device check.
+Not started: point the quick-add FAB at `TaskDetailModal` and delete
+`TaskComposerForm` (last duplicate task-creation surface); web push for task
+reminders (postponed by the user 2026-07-27); Settings screen full visual
+redesign (deferred, tracked separately); `notes.tsx` module split (readability
+only — the audit's parse-cost rationale was wrong, on web the route is already
+its own lazy chunk); Supabase storage bucket (note images) policies not yet
+reviewed — table RLS shipped 2026-07-12; two-browser sync drill.
+Declined by the user, do not re-raise: the dual FAB stack, the Home/Today
+overlap, and the third light/dark control in Settings.
 
 > Update "In progress" and "Not started" at the start of each session.
 

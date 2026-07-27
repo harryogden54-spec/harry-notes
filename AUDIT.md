@@ -1,215 +1,164 @@
-# harry-notes audit — 2026-07-26
+# harry-notes audit
 
-Broad sweep, not a line-by-line read. Prioritised toward things worth acting on.
+Originally written 2026-07-26; **updated 2026-07-27** after the follow-up work landed.
+
+Single-user app — one person, two devices (iPhone home-screen PWA as the primary
+surface, desktop web secondary). Judgements below are about whether *you* can get
+at your own data quickly, not about a userbase.
 
 Effort key: **XS** <30 min · **S** ~1 h · **M** half a day · **L** a day or more.
-Measurements were taken in the built-in browser pane at 375×812 (mobile) and 1280×800 (desktop).
-
-Items fixed during this session are listed under [Already resolved](#already-resolved) rather than
-as findings.
+Measurements were taken in the built-in browser pane at 390×844 / 375×812 (mobile)
+and 1280×800 / 1440×900 (desktop).
 
 ---
 
-## 1. UI redundancy
-
-### Three ways to reach Settings
-`components/nav/PersistentHeader.tsx:96` (mobile gear) · `app/(tabs)/index.tsx:178` (gear in the
-greeting row) · `components/nav/Sidebar.tsx` (pinned, desktop) · plus the mobile **More** sheet.
-On the mobile dashboard two gears are visible at once, ~40px apart.
-**Why it matters:** duplicated affordances make the header feel unconsidered and cost dashboard
-width that the greeting row needs.
-**Fix:** drop the greeting-row gear — the header one is on every screen. **XS**
-
-### Magnifier above a full search input
-`app/(tabs)/index.tsx:175` sits directly above the always-visible `SearchBar`.
-**Careful:** the magnifier opens the command palette, and the palette is the *only* route to the
-Lists and Calendar screens (`components/CommandPalette.tsx:23-24` — both are `href: null` in the
-tab navigator). Deleting the icon strands two screens.
-**Fix:** decide Lists/Calendar first (§3), then either fold the palette into the SearchBar's focus
-state or keep one entry point, not both. **S**
+## Still open
 
 ### Two floating action buttons over the notes grid
-`app/(tabs)/_layout.tsx:114-147` — a 44px "new note" button stacked above a 52px quick-add, bottom
-right, 104px of stack. They float over the two-column notes grid and obscure card content.
-**Why it matters:** the notes grid is the densest screen in the app and the FABs land on it.
-**Fix:** one FAB with a long-press/secondary action, or move "new note" into the Notes screen
-header where it already has a "New note" button on desktop. **S**
-
-### Three controls for light/dark
-`app/settings.tsx` Appearance card has a **Dark mode** switch *and* a **Theme & Colours** row that
-also carries the light/dark choice; `PersistentHeader.tsx:69` is a third (the header sun/moon).
-**Fix:** drop the Settings switch; the header toggle is the one people use. **XS**
-
-### Dashboard section actions duplicate the tabs
-Each dashboard card has an "All tasks" / "See all" action into the same screen the tab bar already
-links. Not wrong, but combined with the greeting row it means the dashboard's first screen is
-mostly navigation.
-**Fix:** none required — flagging as context for §2. **—**
-
----
-
-## 2. Information density and hierarchy
-
-### The greeting block costs a quarter of the first screen
-`app/(tabs)/index.tsx:155`: `paddingTop: spacing[8]` (32) + 62px of greeting/date + `paddingBottom:
-spacing[5]` (20) = **114px**, and the first content card starts at **y=222** on an 800px viewport —
-~28% of the fold. On a 375×812 phone the 42px header and the ~89px tab bar eat into what's left.
-**Why it matters:** for a daily driver the answer to "what do I need to do" should be above the
-fold. Right now the greeting, the date, two icons and a search box are.
-**Fix:** shrink to a single line (greeting + date inline, `size="xl"`), drop `paddingTop` to
-`spacing[4]`. Recovers ~60px. **XS**
-
-### The dashboard has two search affordances and neither is the tab bar
-SearchBar plus command palette (see §1). One is enough.
-**Fix:** covered by §1. **S**
-
----
-
-## 3. Navigation
-
-Current split (`components/nav/navConfig.ts`): six `NAV_ITEMS` — Home, Today, Tasks, Notes,
-Courses, Dump. Mobile bar shows the first four plus **More** (Courses, Dump, Settings); the desktop
-sidebar shows all six plus Settings. **Lists** and **Calendar** exist as screens but are
-`href: null` and appear in neither.
-
-**Assessment: the four-tab split is right.** Home/Today/Tasks/Notes are the daily surfaces; Courses
-and Dump are episodic and belong behind More.
-
-Two real problems:
-
-### Lists and Calendar are effectively unreachable
-`app/(tabs)/lists.tsx` (860 lines) and `app/(tabs)/calendar.tsx` (476 lines) are only reachable via
-dashboard → magnifier → command palette. Both are fully built. Lists is additionally superseded:
-the June migration turned lists into notes with checkbox blocks
-(`lib/migrateListsToNotes.ts`), so Lists is a second UI over data Notes already owns.
-**Fix — pick one:** (a) add Calendar to the More sheet and delete Lists, or (b) delete both. Either
-removes ~1,300 lines. Deleting Lists needs a check that no note still depends on the lists store.
-**M**
+`app/(tabs)/_layout.tsx` — a 44px "new note" button stacked above a 52px
+quick-add, bottom right, ~104px of stack, floating over the two-column notes
+grid. **You declined this one** (2026-07-27), so it stays; recorded only so it
+isn't re-raised as new. **S**
 
 ### Home and Today overlap
-The dashboard renders a `TodayPanel` (`app/(tabs)/index.tsx:45`) next to a dedicated Today tab.
-**Fix:** worth deciding deliberately — either the dashboard panel is a preview that links out
-(current), or Today absorbs the dashboard. No change recommended without your call. **—**
+The dashboard renders a `TodayPanel` next to a dedicated Today tab. **You
+declined** changing this. **—**
+
+### Three controls for light/dark
+The Settings Appearance card has a **Dark mode** switch *and* a **Theme &
+Colours** row that also carries the light/dark choice; the header sun/moon is a
+third. **You declined.** **XS**
+
+### QuickAddModal is a second task-creation surface
+Creating and editing tasks were unified into one centred `TaskDetailModal`
+(2026-07-27), but the quick-add FAB still opens `QuickAddModal`, which embeds
+`TaskComposerForm` — a different set of fields with its own draft state and its
+own `addTask` call. That is now the only place two task-creation UIs disagree.
+**Fix:** point the quick-add FAB at `TaskDetailModal` too, and delete
+`TaskComposerForm`. **S**
+
+### `notes.tsx` is still a large single module
+~560 lines, most of it one screen component. Worth knowing before acting: the
+original audit claimed extracting components reduces parse cost. **That was
+wrong** — on web the route is already its own lazy chunk, and a sibling module
+lands in the same chunk. The only gain is navigability, so this is a
+readability task, not a performance one. `app/settings.tsx` was split this way
+(its 115 lines of row primitives now live in `components/settings/rows.tsx`).
+**M**
+
+### Legacy `today_items_<date>` importer
+`lib/TodayContext.tsx` — one-time migration still on the load path. Cheap (only
+runs when the new store is empty) and deliberately kept one more cycle. **XS**
+
+### Legacy `Note.blocks` readers
+`app/settings.tsx` Markdown export and `notePreview` still branch on `blocks`.
+The original audit called these dead. **They are not** — three notes still carry
+a `blocks` array server-side ("Mini projects", "New changes", "Wishlist", one
+empty block each). Nothing is at risk today, but a reader that ignores `blocks`
+is a silent-data-loss path while the field remains in the type, so these stay.
+`blocksToMarkdown` also survives in `components/notes/utils.ts` as NoteEditor's
+convert-on-open fallback. **—**
+
+### Supabase storage bucket policies never reviewed
+Table RLS shipped 2026-07-12, but the `note-images` bucket's policies have never
+been looked at. **S**
+
+### Web push for task reminders
+Postponed by you (2026-07-27). Needs a service worker, VAPID keys and a send
+endpoint; Cloudflare Pages Functions could host it. **M–L**
+
+### Settings screen full visual redesign
+Deferred, tracked separately. The 2026-07-26 pass was structural (row count),
+not visual.
 
 ---
 
-## 4. Consistency
+## Resolved
 
-### Raw `Text` from react-native in screens
-CLAUDE.md's hard rule says always use `components/ui/`. Ten files import `Text` from
-`react-native` directly: all seven `app/(tabs)/*.tsx`, `app/+not-found.tsx`,
-`app/settings/appearance.tsx`, `components/nav/PersistentHeader.tsx`.
-**Why it matters:** those call sites bypass the type-scale and font-family tokens, so they drift
-whenever typography changes.
-**Fix:** mechanical swap; the props differ slightly (`size`/`weight` vs `style`). **M**
+### 2026-07-27
+- **PWA padding bands.** `react-native-safe-area-context@5.6.2` disagrees with
+  itself: native fills a missing `edges` entry with `'off'`, but
+  `SafeAreaView.web.tsx` leaves it `undefined` and `getEdgeValue`'s `default:`
+  branch is `'additive'`. So `edges={["left","right"]}` **added** the top and
+  bottom insets on web, on top of the header and tab bar that already own them —
+  a ~47px band under the header and ~34px above the tab bar in the installed
+  PWA, invisible in a browser tab where insets are 0. Fixed by
+  `components/ui/SideSafeArea`, which passes the explicit object form.
+- **Dashboard and search task rows could not be opened.** `TaskRow`'s title sits
+  in a second `Pressable` carrying the rename gestures, with no `onPress`;
+  react-native-web handles the click there rather than letting it bubble, so
+  tapping the title — most of the row — did nothing. Confirmed pre-existing by
+  reproducing it on the live site.
+- Task create and edit unified into one centred `TaskDetailModal`, replacing the
+  desktop drawer, the mobile sheet and `TaskComposerModal`.
+- One level of task subcategories (`Category.parent_id`, additive to the jsonb
+  row — no migration).
+- Urgency added to the inline new-task row, beside date and category.
+- Desktop notes tile view when no note is open.
+- Courses tables condense to header + progress ring, with "Condense all".
+- Design pass: type scale widened above `base`, borders-vs-shadows split by
+  scheme, semantic elevation ladder documented, one motion curve
+  (`motion.easing` + `transition()`), notes-grid mount stagger, and the app
+  icon's star replacing the pin on pinned notes.
 
-### Hardcoded scrim colour, five copies
-`#00000055` at `components/nav/MobileTabBar.tsx:119`,
-`components/dashboard/QuickAddModal.tsx:142`, `components/tasks/TaskComposerModal.tsx:157`,
-`components/courses/TableEditorModal.tsx:88`, `app/(tabs)/tasks.tsx:483` — plus
-`rgba(0,0,0,0.5)`/`0.55`/`0.6` variants elsewhere (20 `rgba()` literals across app + components,
-several of them modal scrims at three different opacities).
-**Fix:** add `colors.scrim` to `lib/theme.ts` and replace. Also fixes the inconsistent opacity. **S**
-
-### `color="#fff"` on icons
-`components/ui/TaskRow.tsx:242,250` and `components/ui/FocusTimer.tsx:146` should be
-`colors.textInverse`. Breaks on light themes where the accent is pale. **XS**
-
-### Ad-hoc modal widths
-`width: 360` (dump), `340` (notes desktop column), `280` (lists pane), `260` (Select panel) —
-`lib/theme.ts`'s `layout.maxWidth` tokens exist but aren't used for these.
-**Fix:** extend the `layout` tokens with a modal scale. **S**
-
----
-
-## 5. Performance
-
-### `TaskRow` is the only list row that isn't memoised
-`components/ui/TaskRow.tsx` — while `TaskCard`, `NoteCard`, `NoteIndexRow`, `Chip`,
-`CategoryBadge`, `Section`, `MetaRow`, `PrioritySelector` all are. TaskRow is rendered in a loop on
-the dashboard (`index.tsx:260`), the calendar (`calendar.tsx:458`) and search results
-(`SearchResults.tsx:113`), so every parent re-render re-renders every row and its swipe handlers.
-**Fix:** wrap in `React.memo`; check the `onPress` closure is stable at each call site. **S**
-
-### The always-mounted header subscribes to all seven sync contexts
-`PersistentHeader` calls `useSyncAll()` (added this session), which reads seven contexts, so the
-header re-renders whenever any domain's `syncStatus` or `lastSynced` changes — including the 90 s
-background pull. Cheap per render, but it's the one component mounted on every screen.
-**Fix:** if it shows up in a profile, memoise the chip subtree or push the roll-up into a selector
-context. Not urgent. **S**
-
-### Seven independent 90-second pull timers
-`lib/useSyncedCollection.ts` sets `PULL_INTERVAL_MS = 90_000` per collection, and seven providers
-mount it — seven timers and up to seven concurrent request bursts every 90 s.
-**Fix:** a single shared scheduler that walks the domains would halve the wake-ups and let the
-requests be serialised. **M**
-
-### Very large screen modules
-`app/(tabs)/lists.tsx` 860 lines / 8 components, `app/(tabs)/notes.tsx` ~500,
-`app/(tabs)/calendar.tsx` 476, `app/settings.tsx` ~560. On web these are separate lazy bundles, so
-the parse cost lands on first navigation to that tab.
-**Fix:** extract components into `components/<domain>/` as the pattern already does for tasks and
-notes. Highest value on `lists.tsx` — which may be deleted anyway (§3). **M**
-
-### Calendar builds its grids inline
-`app/(tabs)/calendar.tsx` has 2 `useMemo`/`useCallback` uses in 476 lines and calls
-`getDaysInMonth`/`getWeekStart`/`addDays` during render. Already recorded as deferred in CLAUDE.md,
-and the screen is currently unreachable (§3) — no action while that's true. **—**
-
----
-
-## 6. Dead or half-built code
-
-| What | Where | Note |
-|---|---|---|
-| `useTasks()` / `useNotes()` / `useLists()` | `lib/TasksContext.tsx:315`, `NotesContext.tsx:237`, `ListsContext.tsx:282` | Marked `@deprecated`; **zero call sites** remain. Safe delete. **XS** |
-| Lists + Calendar screens | `app/(tabs)/lists.tsx`, `calendar.tsx` | Built, hidden from all navigation (§3). ~1,300 lines. |
-| One-shot migrations still running | `lib/migrateListsToNotes.ts`, `lib/migrateBlocksToBody.ts`, called from `app/_layout.tsx:94-95` | Guarded by `lists_migrated_v1` / `blocks_migrated_v1` flags, so they no-op forever on existing installs. Two modules + an effect kept alive for a case that can't recur. Delete after you're satisfied no device is unmigrated. **S** |
-| Legacy `Note.blocks` handling | `app/settings.tsx:275` (Markdown export) | Blocks were migrated to markdown bodies; the export still branches on them. **XS** |
-| Legacy `today_items_<date>` importer | `lib/TodayContext.tsx:95` | Same shape of thing — one-time, still on the load path. Lower priority: it's cheap and only runs when the new store is empty. |
-| Metro `ENOENT scandir 'fonts'` log | dev only | Already documented in CLAUDE.md as harmless. No action. |
+### 2026-07-26
+- **Sync "Sync failed", attributed to Courses.** Server data was clean; the
+  defect was cadence. Each collection ran its own 90s pull timer and six
+  providers mount together, so they stayed in phase and fired concurrent bursts.
+  A partly-failed burst left one domain in `error` with nothing scheduled to
+  clear it — the only retry was the next tick 90s later, and a domain that gets
+  no further writes never clears at all. `lib/syncScheduler.ts` now owns cadence:
+  one heartbeat, domains walked serially, exponential backoff on failure.
+  `OfflineBanner` also keyed "Sync failed" on Tasks alone, so its retry button
+  re-synced the wrong domain.
+- **Three-way merge for note bodies** (`lib/textMerge.ts`). Last-write-wins was
+  discarding one side when the same note was edited on two devices. Line-based
+  diff3 with a `sync:base:<table>` common ancestor; overlapping edits become an
+  inline conflict block rather than a silent winner. `npm run test:merge`.
+- Lists, Calendar and the command palette deleted (~2,080 lines). Both Supabase
+  tables left intact as backup.
+- PWA share target into Dump. Note the audit ranked this "highest value per
+  hour", which was optimistic: **iOS Safari does not implement Web Share
+  Target**, so on the primary device it needs the Shortcut in
+  `docs/share-target.md`.
+- Greeting block shrunk to a single line on narrow screens (114px → 60px) and
+  the duplicate dashboard gear removed.
+- `colors.scrim` and `layout.panel` tokens; `colors.textInverse` replacing
+  `color="#fff"`.
+- Raw `react-native` `Text` swept out of nav chrome. The audit claimed ten files
+  including every tab screen — the real count was **three**; the screens already
+  used `components/ui`.
+- `React.memo` on `TaskRow` (its `onPress` had to take an id first, or the memo
+  was worthless), and the sync chip moved into a memoised `SyncChip` leaf so
+  every domain's status change stopped re-rendering the whole header.
+- Deprecated `useTasks()`/`useNotes()` aliases, `SyncStatusBadge`,
+  `layout.tabBarHeight`, `migrateListsToNotes`, and the bulk
+  `migrateBlocksToBody` pass all deleted.
+- Bottom safe-area inset given a single owner (`lib/TabBarHeightContext.tsx`)
+  after `Platform.OS === "ios"` turned out to be false in the iOS PWA.
+- Settings trimmed; Dump date field made optional with d/m/y dropdowns.
 
 ---
 
-## 7. Feature suggestions, ranked by effort-to-value
+## Environment gotchas worth remembering
 
-Against the declared roadmap (field-level conflict merge, web push, PWA share target, iOS widgets,
-Reminders/Google Tasks sync).
-
-1. **PWA share target → Dump** — **S**. `share_target` in the manifest plus a route that creates a
-   dump from the shared title/text/url. Turns Dump into an OS-level inbox from any app's share
-   sheet, which is exactly what a frictionless-capture screen wants. Highest value per hour on the
-   list, and it needs no new backend.
-2. **Field-level conflict merge for note bodies** — **M**. The engine is last-write-wins per row
-   (`lib/useSyncedCollection.ts` `doMerge`), so editing the same note on two devices loses one
-   side's text. Everything else in the app is small-field data where LWW is fine; note bodies are
-   the one place it hurts. Scope it to `notes.body` rather than a general CRDT.
-3. **Web push for task reminders** — **M–L**. Needs a service worker, VAPID keys and an endpoint to
-   send from; Cloudflare Pages Functions could host it, so it fits the deploy pipeline. Value
-   depends on whether you want reminders on desktop — native notifications already cover iOS.
-4. **Native iOS widget (WidgetKit)** — **L**. Needs an Xcode/EAS native build, which is outside the
-   web-only pipeline. The Scriptable widget already covers the use case. Not worth it unless you
-   move to native builds for other reasons.
-5. **Reminders / Google Tasks two-way sync** — **L**. Two sources of truth, OAuth, and a
-   conflict story of its own. Low value while this is single-user and the app is already the
-   system of record.
-
-Smaller wins worth folding into any of the above: `colors.scrim` token (§4), `React.memo` on
-`TaskRow` (§5), deleting the deprecated context aliases (§6).
-
----
-
-## Already resolved
-
-Fixed in this session, listed so they aren't re-reported:
-
-- Bottom safe-area inset had no single owner; `Platform.OS === "ios"` offsets never fired in the
-  iOS PWA, leaving the FAB stack and toasts behind the tab bar. Now derived from the tab bar's
-  reported height (`lib/TabBarHeightContext.tsx`).
-- `components/ui/SyncStatusBadge.tsx` — a tappable chip imported nowhere. Deleted.
-- `layout.tabBarHeight` — a token read nowhere. Deleted.
-- `lib/useSyncStatus.ts` rolled up only 5 of 7 sync domains, so the header could read "synced"
-  while Dumps were erroring.
-- Settings carried four rows of sync status, four rows of sync-key controls, and an About card of
-  static text. Collapsed to two rows plus disclosures and a footer line.
-- The Dump date field defaulted every capture to today with no way to express "no date".
+- **`Platform.OS === "ios"` is `false` in the iOS home-screen PWA** (it is
+  `"web"`). Never gate safe-area or layout geometry on it.
+- **`edges={[...]}` on `SafeAreaView` does not mean "only these edges" on web** —
+  see above. Use `components/ui/SideSafeArea`.
+- **react-native-web's `onLayout` may never deliver an initial callback.**
+  Anything depending on a measured size needs a deterministic fallback.
+- **`useWindowDimensions` does not update on a programmatic (CDP) viewport
+  resize** — reload after resizing or you will measure the previous layout.
+- **A dismissed nested RN `<Modal>` can linger in the DOM on web.** Prefer a
+  conditionally rendered panel.
+- **Metro's dev server reports a spurious `X is not defined`** from a lazily
+  loaded module that gains a brand-new import mid-session: a shallow module
+  bundle cannot resolve a dependency absent from the client's registry. It is a
+  Fast Refresh artifact — verify on `expo export` output, not the dev server.
+- **The web safe-area provider reads `env(safe-area-inset-*)` once at mount**
+  through a hidden probe div, and its listener uses the legacy
+  `webkitTransitionEnd` event Chrome no longer fires. Insets therefore cannot be
+  simulated after load; inset-dependent layout needs a real device.
+- `127.0.0.1:8081` is a **separate origin** from `localhost:8081`, which gives a
+  clean localStorage for sync testing without touching existing dev data.
