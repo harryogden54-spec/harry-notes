@@ -11,6 +11,7 @@ import { useThemeContext } from "@/lib/ThemeContext";
 import { useSyncAll } from "@/lib/useSyncStatus";
 import { useToast } from "@/lib/ToastContext";
 import { useMounted } from "@/lib/useMounted";
+import { OfflineBanner } from "./OfflineBanner";
 
 function syncChipLabel(status: string, lastSynced: string | null, mounted: boolean): string | null {
   // Render nothing until mounted: the relative time would differ between the
@@ -104,6 +105,10 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
       borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
       backgroundColor: colors.bgSecondary,
       minHeight: 40,
+      // Raise the header above the screen content that follows it in the tree,
+      // so OfflineBanner — absolutely positioned below the header's bottom edge
+      // — paints over that content instead of behind it.
+      zIndex: 20,
     }}>
       {showTitle ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
@@ -153,6 +158,11 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
           <Ionicons name="settings-outline" size={16} color={colors.textSecondary} />
         </Pressable>
       )}
+      {/* Lives inside the header so it can anchor to the header's bottom edge
+          without measuring it, and overlays the screen rather than displacing
+          it. Both layouts used to render it as a normal-flow sibling, which
+          made every sync retry shove the page up and down. */}
+      <OfflineBanner />
     </View>
   );
 }

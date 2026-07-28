@@ -12,6 +12,7 @@ import { useTasksData, useTasksActions } from "@/lib/TasksContext";
 import { useNotesData, useNotesActions, type Note } from "@/lib/NotesContext";
 import { notesToZip, pickMarkdownFiles } from "@/lib/notesExport";
 import { useSyncAll } from "@/lib/useSyncStatus";
+import { lastFailureFor, useSyncFailures } from "@/lib/syncLog";
 import { useToast } from "@/lib/ToastContext";
 import { Text, Divider, GradientBackground } from "@/components/ui";
 import { SectionLabel, RowGroup, Row, SyncDot, formatRelativeTime } from "@/components/settings/rows";
@@ -28,6 +29,8 @@ export default function SettingsScreen() {
   // One source for sync state and the manual trigger, shared with the header
   // chip — see lib/useSyncStatus.ts.
   const { status: overallSync, lastSynced, domains: syncDomains, syncAll } = useSyncAll();
+  // Subscription only — the per-domain lookup below reads the same store.
+  useSyncFailures();
   const { tasks } = useTasksData();
   const { clearCompleted } = useTasksActions();
   const { notes } = useNotesData();
@@ -245,9 +248,21 @@ export default function SettingsScreen() {
             />
             {syncExpanded && (
               <View style={{ backgroundColor: colors.bgTertiary }}>
-                {syncDomains.map(d => (
-                  <Row key={d.label} label={d.label} right={<SyncDot status={d.status} />} />
-                ))}
+                {syncDomains.map(d => {
+                  // Show the reason, not just the dot. Only while the domain is
+                  // actually failing: the log keeps entries after a domain
+                  // recovers, and a stale message next to a green dot reads as a
+                  // live problem. See lib/syncLog.ts.
+                  const failure = d.status === "error" ? lastFailureFor(d.table) : null;
+                  return (
+                    <Row
+                      key={d.label}
+                      label={d.label}
+                      subtitle={failure ? `${failure.op} — ${failure.message}` : undefined}
+                      right={<SyncDot status={d.status} />}
+                    />
+                  );
+                })}
                 <Row label="Project" subtitle="vbegnnwyrbxiqdnzvhwk · eu-north-1" />
               </View>
             )}

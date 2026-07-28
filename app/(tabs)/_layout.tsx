@@ -11,7 +11,7 @@ import { useTasksActions } from "@/lib/TasksContext";
 import { useNotesActions } from "@/lib/NotesContext";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
 import { RouteFade } from "@/components/ui";
-import { PersistentHeader, OfflineBanner, Sidebar, MobileTabBar, NAV_ITEMS } from "@/components/nav";
+import { PersistentHeader, Sidebar, MobileTabBar, NAV_ITEMS } from "@/components/nav";
 
 export default function TabLayout() {
   const { colors, scheme } = useTheme();
@@ -69,7 +69,6 @@ export default function TabLayout() {
         <Sidebar collapsed={collapsed} onToggleCollapse={toggleSidebar} />
         <View style={{ flex: 1, overflow: "hidden" }}>
           <PersistentHeader showTitle={false} />
-          <OfflineBanner />
           <RouteFade>
             <Tabs screenOptions={{ tabBarStyle: { display: "none" }, headerShown: false }}>
               {NAV_ITEMS.map(item => <Tabs.Screen key={item.name} name={item.name} />)}
@@ -104,7 +103,6 @@ export default function TabLayout() {
   return (
     <>
       <PersistentHeader />
-      <OfflineBanner />
       {/* Dual FAB */}
       <View
         // Derived from the tab bar's measured height — a Platform.OS === "ios"

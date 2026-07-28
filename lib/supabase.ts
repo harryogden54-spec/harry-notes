@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSyncKey, getCachedSyncKey } from "./syncKey";
+import { recordSyncFailure } from "./syncLog";
 
 // Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
 // Fail loudly if missing so a misconfigured build surfaces immediately rather
@@ -100,6 +101,7 @@ export async function syncFetch<T extends { id: string }>(
       const { data, error } = await query;
       if (error) {
         console.warn(`syncFetch ${table}:`, error.message);
+        recordSyncFailure(table, "fetch", error.message);
         return { ok: false, error: error.message };
       }
       all.push(...(data ?? []));
@@ -119,7 +121,9 @@ export async function syncFetch<T extends { id: string }>(
     return { ok: true, rows, deletedIds, serverMax };
   } catch (e: any) {
     console.warn(`syncFetch ${table}: network error`, e);
-    return { ok: false, error: e?.message ?? "network error" };
+    const message = e?.message ?? "network error";
+    recordSyncFailure(table, "fetch", message);
+    return { ok: false, error: message };
   }
 }
 
@@ -154,6 +158,7 @@ export async function syncFetchByIds<T extends { id: string }>(
         .in("id", ids.slice(i, i + ID_CHUNK));
       if (error) {
         console.warn(`syncFetchByIds ${table}:`, error.message);
+        recordSyncFailure(table, "fetchByIds", error.message);
         return { ok: false, error: error.message };
       }
       for (const row of (data ?? []) as any[]) {
@@ -167,7 +172,9 @@ export async function syncFetchByIds<T extends { id: string }>(
     return { ok: true, rows, deletedIds, serverMax };
   } catch (e: any) {
     console.warn(`syncFetchByIds ${table}: network error`, e);
-    return { ok: false, error: e?.message ?? "network error" };
+    const message = e?.message ?? "network error";
+    recordSyncFailure(table, "fetchByIds", message);
+    return { ok: false, error: message };
   }
 }
 
@@ -211,6 +218,7 @@ export async function syncUpsert<T extends { id: string }>(
         if (rowErr) {
           allOk = false;
           console.warn(`syncUpsert ${table} row ${row.id}:`, rowErr.message);
+          recordSyncFailure(table, "upsert", `row ${row.id}: ${rowErr.message}`);
         }
       }
     }
@@ -234,6 +242,10 @@ export async function syncDelete(table: string, id: string): Promise<boolean> {
   const { error } = await supabase
     .from(table)
     .upsert([{ id, data: { id }, sync_key: syncKey, deleted: true }], { onConflict: UPSERT_ON_CONFLICT });
-  if (error) { console.warn(`syncDelete ${table}:`, error.message); return false; }
+  if (error) {
+    console.warn(`syncDelete ${table}:`, error.message);
+    recordSyncFailure(table, "delete", `id ${id}: ${error.message}`);
+    return false;
+  }
   return true;
 }

@@ -11,6 +11,8 @@ export type SyncState = "idle" | "syncing" | "synced" | "error";
 export type SyncDomain = {
   /** Display name — used by the Settings per-collection breakdown. */
   label: string;
+  /** Supabase table name — the key lib/syncLog.ts records failures against. */
+  table: string;
   status: SyncState;
   lastSynced: string | null;
 };
@@ -31,12 +33,12 @@ export function useSyncDomains(): SyncDomain[] {
   const today      = useTodaySync();
 
   return [
-    { label: "Tasks",      status: tasks.syncStatus,      lastSynced: tasks.lastSynced },
-    { label: "Notes",      status: notes.syncStatus,      lastSynced: notes.lastSynced },
-    { label: "Dumps",      status: dumps.syncStatus,      lastSynced: dumps.lastSynced },
-    { label: "Courses",    status: courses.syncStatus,    lastSynced: courses.lastSynced },
-    { label: "Categories", status: categories.syncStatus, lastSynced: categories.lastSynced },
-    { label: "Today",      status: today.syncStatus,      lastSynced: today.lastSynced },
+    { label: "Tasks",      table: "tasks",           status: tasks.syncStatus,      lastSynced: tasks.lastSynced },
+    { label: "Notes",      table: "notes",           status: notes.syncStatus,      lastSynced: notes.lastSynced },
+    { label: "Dumps",      table: "dumps",           status: dumps.syncStatus,      lastSynced: dumps.lastSynced },
+    { label: "Courses",    table: "courses",         status: courses.syncStatus,    lastSynced: courses.lastSynced },
+    { label: "Categories", table: "task_categories", status: categories.syncStatus, lastSynced: categories.lastSynced },
+    { label: "Today",      table: "today_items",     status: today.syncStatus,      lastSynced: today.lastSynced },
   ];
 }
 
