@@ -58,13 +58,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty("--accent", accent);
   }, [accentId]);
 
-  // Paint the raw <body> in the theme background on web. The document body
-  // otherwise stays browser-default white, which shows through as a white
-  // bar whenever iOS Safari offsets the app for the keyboard.
+  // Paint the raw <body> on web. The body otherwise stays browser-default white
+  // and shows through as a white bar whenever iOS offsets the app for the
+  // keyboard.
+  //
+  // The colour is the *chrome* background, not the page background. Every strip
+  // the body can ever show through is adjacent to the header or the tab bar —
+  // both bgSecondary — never to page content:
+  //   · an area outside the layout viewport that iOS paints itself (the
+  //     home-indicator strip below the tab bar when viewport-fit=cover is not in
+  //     effect; see lib/webViewport.ts)
+  //   · the gap under the app when the keyboard leaves the page scrolled up
+  // Using bgPrimary made those strips a visibly different shade from the bar
+  // they sit against, which is what read as a band of stray padding. bgSecondary
+  // makes them continuous with it, so a strip is invisible rather than merely
+  // themed. theme-color keeps bgPrimary — that tints browser UI, not the app.
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     const base = (THEMES[themeId] ?? THEMES.obsidian)[scheme];
-    document.body.style.backgroundColor = base.bgPrimary;
+    document.body.style.backgroundColor = base.bgSecondary;
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", base.bgPrimary);
   }, [themeId, scheme]);
 
