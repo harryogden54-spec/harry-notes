@@ -235,6 +235,10 @@ export async function syncUpsert<T extends { id: string }>(
  */
 export async function syncDelete(table: string, id: string): Promise<boolean> {
   if (!SYNC_ENABLED) return true;
+  // Nothing deletable. Report success so the caller drains the entry from its
+  // retry queue — returning false would pin the domain at `error` forever,
+  // which is exactly what a stranded null in the courses queue did.
+  if (typeof id !== "string" || !id) return true;
 
   const syncKey = await getSyncKey();
   if (!syncKey) return true;

@@ -147,6 +147,10 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
    *  it succeeds — the contexts no longer call syncDelete themselves). */
   const markLocallyDeleted = useCallback((...ids: string[]) => {
     for (const id of ids) {
+      // A non-id in this queue is poison: syncDelete can never land it, so
+      // flushRemoteDeletes fails every pass and pins the domain at `error`
+      // forever (a literal null did exactly that to courses).
+      if (typeof id !== "string" || !id) continue;
       localDeletesRef.current.add(id);
       localDirtyRef.current.delete(id);
       dirtyIdsRef.current.delete(id);
@@ -542,11 +546,23 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         mergeTextField ? storage.get<Record<string, string>>(baseTextKey) : Promise.resolve(null),
       ]);
       if (storedBase) baseTextRef.current = storedBase;
-      for (const id of storedDirty ?? []) dirtyIdsRef.current.add(id);
+      // Filter both persisted queues to real ids on the way in. A null that
+      // slipped into sync:pendingDelete:courses (origin unknown, pre-guard)
+      // failed its tombstone upsert on every pass and held the domain at
+      // `error` permanently — hydration is where every device heals itself.
+      let droppedJunk = false;
+      for (const id of storedDirty ?? []) {
+        if (typeof id === "string" && id) dirtyIdsRef.current.add(id);
+        else droppedJunk = true;
+      }
       for (const id of storedDeletes ?? []) {
+        if (typeof id !== "string" || !id) { droppedJunk = true; continue; }
         pendingRemoteDeletesRef.current.add(id);
         pendingDeletesRef.current.add(id); // guards doMerge from resurrecting it
       }
+      // Rewrite the cleaned queues so the junk doesn't sit in storage forever
+      // (flushRemoteDeletes early-returns on an empty set without persisting).
+      if (droppedJunk) { persistDirty(); persistPendingDeletes(); }
       let local = raw;
       if (onLoad) {
         const result = onLoad(raw);

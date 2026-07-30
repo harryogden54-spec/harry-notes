@@ -261,6 +261,14 @@ pinned notes). Also removed the dashboard greeting's accent gradient as part of
 accent restraint — the one change that reverses an earlier deliberate choice;
 the spot is commented in `app/(tabs)/index.tsx`.
 
+July 30: the persistent "Sync failed / Courses" was a literal `null` stranded in
+`sync:pendingDelete:courses` (localStorage, origin pre-guard) — its tombstone upsert can never
+land, so `flushRemoteDeletes` failed every pass and pinned the domain at `error`; the July 27
+scheduler fix only addressed the *stale-status* half. Fixed by validating ids at all three
+mouths of the queue (markLocallyDeleted, hydration filter that also rewrites the cleaned
+queues, and syncDelete returning success for non-ids so the entry drains). Devices self-heal
+on next load after deploy — no manual localStorage surgery.
+
 In progress: —
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
 Awaiting confirmation: the PWA padding fix could not be verified locally — the
