@@ -33,6 +33,15 @@ Inter + Ionicons `.ttf` files are committed at `public/fonts/` and referenced by
 
 One cosmetic, harmless leftover: the Metro terminal (not the browser) logs `Error: ENOENT: ... scandir 'fonts'` once per page load on web. Root cause wasn't isolated — it's unrelated to the `/fonts/` static files (those load fine; checked via `document.fonts` reporting `"loaded"` for all five). Safe to ignore.
 
+### Known accepted error — NativeWind `Appearance.setColorScheme` on web
+
+Once per page load the console logs an uncaught `Cannot manually set color scheme, as dark
+mode is class-based` error. It comes from NativeWind v4's own web color-scheme observer
+(`colorScheme.set` fired from a MutationObserver on `<head>`), which calls RN-Web's
+`Appearance.setColorScheme` — rejected because dark mode is class-based. No app code is
+involved (the theme system is custom via `ThemeContext`), theming works, and fixing it would
+need patch-package or a NativeWind upgrade. **Accepted as known and harmless.**
+
 ### Known accepted warning — RN-Web `<Modal>` deprecated `pointerEvents`
 
 `react-native-web`'s own internal `<Modal>` implementation (`ModalAnimation.js`) still triggers the deprecated-`pointerEvents`-as-a-prop console warning on web. All of *our* call sites were fixed (they use the `style.pointerEvents` form) — this residual warning comes from inside the library itself, not app code, and isn't fixable without a `patch-package` override or an RN-Web upgrade. The deploy pipeline has no patch step, so **accepted as a known, harmless, cosmetic console warning** rather than patched. Revisit if/when RN-Web is upgraded.
