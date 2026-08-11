@@ -6,7 +6,7 @@ import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily } from "@/lib/theme";
 import { getLocalDateStr } from "@/lib/utils";
 
-const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
@@ -40,7 +40,8 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
     setView(v => v.m === 11 ? { y: v.y + 1, m: 0 } : { y: v.y, m: v.m + 1 });
   }
 
-  const firstDay = new Date(view.y, view.m, 1).getDay();
+  // Monday-first: getDay() is Sunday-based, rotate so Monday = 0
+  const firstDay = (new Date(view.y, view.m, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
 
   const cells: (number | null)[] = [

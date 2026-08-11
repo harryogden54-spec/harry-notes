@@ -125,11 +125,9 @@ function TasksScreen() {
         ...(priority ? { priority } : {}),
       });
     }
-    setExpandedId(id);
-    // Open the detail on the new task — previously desktop-only, now everywhere,
-    // since there is one detail surface. If this interrupts adding several tasks
-    // in a row, drop this line and the quick-add row goes back to staying put.
-    setSelectedTaskId(id);
+    // Quick add stays put — no auto-expand. Opening the detail here interrupted
+    // adding several tasks in a row; the expand icon is the deliberate path to
+    // the full form (handleExpandNew).
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [addTask, updateTask]);
 
@@ -271,10 +269,16 @@ function TasksScreen() {
   return (
     <GradientBackground>
       <SideSafeArea style={{ flex: 1 }}>
+        {/* Floats over the content — in normal flow its appearance shifted the whole screen */}
         {pillText && (
-          <View style={{ alignItems: "center", paddingVertical: spacing[1] }}>
-            <View style={{ backgroundColor: `${colors.accent}20`, borderRadius: 99, paddingHorizontal: spacing[3], paddingVertical: 3 }}>
-              <Text size="xs" style={{ color: colors.accent }}>{pillText}</Text>
+          <View
+            pointerEvents="none"
+            style={{ position: "absolute", top: spacing[2], left: 0, right: 0, zIndex: 20, alignItems: "center" }}
+          >
+            <View style={{ backgroundColor: colors.bgSecondary, borderRadius: 99, overflow: "hidden" }}>
+              <View style={{ backgroundColor: `${colors.accent}20`, paddingHorizontal: spacing[3], paddingVertical: 3 }}>
+                <Text size="xs" style={{ color: colors.accent }}>{pillText}</Text>
+              </View>
             </View>
           </View>
         )}

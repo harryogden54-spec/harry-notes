@@ -589,19 +589,67 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     const container = containerRef.current;
     const sel = window.getSelection();
     if (!container || !sel || sel.rangeCount === 0) return;
-    const block = findTopLevelBlock(container, sel.getRangeAt(0).startContainer);
-    if (!block) return;
-    const currentLabel = block.getAttribute("data-md-type") === "checkbox"
-      ? block.querySelector('[data-md-checkbox-label]')
-      : block;
-    const text = currentLabel ? inlineNodeToMarkdown(currentLabel) : "";
-    const next = createBlockElement({ type, text, checked: false });
-    block.replaceWith(next);
-    const range = document.createRange();
-    range.selectNodeContents(next);
-    range.collapse(false);
+    const range = sel.getRangeAt(0);
+    // Select-all (Ctrl+A) puts the range boundaries on the container itself,
+    // where findTopLevelBlock has no ancestor block to find — resolve those
+    // boundaries to the child at the range offset instead.
+    const boundaryBlock = (node: Node, offset: number, isEnd: boolean): HTMLElement | null => {
+      if (node === container) {
+        const idx = Math.max(0, Math.min(isEnd ? offset - 1 : offset, container.children.length - 1));
+        return (container.children[idx] as HTMLElement) ?? null;
+      }
+      return findTopLevelBlock(container, node);
+    };
+    const startBlock = boundaryBlock(range.startContainer, range.startOffset, false);
+    const endBlock   = boundaryBlock(range.endContainer, range.endOffset, true);
+    if (!startBlock) return;
+
+    // Every top-level block the selection touches, not just the first — a
+    // multi-line selection converts as a group (the whole point of selecting).
+    const blocks: HTMLElement[] = [startBlock];
+    if (endBlock && endBlock !== startBlock) {
+      let cur: Element | null = startBlock.nextElementSibling;
+      while (cur) {
+        blocks.push(cur as HTMLElement);
+        if (cur === endBlock) break;
+        cur = cur.nextElementSibling;
+      }
+      if (cur !== endBlock) blocks.length = 1; // end precedes start — bail to single-block
+    }
+
+    let firstNew: HTMLElement | null = null;
+    let lastNew: HTMLElement | null = null;
+    for (const block of blocks) {
+      const mdType = block.getAttribute("data-md-type");
+      // Structural blocks have no line of text to re-type; leave them intact.
+      if (mdType === "image" || mdType === "tablerow" || mdType === "tablesep" || block.tagName === "HR") continue;
+      const currentLabel = mdType === "checkbox"
+        ? block.querySelector('[data-md-checkbox-label]')
+        : block;
+      const text = currentLabel ? inlineNodeToMarkdown(currentLabel) : "";
+      const next = createBlockElement({ type, text, checked: false });
+      block.replaceWith(next);
+      if (!firstNew) firstNew = next;
+      lastNew = next;
+    }
+    if (!firstNew || !lastNew) return;
+
+    const contentOf = (el: HTMLElement) =>
+      (el.getAttribute("data-md-type") === "checkbox"
+        ? (el.querySelector('[data-md-checkbox-label]') as HTMLElement | null)
+        : el) ?? el;
+
+    const newRange = document.createRange();
+    if (firstNew === lastNew) {
+      newRange.selectNodeContents(contentOf(lastNew));
+      newRange.collapse(false);
+    } else {
+      // Keep the multi-line selection so a follow-up toolbar action still applies.
+      newRange.selectNodeContents(contentOf(lastNew));
+      newRange.setStart(contentOf(firstNew), 0);
+    }
     sel.removeAllRanges();
-    sel.addRange(range);
+    sel.addRange(newRange);
     container.focus();
     serialize();
   }, [serialize]);

@@ -1,7 +1,9 @@
 import React from "react";
 import { View } from "react-native";
 import { useTheme } from "@/lib/useTheme";
-import { Text } from "@/components/ui";
+// Direct import, not the barrel: components/ui/index.ts re-exports TaskRow,
+// which renders this badge — the barrel would be a require cycle.
+import { Text } from "@/components/ui/Text";
 import { spacing, resolveAccentSwatch } from "@/lib/theme";
 import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import type { TaskCategory, UniCourse } from "@/lib/TasksContext";

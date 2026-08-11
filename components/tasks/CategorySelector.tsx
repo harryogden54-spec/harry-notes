@@ -2,7 +2,7 @@ import React from "react";
 import { View, Pressable } from "react-native";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, radius, resolveAccentSwatch } from "@/lib/theme";
+import { spacing, resolveAccentSwatch } from "@/lib/theme";
 import { UNI_COURSES, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
 import { useCategoriesData, topLevel, childrenOf, rootCategoryId } from "@/lib/TaskCategoriesContext";
 
@@ -43,7 +43,7 @@ export function CategorySelector({ category, uniCourse, onChange }: Props) {
               )}
               style={{
                 paddingHorizontal: spacing[2], paddingVertical: spacing[1],
-                borderRadius: radius.sm, borderWidth: 1,
+                borderRadius: 99, borderWidth: 1,
                 borderColor: active ? swatch.color : colors.bgBorder,
                 backgroundColor: active ? swatch.subtle : "transparent",
               }}

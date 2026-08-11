@@ -11,6 +11,7 @@ import { Checkbox } from "./Checkbox";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
 import { useTasksActions, type Task } from "@/lib/TasksContext";
+import { CategoryBadge } from "@/components/tasks/CategoryBadge";
 import { useToast } from "@/lib/ToastContext";
 import { getTodayStr, getTomorrowStr, formatDueDate, PRIORITY_COLOR } from "@/lib/utils";
 
@@ -135,6 +136,8 @@ function RowContent({ task, onPress }: Props) {
           </View>
         )}
       </View>
+      {/* Same badge the tasks screen uses, so a task reads the same everywhere */}
+      <CategoryBadge category={task.category} uniCourse={task.uniCourse} />
       {due && (
         <View style={{ backgroundColor: `${due.color}18`, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
           <Text size="xs" weight="medium" style={{ color: due.color, fontSize: 11.5 }}>{due.label}</Text>

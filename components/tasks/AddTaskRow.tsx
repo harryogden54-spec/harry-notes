@@ -1,16 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, TextInput, Pressable } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, DatePicker, Surface } from "@/components/ui";
-import { spacing, radius, resolveAccentSwatch } from "@/lib/theme";
+import { spacing, radius } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate } from "@/lib/utils";
-import { UNI_COURSES, type TaskCategory, type UniCourse, type Priority } from "@/lib/TasksContext";
-import { useCategoriesData } from "@/lib/TaskCategoriesContext";
+import { type TaskCategory, type UniCourse, type Priority } from "@/lib/TasksContext";
 import { Chip } from "./Chip";
 import { formatDate } from "./constants";
 import { PrioritySelector } from "./PrioritySelector";
+import { CategorySelector } from "./CategorySelector";
 
 
 type Props = {
@@ -28,11 +28,7 @@ type Props = {
 };
 
 export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
-  const { colors, scheme } = useTheme();
-  const { categories } = useCategoriesData();
-  const sortedCategories = [...categories].sort((a, b) => a.order - b.order);
-  const uniCat = sortedCategories.find(c => c.id === "uni");
-  const uniColor = resolveAccentSwatch(uniCat?.color ?? "orchid", scheme).color;
+  const { colors } = useTheme();
   const [value, setValue]               = useState("");
   const [focused, setFocused]           = useState(false);
   const [quickDate, setQuickDate]       = useState<string | undefined>();
@@ -40,8 +36,21 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
   const [quickCourse, setQuickCourse]   = useState<UniCourse>("Misc");
   const [quickPriority, setQuickPriority] = useState<Priority | undefined>();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (blurTimer.current) clearTimeout(blurTimer.current); }, []);
 
-  const showOptions = focused || value.length > 0 || !!quickDate || !!quickCat || !!quickPriority;
+  // Blur must not collapse the options row before a click on one of its chips
+  // lands — on web, mousedown blurs the input first, and an immediate collapse
+  // unmounts the chip under the pointer so the click hits nothing.
+  const handleFocus = () => {
+    if (blurTimer.current) { clearTimeout(blurTimer.current); blurTimer.current = null; }
+    setFocused(true);
+  };
+  const handleBlur = () => {
+    blurTimer.current = setTimeout(() => setFocused(false), 150);
+  };
+
+  const showOptions = focused || value.length > 0 || !!quickDate || !!quickCat || !!quickPriority || showDatePicker;
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
   const nextWeek = getNextWeekStr();
@@ -77,8 +86,8 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
             ref={inputRef}
             value={value}
             onChangeText={setValue}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onSubmitEditing={submit}
             placeholder="New task… (press N)"
             placeholderTextColor={colors.textTertiary}
@@ -164,48 +173,17 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
                 )}
               </View>
 
-              {/* Category row */}
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[1.5], flexWrap: "wrap" }}>
+              {/* Category row — same selector as the detail modal, so quick add
+                  shows the same hierarchy (top-level chips + subcategory row)
+                  instead of a flat list mixing subs in with parents. */}
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[1.5] }}>
                 <Text size="xs" style={{ color: colors.textTertiary, width: 32, marginTop: 3 }}>Cat.</Text>
-                <View style={{ flex: 1, gap: spacing[1.5] }}>
-                  <View style={{ flexDirection: "row", gap: spacing[1.5], flexWrap: "wrap" }}>
-                    {sortedCategories.map(cat => {
-                      const color = resolveAccentSwatch(cat.color, scheme).color;
-                      const active = quickCat === cat.id;
-                      return (
-                        <Pressable
-                          key={cat.id}
-                          onPress={() => setQuickCat(c => c === cat.id ? undefined : cat.id)}
-                          style={{
-                            paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
-                            borderRadius: 99, borderWidth: 1,
-                            borderColor: active ? color : colors.bgBorder,
-                            backgroundColor: active ? `${color}18` : "transparent",
-                          }}
-                        >
-                          <Text size="xs" style={{ color: active ? color : colors.textSecondary }}>{cat.name}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  {quickCat === "uni" && (
-                    <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
-                      {UNI_COURSES.map(course => (
-                        <Pressable
-                          key={course}
-                          onPress={() => setQuickCourse(course)}
-                          style={{
-                            paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
-                            borderRadius: 99, borderWidth: 1,
-                            borderColor: quickCourse === course ? uniColor : colors.bgBorder,
-                            backgroundColor: quickCourse === course ? `${uniColor}18` : "transparent",
-                          }}
-                        >
-                          <Text size="xs" style={{ color: quickCourse === course ? uniColor : colors.textSecondary }}>{course}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
+                <View style={{ flex: 1 }}>
+                  <CategorySelector
+                    category={quickCat}
+                    uniCourse={quickCourse}
+                    onChange={(cat, course) => { setQuickCat(cat); setQuickCourse(course ?? "Misc"); }}
+                  />
                 </View>
               </View>
 
