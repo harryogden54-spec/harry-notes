@@ -4,7 +4,7 @@ import { useTheme } from "@/lib/useTheme";
 // Direct import, not the barrel: components/ui/index.ts re-exports TaskRow,
 // which renders this badge — the barrel would be a require cycle.
 import { Text } from "@/components/ui/Text";
-import { spacing, resolveAccentSwatch } from "@/lib/theme";
+import { shape, resolveAccentSwatch } from "@/lib/theme";
 import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import type { TaskCategory, UniCourse } from "@/lib/TasksContext";
 
@@ -35,8 +35,7 @@ export const CategoryBadge = React.memo(function CategoryBadge({ category, uniCo
     : (cat?.name ?? "Uncategorized");
   return (
     <View style={{
-      paddingHorizontal: spacing[1.5], paddingVertical: 2,
-      borderRadius: 99, backgroundColor: `${color}18`,
+      ...shape.pill, backgroundColor: `${color}18`,
       borderWidth: 1, borderColor: `${color}40`,
     }}>
       <Text size="xs" style={{ color }} numberOfLines={1}>{label}</Text>

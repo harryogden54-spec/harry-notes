@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { View, TextInput, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, inputText } from "@/lib/theme";
 
 interface SearchBarProps {
   value: string;
@@ -39,7 +39,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
         placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         style={[
-          { flex: 1, color: colors.textPrimary, fontSize: 14 },
+          { flex: 1, color: colors.textPrimary, ...inputText },
           // @ts-ignore
           { outlineStyle: "none" },
         ]}

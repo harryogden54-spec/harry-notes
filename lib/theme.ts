@@ -154,14 +154,40 @@ export const radius = {
 } as const;
 
 /**
+ * Shared geometry for the small repeated shapes, so two components sitting side
+ * by side actually match. Every one of these existed already — as
+ * `paddingHorizontal: 5 | 6 | 7 | 8 | 9` and `paddingVertical: 1 | 2 | 3`
+ * scattered across a dozen files, which is why a due pill and a category badge
+ * on the same row never quite aligned.
+ *
+ * Sizes sit on the 8px rhythm (or its halves) rather than on whatever looked
+ * right in one component at one moment.
+ */
+export const shape = {
+  /** Metadata pills: due date, priority, category badge. */
+  pill:      { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  /** The small numeric counter beside a section label. */
+  countPill: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
+  /** Padding inside a content card (TaskCard, NoteCard, NoteIndexRow). */
+  card:      { paddingHorizontal: 16, paddingVertical: 16 },
+} as const;
+
+/**
  * Type scale.
  *
- * The steps up to `base` are deliberately unchanged — they carry dense UI (rows,
- * chips, metadata) and nudging them reflows a lot for no gain. Everything above
- * `base` was widened: headings used to sit only 2px apart from each other and
- * only 2–5px above body, so a screen read as one flat texture with no visible
- * hierarchy. The gap between body (15) and a page title (30) is now a real ratio
- * rather than a hint.
+ * Two families of name, and the distinction matters:
+ *
+ *   t-shirt sizes (2xs…3xl) — raw steps. Reach for these only when no role
+ *     below describes what you are setting.
+ *   ROLE tokens (meta/label/cardTitle/title/display) — what the text *is*.
+ *     Prefer these: they are the reason two screens agree without anyone
+ *     comparing them, and they are where a future retune lands in one edit.
+ *
+ * The steps up to `base` carry dense UI (rows, chips, metadata) and are
+ * deliberately close together. Everything above `base` was widened on
+ * 2026-07-27: headings used to sit 2px apart from each other and 2–5px above
+ * body, so a screen read as one flat texture. The gap between body (15) and a
+ * page title (30) is now a real ratio rather than a hint.
  */
 export const typography = {
   "2xs": { fontSize: 10, lineHeight: 14 },
@@ -172,14 +198,39 @@ export const typography = {
   xl:    { fontSize: 22, lineHeight: 30 },
   "2xl": { fontSize: 26, lineHeight: 34, letterSpacing: -0.2 },
   "3xl": { fontSize: 32, lineHeight: 40, letterSpacing: -0.4 },
-  // Atelier editorial styles
+
+  // ── Role tokens ────────────────────────────────────────────────────────────
   /** Screen greetings / hero titles — confident, tightly-tracked. */
   display: { fontSize: 40, lineHeight: 46, letterSpacing: -1 },
   /** Page titles (Tasks/Notes headers). */
   title:   { fontSize: 30, lineHeight: 36, letterSpacing: -0.6 },
-  /** Uppercase section labels — small, wide-tracked, textTertiary. */
-  label:   { fontSize: 12, lineHeight: 16, letterSpacing: 0.8 },
+  /**
+   * The heading on a card or list item — a note's name, a task's title.
+   * Sits a step above body so a grid of cards has a scannable top line;
+   * call sites used to spell this as a bare `size="sm"` with a weight.
+   */
+  cardTitle: { fontSize: 15, lineHeight: 21, letterSpacing: -0.1 },
+  /**
+   * Uppercase section labels ("ALL NOTES", "UNCATEGORIZED"). Pair with
+   * weight="semibold" and textTransform: "uppercase" — the tracking here
+   * assumes caps. Was 12/0.8, which no call site used: every one of them
+   * overrode it to 11/1.2, so the token now says what the app actually does.
+   */
+  label:   { fontSize: 11, lineHeight: 15, letterSpacing: 1.2 },
+  /**
+   * Supporting metadata: timestamps, counts, due pills, chip text. The single
+   * caption size — this was previously written as 11, 11.5 and 12 in different
+   * files, which is why meta text never quite lined up between two components.
+   */
+  meta:    { fontSize: 11.5, lineHeight: 16 },
 } as const;
+
+/**
+ * Body text inside a TextInput. RN does not inherit type, so every input sets
+ * its own size and they had drifted to 13/14/15/16 across the app. Titles and
+ * other deliberately-large inputs opt out; everything at body level uses this.
+ */
+export const inputText = { fontSize: 15, lineHeight: 21 } as const;
 
 export type ColorScheme = "dark" | "light";
 

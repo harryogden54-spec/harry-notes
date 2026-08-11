@@ -3,7 +3,7 @@ import { View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, radius, resolveAccentSwatch } from "@/lib/theme";
+import { spacing, radius, shape, resolveAccentSwatch } from "@/lib/theme";
 import { useCategoriesData, topLevel, rootCategoryId } from "@/lib/TaskCategoriesContext";
 import type { Task } from "@/lib/TasksContext";
 import { TaskCard } from "./TaskCard";
@@ -106,17 +106,17 @@ function ColumnHeader({ label, count, color }: { label: string; count: number; c
   const { colors } = useTheme();
   const dot = color ?? colors.textTertiary;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginBottom: spacing[3], paddingHorizontal: 6 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: spacing[3], paddingHorizontal: spacing[1.5] }}>
       <View style={{ width: 9, height: 9, borderRadius: 99, backgroundColor: dot }} />
-      <Text size="xs" weight="semibold" style={{ letterSpacing: 0.8, color: colors.textSecondary, textTransform: "uppercase" }}>
+      <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase" }}>
         {label}
       </Text>
       {count > 0 && (
         <View style={{
           backgroundColor: color ? `${color}2E` : colors.bgTertiary,
-          borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1,
+          ...shape.countPill,
         }}>
-          <Text size="xs" weight="semibold" style={{ color: color ?? colors.textTertiary, fontSize: 11.5 }}>{count}</Text>
+          <Text size="meta" weight="semibold" color={color ?? colors.textTertiary}>{count}</Text>
         </View>
       )}
     </View>

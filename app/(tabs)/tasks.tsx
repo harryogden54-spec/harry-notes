@@ -240,13 +240,23 @@ function TasksScreen() {
   }, [syncNow]);
 
   if (!loaded) {
+    // Mirrors the real layout — title, quick-add row, then column headers and
+    // cards at the card radius. A stack of identical flat bars is a different
+    // shape from what arrives, so the screen visibly jumped when it resolved.
     return (
       <GradientBackground>
         <SideSafeArea style={{ flex: 1 }}>
-          <View style={{ padding: spacing[4], gap: spacing[3] }}>
-            {[1, 2, 3, 4, 5].map(i => (
-              <Skeleton key={i} height={52} borderRadius={10} />
-            ))}
+          <View style={{ padding: spacing[4], paddingTop: spacing[8], gap: spacing[5] }}>
+            <Skeleton height={30} width="45%" borderRadius={radius.md} />
+            <Skeleton height={56} borderRadius={radius.xl} />
+            <View style={{ flexDirection: isDesktop ? "row" : "column", gap: spacing[5] }}>
+              {[0, 1].map(col => (
+                <View key={col} style={{ flex: 1, gap: spacing[2.5] }}>
+                  <Skeleton height={12} width="35%" borderRadius={radius.sm} />
+                  {[0, 1].map(i => <Skeleton key={i} height={76} borderRadius={18} />)}
+                </View>
+              ))}
+            </View>
           </View>
         </SideSafeArea>
       </GradientBackground>
@@ -373,7 +383,12 @@ function TasksScreen() {
                   <Section label={`Focus · ${focusTasks.length}`} tasks={focusTasks} {...sectionProps} />
                 )
               ) : tasks.length === 0 ? (
-                <EmptyState type="tasks" title="No tasks yet" subtitle="Tap the field above to add your first task." />
+                <EmptyState
+                  type="tasks"
+                  title="No tasks yet"
+                  subtitle="Capture the first one and it will appear on the board below."
+                  action={{ label: "Add a task", onPress: () => addInputRef.current?.focus() }}
+                />
               ) : (
                 <>
                   <CategoryColumns
@@ -419,7 +434,7 @@ function TasksScreen() {
               {/* Archive */}
               {showArchive && archived.length > 0 && (
                 <View style={{ marginTop: spacing[4] }}>
-                  <Text size="xs" weight="semibold" style={{ textTransform: "uppercase", letterSpacing: 1.2, color: colors.textTertiary, fontSize: 11, marginBottom: spacing[3] }}>
+                  <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase", marginBottom: spacing[3] }}>
                     Archive · {archived.length}
                   </Text>
                   <View style={{ borderRadius: radius.xl, borderWidth: 1, borderColor: colors.bgBorder, overflow: "hidden" }}>

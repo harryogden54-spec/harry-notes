@@ -3,7 +3,7 @@ import { View, Pressable, Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui";
-import { spacing, fontFamily, getNotePastelIndex, getShadow, transition, mountStagger } from "@/lib/theme";
+import { spacing, shape, getNotePastelIndex, getShadow, transition, mountStagger } from "@/lib/theme";
 import { useTheme } from "@/lib/useTheme";
 import { useNotesActions } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
@@ -42,9 +42,8 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount, 
         borderRadius: 18,
         borderWidth: 1,
         borderColor: `${colors.bgBorder}88`,
-        paddingVertical: spacing[4],
-        paddingHorizontal: spacing[4] + 2,
-        gap: 7,
+        ...shape.card,
+        gap: spacing[2],
         minHeight: 100,
         ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
         ...(Platform.OS === "web" ? {
@@ -60,22 +59,24 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount, 
         {/* Star, not a pin — the app's icon is a star, so it doubles as the
             signature mark. See lib/theme.ts elevation notes. */}
         {note.pinned && <Ionicons name="star" size={11} color={colors.accent} />}
-        <Text size="sm" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? colors.textPrimary : colors.textTertiary }}>
+        {/* Full-strength even when derived from the first line — that is real
+            content now, not the placeholder word this used to grey out. */}
+        <Text size="cardTitle" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
           {noteDisplayTitle(note)}
         </Text>
       </View>
       {preview ? (
-        <Text size="xs" numberOfLines={3} style={{ color: colors.textSecondary, lineHeight: 19, fontSize: 12.5 }}>
+        <Text size="xs" numberOfLines={3} secondary style={{ lineHeight: 19 }}>
           {preview}
         </Text>
       ) : null}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: "auto" as any, paddingTop: 2 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginTop: "auto" as any, paddingTop: 2 }}>
         <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: notePastels.bg[idx], borderWidth: 1, borderColor: notePastels.border[idx] }} />
-        <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11.5 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+        <Text size="meta" tertiary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
         {!!pageCount && pageCount > 1 && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
             <Ionicons name="documents-outline" size={11} color={colors.textTertiary} />
-            <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11.5 }}>{pageCount}</Text>
+            <Text size="meta" tertiary>{pageCount}</Text>
           </View>
         )}
       </View>

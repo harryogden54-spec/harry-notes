@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import { Text } from "./Text";
 import { Checkbox } from "./Checkbox";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, fontFamily, getShadow } from "@/lib/theme";
+import { spacing, radius, shape, fontFamily, getShadow, inputText } from "@/lib/theme";
 import { useTasksActions, type Task } from "@/lib/TasksContext";
 import { CategoryBadge } from "@/components/tasks/CategoryBadge";
 import { useToast } from "@/lib/ToastContext";
@@ -97,7 +97,7 @@ function RowContent({ task, onPress }: Props) {
               // @ts-ignore
               onKeyPress={(e: any) => { if (e.nativeEvent.key === "Escape") { setRenaming(false); setRenameText(task.title); } }}
               style={[
-                { fontSize: 13, fontFamily: fontFamily.medium, color: colors.textPrimary, padding: 0 },
+                { ...inputText, fontFamily: fontFamily.medium, color: colors.textPrimary, padding: 0 },
                 // @ts-ignore
                 { outlineStyle: "none" },
               ]}
@@ -115,7 +115,7 @@ function RowContent({ task, onPress }: Props) {
               onDoubleClick={Platform.OS === "web" ? startRename : undefined}
               style={{ flex: 1 }}
             >
-              <Text size="sm" weight={task.done ? "regular" : "medium"} numberOfLines={1}
+              <Text size="cardTitle" weight={task.done ? "regular" : "medium"} numberOfLines={1}
                 style={{ color: isOverdue && !task.done ? colors.danger : colors.textPrimary }}>
                 {task.title}
               </Text>
@@ -139,8 +139,8 @@ function RowContent({ task, onPress }: Props) {
       {/* Same badge the tasks screen uses, so a task reads the same everywhere */}
       <CategoryBadge category={task.category} uniCourse={task.uniCourse} />
       {due && (
-        <View style={{ backgroundColor: `${due.color}18`, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-          <Text size="xs" weight="medium" style={{ color: due.color, fontSize: 11.5 }}>{due.label}</Text>
+        <View style={{ backgroundColor: `${due.color}18`, ...shape.pill }}>
+          <Text size="meta" weight="medium" color={due.color}>{due.label}</Text>
         </View>
       )}
     </Pressable>

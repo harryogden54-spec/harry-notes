@@ -360,9 +360,9 @@ function DumpScreen() {
           )}
 
           {sorted.length === 0 ? (
-            <EmptyState type="sticky" title="Nothing captured yet" subtitle="Tap + to dump a quick thought." />
+            <EmptyState type="dump" title="Nothing captured yet" subtitle="Somewhere to put a thought before deciding what it is." />
           ) : visible.length === 0 ? (
-            <EmptyState type="sticky" title="All filed away" subtitle="Every capture is in the vault. Nice." />
+            <EmptyState type="dump" title="All filed away" subtitle="Every capture is in the vault. Nice." />
           ) : (
             <View style={{ gap: spacing[3] }}>
               {visible.map(d => (

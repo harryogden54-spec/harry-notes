@@ -138,7 +138,7 @@ function CoursesScreen() {
 
           {sorted.length === 0 ? (
             <EmptyState
-              type="lists"
+              type="courses"
               title="No tables yet"
               subtitle="Create a table to track lectures reviewed, flashcards made and anything else per course — tickbox columns feed the progress ring."
             />

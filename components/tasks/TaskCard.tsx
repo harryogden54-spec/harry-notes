@@ -3,7 +3,7 @@ import { View, Pressable, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Checkbox } from "@/components/ui";
-import { spacing, getShadow, transition } from "@/lib/theme";
+import { spacing, shape, getShadow, transition } from "@/lib/theme";
 import { getTodayStr } from "@/lib/utils";
 import type { Task } from "@/lib/TasksContext";
 import { PRIORITY_CONFIG, formatDate } from "./constants";
@@ -32,12 +32,11 @@ function MetaPill({ icon, dot, label, tint, textColor, bold }: {
   return (
     <View style={{
       flexDirection: "row", alignItems: "center", gap: 5,
-      paddingHorizontal: 9, paddingVertical: 3,
-      borderRadius: 999, backgroundColor: tint,
+      ...shape.pill, backgroundColor: tint,
     }}>
       {icon && <Ionicons name={icon} size={11} color={textColor} />}
       {dot && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dot }} />}
-      <Text size="xs" weight={bold ? "semibold" : "medium"} style={{ color: textColor, fontSize: 11.5 }}>
+      <Text size="meta" weight={bold ? "semibold" : "medium"} color={textColor}>
         {label}
       </Text>
     </View>
@@ -55,11 +54,14 @@ export const TaskCard = React.memo(function TaskCard({
   const overdue       = !task.done && !!task.due_date && task.due_date < today;
   const dueToday      = !task.done && task.due_date === today;
   const priorityCfg   = task.priority ? PRIORITY_CONFIG[task.priority] : undefined;
+  const isHighPriority = task.priority === "urgent" || task.priority === "high";
   const subtasks      = task.subtasks ?? [];
   const doneSubtasks  = subtasks.filter(s => s.done).length;
   // Board columns are top level, so only a subcategory adds information here.
   const { categories } = useCategoriesData();
   const isSubCategory = !!categories.find(c => c.id === task.category)?.parent_id;
+  const showsCategory = isSubCategory || (task.category === "uni" && !!task.uniCourse);
+  const showMeta = !!task.due_date || !!priorityCfg || subtasks.length > 0 || showsCategory;
 
   const borderColor =
     highlighted || selected ? colors.accent :
@@ -73,8 +75,8 @@ export const TaskCard = React.memo(function TaskCard({
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       style={({ pressed }) => ({
-        flexDirection: "row", alignItems: "flex-start", gap: 13,
-        paddingVertical: 15, paddingHorizontal: 17,
+        flexDirection: "row", alignItems: "flex-start", gap: spacing[3],
+        ...shape.card,
         borderRadius: 18,
         borderWidth: highlighted || selected ? 2 : 1,
         borderColor,
@@ -103,17 +105,16 @@ export const TaskCard = React.memo(function TaskCard({
       </View>
       <View style={{ flex: 1, gap: spacing[2], minWidth: 0 }}>
         <Text
-          size="sm" weight="medium"
+          size="cardTitle" weight="medium"
           style={{
             color: task.done ? colors.textTertiary : colors.textPrimary,
             textDecorationLine: task.done ? "line-through" : "none",
-            lineHeight: 19,
           }}
         >
           {task.title}
         </Text>
-        {(task.due_date || priorityCfg || subtasks.length > 0 || isSubCategory || (task.category === "uni" && task.uniCourse)) && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
+        {showMeta && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
             {task.due_date && (
               <MetaPill
                 icon="calendar-clear-outline"
@@ -123,16 +124,32 @@ export const TaskCard = React.memo(function TaskCard({
                 bold={overdue}
               />
             )}
+            {/* Colour is the signal, so it is spent only where it means
+                something: urgent and high carry their priority colour, medium
+                and low stay neutral. The old coloured dot alongside the word
+                said the same thing twice. */}
             {priorityCfg && (
-              <MetaPill dot={priorityCfg.color} label={priorityCfg.label} tint={colors.bgTertiary} textColor={colors.textSecondary} />
-            )}
-            {subtasks.length > 0 && (
-              <MetaPill icon="git-branch-outline" label={`${doneSubtasks}/${subtasks.length}`} tint={colors.bgTertiary} textColor={colors.textSecondary} />
+              <MetaPill
+                label={priorityCfg.label}
+                tint={isHighPriority ? `${priorityCfg.color}1A` : colors.bgTertiary}
+                textColor={isHighPriority ? priorityCfg.color : colors.textSecondary}
+                bold={isHighPriority}
+              />
             )}
             {/* Legacy uni-course badge, or a subcategory — a plain top-level
                 category needs no badge, its column already says it. */}
             {((task.category === "uni" && task.uniCourse) || isSubCategory) && (
               <CategoryBadge category={task.category} uniCourse={task.uniCourse} rootImplied />
+            )}
+            {/* Subtask progress is the one meta item that does not change what
+                you would do next, so it drops out of the pill language and
+                reads as quiet text. Deliberately not hover-revealed: adding a
+                pill on hover re-wraps the row and grows the card. */}
+            {subtasks.length > 0 && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Ionicons name="git-branch-outline" size={11} color={colors.textTertiary} />
+                <Text size="meta" tertiary>{doneSubtasks}/{subtasks.length}</Text>
+              </View>
             )}
           </View>
         )}

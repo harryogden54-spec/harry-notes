@@ -45,7 +45,7 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
         {note.pinned && <Ionicons name="star" size={10} color={colors.accent} />}
-        <Text size="sm" weight={isSelected ? "semibold" : "medium"} numberOfLines={1} style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}>
+        <Text size="cardTitle" weight={isSelected ? "semibold" : "medium"} numberOfLines={1} style={{ flex: 1 }}>
           {noteDisplayTitle(note)}
         </Text>
       </View>
@@ -53,13 +53,13 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
         ? <Text size="xs" secondary numberOfLines={1}>{preview}</Text>
         : <Text size="xs" tertiary numberOfLines={1}>No content</Text>
       }
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 1 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingTop: 1 }}>
         <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: notePastels.bg[idx], borderWidth: 1, borderColor: notePastels.border[idx] }} />
-        <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11 }}>{timeAgo(note.updated_at ?? note.created_at)}</Text>
+        <Text size="meta" tertiary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
         {!!pageCount && pageCount > 1 && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
             <Ionicons name="documents-outline" size={10} color={colors.textTertiary} />
-            <Text size="xs" style={{ color: colors.textTertiary, fontSize: 11 }}>{pageCount}</Text>
+            <Text size="meta" tertiary>{pageCount}</Text>
           </View>
         )}
       </View>

@@ -41,11 +41,11 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
   const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: spacing[2.5] }}>
-      <Text size="xs" weight="semibold" style={{ letterSpacing: 1, color: colors.textTertiary, textTransform: "uppercase" }}>
+      <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>
         {label}
       </Text>
       <View style={{ backgroundColor: colors.bgTertiary, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
-        <Text size="xs" style={{ color: colors.textTertiary }}>{count}</Text>
+        <Text size="meta" tertiary>{count}</Text>
       </View>
     </View>
   );
@@ -271,7 +271,7 @@ function NotesScreen() {
   // ── Archive section (shown when the Archive chip is active) ──────────────────
   const archiveSection = showArchive && archivedNotes.length > 0 ? (
     <View style={{ marginTop: spacing[4] }}>
-      <Text size="xs" weight="semibold" style={{ textTransform: "uppercase", letterSpacing: 1.2, color: colors.textTertiary, fontSize: 11, marginBottom: spacing[3] }}>
+      <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase", marginBottom: spacing[3] }}>
         Archive · {archivedNotes.length}
       </Text>
       <View style={{ borderRadius: radius.xl, borderWidth: 1, borderColor: colors.bgBorder, overflow: "hidden" }}>
@@ -365,7 +365,12 @@ function NotesScreen() {
               {(allNotes.length > 0 || archivedNotes.length > 0) && controls}
 
               {allNotes.length === 0 ? (
-                <EmptyState type="notes" title="No notes yet" subtitle="Tap + to capture a thought." />
+                <EmptyState
+                  type="notes"
+                  title="No notes yet"
+                  subtitle="Anything worth keeping — a thought, a page of working, a list."
+                  action={{ label: "Write a note", onPress: handleNewNote }}
+                />
               ) : pinnedNotes.length === 0 && restNotes.length === 0 ? (
                 <EmptyState type="notes" title="No notes match" subtitle={noMatchSubtitle} />
               ) : (
@@ -445,7 +450,12 @@ function NotesScreen() {
 
               {allNotes.length === 0 ? (
                 <View style={{ paddingVertical: spacing[10], alignItems: "center" }}>
-                  <EmptyState type="notes" title="No notes yet" subtitle="Tap New note to capture a thought." />
+                  <EmptyState
+                    type="notes"
+                    title="No notes yet"
+                    subtitle="Anything worth keeping — a thought, a page of working, a list."
+                    action={{ label: "Write a note", onPress: handleNewNote }}
+                  />
                 </View>
               ) : pinnedNotes.length === 0 && restNotes.length === 0 ? (
                 <View style={{ paddingVertical: spacing[10], alignItems: "center" }}>

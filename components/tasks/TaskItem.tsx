@@ -176,7 +176,7 @@ export const TaskItem = React.memo(function TaskItem({
                         <Text size="xs" style={{ color: colors.textTertiary, opacity: 0.5 }}>+ date</Text>
                       </Pressable>
                     ) : null}
-                    {subtasks.length > 0 && <Text size="xs" style={{ color: colors.textTertiary }}>{doneSubtasks}/{subtasks.length}</Text>}
+                    {subtasks.length > 0 && <Text size="meta" tertiary>{doneSubtasks}/{subtasks.length}</Text>}
                     {task.category && <CategoryBadge category={task.category} uniCourse={task.uniCourse} />}
                   </View>
                 )}

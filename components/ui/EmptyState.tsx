@@ -1,8 +1,8 @@
 import React from "react";
-import { View } from "react-native";
+import { View, Pressable, Platform } from "react-native";
 import { Text } from "./Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, getShadow, transition } from "@/lib/theme";
 
 // Geometric M3-style SVG-like illustrations rendered with View primitives
 function TasksIllustration({ accent, tertiary }: { accent: string; tertiary: string }) {
@@ -38,17 +38,38 @@ function NotesIllustration({ accent, tertiary }: { accent: string; tertiary: str
   );
 }
 
-function ListsIllustration({ accent, tertiary }: { accent: string; tertiary: string }) {
+/** Courses: the tickbox rows of a progress table. */
+function CoursesIllustration({ accent, tertiary }: { accent: string; tertiary: string }) {
   return (
     <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
-      <View style={{ width: 52, height: 52, borderRadius: 10, borderWidth: 2, borderColor: `${accent}50`, padding: 10, gap: 6 }}>
+      <View style={{ width: 52, height: 52, borderRadius: 10, borderWidth: 2, borderColor: `${accent}50`, padding: 10, gap: spacing[1.5] }}>
         {[0.9, 0.7, 0.8].map((w, i) => (
-          <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
             <View style={{ width: 8, height: 8, borderRadius: 99, borderWidth: 1.5, borderColor: i === 0 ? accent : `${tertiary}60`, backgroundColor: i === 0 ? `${accent}40` : "transparent" }} />
             <View style={{ height: 2, width: `${w * 100}%` as any, backgroundColor: i === 0 ? `${accent}60` : `${tertiary}40`, borderRadius: 99 }} />
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+/** Dump: an open tray with items settling into it. */
+function DumpIllustration({ accent, tertiary }: { accent: string; tertiary: string }) {
+  return (
+    <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
+      {[0.55, 0.75].map((w, i) => (
+        <View key={i} style={{
+          position: "absolute", top: 10 + i * 9, height: 2.5, width: `${w * 44}%` as any,
+          backgroundColor: i === 0 ? `${tertiary}40` : `${accent}55`, borderRadius: 99,
+        }} />
+      ))}
+      <View style={{
+        position: "absolute", bottom: 14, width: 46, height: 24,
+        borderLeftWidth: 2, borderRightWidth: 2, borderBottomWidth: 2,
+        borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+        borderColor: `${accent}60`,
+      }} />
     </View>
   );
 }
@@ -67,8 +88,8 @@ function SearchIllustration({ accent, tertiary }: { accent: string; tertiary: st
 const ILLUSTRATIONS = {
   tasks:    TasksIllustration,
   notes:    NotesIllustration,
-  sticky:   NotesIllustration,
-  lists:    ListsIllustration,
+  dump:     DumpIllustration,
+  courses:  CoursesIllustration,
   search:   SearchIllustration,
 } as const;
 
@@ -76,10 +97,16 @@ interface EmptyStateProps {
   type: keyof typeof ILLUSTRATIONS;
   title: string;
   subtitle?: string;
+  /**
+   * The thing the subtitle is telling you to do. An empty state that says "tap
+   * the field above" and offers nothing to tap is a dead end — if there is one
+   * obvious next step, put it here and let the state perform it.
+   */
+  action?: { label: string; onPress: () => void };
 }
 
-export function EmptyState({ type, title, subtitle }: EmptyStateProps) {
-  const { colors } = useTheme();
+export function EmptyState({ type, title, subtitle, action }: EmptyStateProps) {
+  const { colors, scheme } = useTheme();
   const Illustration = ILLUSTRATIONS[type] ?? ILLUSTRATIONS.notes;
 
   return (
@@ -87,29 +114,49 @@ export function EmptyState({ type, title, subtitle }: EmptyStateProps) {
       alignItems: "center",
       paddingVertical: spacing[10],
       paddingHorizontal: spacing[6],
-      gap: spacing[3],
+      gap: spacing[2],
     }}>
+      {/* Quiet holder: the fill used to be accentSubtle behind a dashed ring,
+          which made the emptiest screen the most colourful thing in the app. */}
       <View style={{
-        backgroundColor: colors.accentSubtle,
+        backgroundColor: colors.bgSecondary,
         borderRadius: 999,
-        borderWidth: 1.5,
-        borderStyle: "dashed",
+        borderWidth: 1,
         borderColor: colors.bgBorder,
         width: 96,
         height: 96,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing[1],
+        marginBottom: spacing[2],
       }}>
         <Illustration accent={colors.accent} tertiary={colors.textTertiary} />
       </View>
-      <Text size="base" weight="semibold" style={{ color: colors.textPrimary }}>
-        {title}
-      </Text>
+      <Text size="lg" weight="semibold">{title}</Text>
       {subtitle && (
-        <Text size="sm" secondary style={{ textAlign: "center", lineHeight: 20 }}>
+        <Text size="sm" secondary style={{ textAlign: "center", maxWidth: 280 }}>
           {subtitle}
         </Text>
+      )}
+      {action && (
+        <Pressable
+          onPress={action.onPress}
+          accessibilityRole="button"
+          style={({ hovered, pressed }: any) => ({
+            marginTop: spacing[2],
+            paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+            borderRadius: 999,
+            borderWidth: 1, borderColor: colors.bgBorder,
+            backgroundColor: hovered ? colors.bgTertiary : colors.bgSecondary,
+            ...getShadow("xs", scheme),
+            ...(Platform.OS === "web" ? {
+              ...transition("background-color, border-color, transform"),
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+              cursor: "pointer",
+            } : {}),
+          })}
+        >
+          <Text size="sm" weight="medium">{action.label}</Text>
+        </Pressable>
       )}
     </View>
   );

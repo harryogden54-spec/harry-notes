@@ -105,7 +105,7 @@ export function SearchResults({ tasks, notes, query, onTaskPress, onAdd }: Props
     <View>
       {matchTasks.length > 0 && (
         <View style={{ marginBottom: spacing[5] }}>
-          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
+          <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase", marginBottom: spacing[2] }}>
             Tasks · {matchTasks.length}
           </Text>
           <GlassCard style={{ overflow: "hidden" }}>
@@ -119,7 +119,7 @@ export function SearchResults({ tasks, notes, query, onTaskPress, onAdd }: Props
       )}
       {matchNotes.length > 0 && (
         <View style={{ marginBottom: spacing[5] }}>
-          <Text style={{ fontSize: 11, letterSpacing: 1.2, color: colors.textSecondary, fontFamily: fontFamily.semibold, textTransform: "uppercase", marginBottom: spacing[2] }}>
+          <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase", marginBottom: spacing[2] }}>
             Notes · {matchNotes.length}
           </Text>
           {matchNotes.map(({ note: n, titleOnly }) => {

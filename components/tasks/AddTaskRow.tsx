@@ -4,7 +4,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, Divider, DatePicker, Surface } from "@/components/ui";
-import { spacing, radius } from "@/lib/theme";
+import { spacing, radius, inputText } from "@/lib/theme";
 import { getTodayStr, getTomorrowStr, getNextWeekStr, parseNaturalDate } from "@/lib/utils";
 import { type TaskCategory, type UniCourse, type Priority } from "@/lib/TasksContext";
 import { Chip } from "./Chip";
@@ -93,7 +93,7 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
             placeholderTextColor={colors.textTertiary}
             returnKeyType="done"
             style={[
-              { flex: 1, color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
+              { flex: 1, color: colors.textPrimary, ...inputText },
               // @ts-ignore
               { outlineStyle: "none" },
             ]}
