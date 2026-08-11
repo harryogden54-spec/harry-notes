@@ -684,13 +684,17 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
   }, [serialize]);
 
   const strokeProps = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  const tools: { key: string; title: string; content: React.ReactNode; onPress: () => void }[] = [
-    { key: "bold",   title: "Bold",          content: <span style={{ fontFamily: fontFamily.bold }}>B</span>,                       onPress: () => document.execCommand("bold") },
-    { key: "italic", title: "Italic",        content: <span style={{ fontFamily: fontFamily.regular, fontStyle: "italic" }}>I</span>, onPress: () => document.execCommand("italic") },
-    { key: "h1",     title: "Heading",       content: <span style={{ fontFamily: fontFamily.semibold }}>H</span>,                   onPress: () => setCurrentBlockType("h1") },
-    { key: "h2",     title: "Subheading",    content: <span style={{ fontFamily: fontFamily.semibold, fontSize: 12 }}>H2</span>,    onPress: () => setCurrentBlockType("h2") },
-    { key: "h3",     title: "Small heading", content: <span style={{ fontFamily: fontFamily.semibold, fontSize: 11 }}>H3</span>,    onPress: () => setCurrentBlockType("h3") },
-    { key: "text",   title: "Regular text",  content: <span style={{ fontFamily: fontFamily.regular }}>T</span>,                    onPress: () => setCurrentBlockType("paragraph") },
+  // Letter glyphs all render at one size and weight — the set used to mix a
+  // bare "H" with a 12px "H2", an 11px "H3" and a regular-weight "T", so the
+  // row read as four unrelated marks rather than one scale.
+  const glyph = { fontFamily: fontFamily.semibold, fontSize: 12.5, letterSpacing: 0.2 };
+  const tools: { key: string; title: string; content: React.ReactNode; onPress: () => void; endsGroup?: boolean }[] = [
+    { key: "bold",   title: "Bold",          content: <span style={{ ...glyph, fontFamily: fontFamily.bold }}>B</span>,             onPress: () => document.execCommand("bold") },
+    { key: "italic", title: "Italic",        content: <span style={{ ...glyph, fontStyle: "italic" }}>I</span>,                     onPress: () => document.execCommand("italic"), endsGroup: true },
+    { key: "h1",     title: "Heading",       content: <span style={glyph}>H1</span>,                                               onPress: () => setCurrentBlockType("h1") },
+    { key: "h2",     title: "Subheading",    content: <span style={glyph}>H2</span>,                                               onPress: () => setCurrentBlockType("h2") },
+    { key: "h3",     title: "Small heading", content: <span style={glyph}>H3</span>,                                               onPress: () => setCurrentBlockType("h3") },
+    { key: "text",   title: "Regular text",  content: <span style={glyph}>T</span>,                                                onPress: () => setCurrentBlockType("paragraph"), endsGroup: true },
     { key: "bullet", title: "Bulleted list", content: (
         <svg width="15" height="15" viewBox="0 0 24 24" {...strokeProps}>
           <circle cx="4" cy="6" r="0.5" /><circle cx="4" cy="12" r="0.5" /><circle cx="4" cy="18" r="0.5" />
@@ -708,7 +712,7 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
           <rect x="3" y="4" width="18" height="16" rx="3" />
           <path d="M3 10h18M12 10v10" />
         </svg>
-      ), onPress: insertTable },
+      ), onPress: insertTable, endsGroup: true },
   ];
 
   return (
@@ -722,19 +726,24 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
           position: "sticky", top: 0, zIndex: 10,
         }}
       >
+        {/* Grouped inline marks | block types | lists & inserts | image, so the
+            row reads as four short sets rather than one undifferentiated strip. */}
         {tools.map(t => (
-          <button
-            key={t.key}
-            className="note-toolbar-btn"
-            title={t.title}
-            aria-label={t.title}
-            onMouseDown={e => e.preventDefault()}
-            onClick={t.onPress}
-          >
-            {t.content}
-          </button>
+          <React.Fragment key={t.key}>
+            <button
+              className="note-toolbar-btn"
+              title={t.title}
+              aria-label={t.title}
+              onMouseDown={e => e.preventDefault()}
+              onClick={t.onPress}
+            >
+              {t.content}
+            </button>
+            {t.endsGroup && (
+              <span style={{ width: 1, height: 16, background: colors.bgBorder, margin: `0 ${spacing[1]}px` }} />
+            )}
+          </React.Fragment>
         ))}
-        <span style={{ width: 1, height: 16, background: colors.bgBorder, margin: `0 ${spacing[1]}px` }} />
         <button
           className="note-toolbar-btn"
           title="Insert image"

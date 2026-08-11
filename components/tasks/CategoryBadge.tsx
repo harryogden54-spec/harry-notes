@@ -8,9 +8,16 @@ import { spacing, resolveAccentSwatch } from "@/lib/theme";
 import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import type { TaskCategory, UniCourse } from "@/lib/TasksContext";
 
-type Props = { category?: TaskCategory; uniCourse?: UniCourse };
+type Props = {
+  category?: TaskCategory;
+  uniCourse?: UniCourse;
+  /** Set on the board, where the surrounding column already names the top-level
+   *  category — the badge then drops that half and shows only what the column
+   *  does not say. */
+  rootImplied?: boolean;
+};
 
-export const CategoryBadge = React.memo(function CategoryBadge({ category, uniCourse }: Props) {
+export const CategoryBadge = React.memo(function CategoryBadge({ category, uniCourse, rootImplied }: Props) {
   const { scheme } = useTheme();
   const { categories } = useCategoriesData();
   if (!category) return null;
@@ -18,11 +25,14 @@ export const CategoryBadge = React.memo(function CategoryBadge({ category, uniCo
   const parent = cat?.parent_id ? categories.find(c => c.id === cat.parent_id) : undefined;
   // A subcategory inherits its parent's colour so a column reads as one family.
   const color  = resolveAccentSwatch(parent?.color ?? cat?.color ?? "slate", scheme).color;
-  // The legacy "uni" category shows its course instead of the plain name —
-  // custom categories the user adds have no course concept. A subcategory shows
-  // just its own name: the parent is already carried by the inherited colour and,
-  // on the board, by the column it sits in.
-  const label = category === "uni" && uniCourse ? uniCourse : (cat?.name ?? "Uncategorized");
+  // The legacy "uni" category carries a course; custom categories the user adds
+  // have no course concept. The course alone ("Misc") is cryptic away from the
+  // Uni column — badges now also appear on dashboard and search rows — so
+  // qualify it there. A subcategory shows just its own name: the parent is
+  // carried by the inherited colour and, on the board, by its column.
+  const label = category === "uni" && uniCourse
+    ? (rootImplied ? uniCourse : `${cat?.name ?? "Uni"} · ${uniCourse}`)
+    : (cat?.name ?? "Uncategorized");
   return (
     <View style={{
       paddingHorizontal: spacing[1.5], paddingVertical: 2,

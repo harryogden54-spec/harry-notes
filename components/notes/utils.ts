@@ -6,16 +6,44 @@ export function animate() {
   if (Platform.OS !== "web") LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 }
 
+/** The note's own body lines, with any managed tag line already removed. */
+function bodyLines(note: Note): string[] {
+  return splitTagLine(note.body ?? "")[1].split("\n");
+}
+
+/**
+ * What to *show* as a note's title. An untitled note falls back to its first
+ * non-empty line rather than the word "Untitled", so a list of real notes never
+ * reads as a column of blanks.
+ *
+ * Display only — never use this to resolve a `[[wiki link]]`. Links match on the
+ * stored `title` (with "Untitled" as the literal fallback), and a derived title
+ * changes whenever the first line is edited, which would silently break them.
+ */
+export function noteDisplayTitle(note: Note, max = 80): string {
+  if (note.title?.trim()) return note.title;
+  const first = bodyLines(note).map(l => stripMarkdown(l).trim()).find(Boolean);
+  return first ? first.slice(0, max) : "Untitled";
+}
+
 /**
  * Single source of truth for a note's preview text. Block-based notes (incl.
  * lists migrated into notes) show their block contents joined by " · ";
  * plain notes show their stripped body. Tolerates a missing body.
+ *
+ * When the note has no title of its own, its first line is being shown as the
+ * title (see noteDisplayTitle), so the preview starts after it — otherwise the
+ * card prints the same sentence twice.
  */
 export function notePreview(note: Note, max = 120): string {
-  const text = note.blocks && note.blocks.length > 0
-    ? note.blocks.map(b => b.content).filter(Boolean).join(" · ")
-    : stripMarkdown(splitTagLine(note.body ?? "")[1].trim());
-  return text.slice(0, max);
+  if (note.blocks && note.blocks.length > 0) {
+    return note.blocks.map(b => b.content).filter(Boolean).join(" · ").slice(0, max);
+  }
+  const lines = bodyLines(note);
+  const rest = note.title?.trim()
+    ? lines
+    : lines.slice(lines.findIndex(l => stripMarkdown(l).trim()) + 1);
+  return stripMarkdown(rest.join("\n").trim()).slice(0, max);
 }
 
 /**

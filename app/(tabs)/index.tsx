@@ -23,7 +23,7 @@ import { useNotesData } from "@/lib/NotesContext";
 import { useTodayData } from "@/lib/TodayContext";
 import { getTodayStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
-import { notePreview } from "@/components/notes/utils";
+import { notePreview, noteDisplayTitle } from "@/components/notes/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -326,7 +326,7 @@ function DashboardScreen() {
                 ...getShadow("sm", scheme),
               }}>
                 <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: note.title ? colors.textPrimary : colors.textTertiary }}>
-                  {note.title || "Untitled"}
+                  {noteDisplayTitle(note)}
                 </Text>
                 {preview ? (
                   <Text size="xs" numberOfLines={3} style={{ color: colors.textSecondary, lineHeight: 16 }}>

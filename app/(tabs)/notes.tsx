@@ -19,7 +19,7 @@ import { useNotesData, useNotesActions, useNotesSync, type Note } from "@/lib/No
 import {
   NoteEditor, NoteIndexRow, NoteCard, animate,
 } from "@/components/notes";
-import { extractTags } from "@/components/notes/utils";
+import { extractTags, noteDisplayTitle } from "@/components/notes/utils";
 
 type NotesSortBy = "recent" | "created" | "title";
 
@@ -31,7 +31,7 @@ const SORT_OPTIONS: [NotesSortBy, string][] = [
 
 function sortNotes(list: Note[], sortBy: NotesSortBy): Note[] {
   return [...list].sort((a, b) => {
-    if (sortBy === "title")   return (a.title || "Untitled").localeCompare(b.title || "Untitled", undefined, { sensitivity: "base" });
+    if (sortBy === "title")   return noteDisplayTitle(a).localeCompare(noteDisplayTitle(b), undefined, { sensitivity: "base" });
     if (sortBy === "created") return b.created_at.localeCompare(a.created_at);
     return cmpRecentDesc(a, b);
   });
@@ -283,7 +283,7 @@ function NotesScreen() {
           }}>
             <Ionicons name="archive-outline" size={14} color={colors.textTertiary} />
             <Text size="sm" style={{ flex: 1, color: colors.textTertiary }} numberOfLines={1}>
-              {n.title || "Untitled"}
+              {noteDisplayTitle(n)}
             </Text>
             <Pressable onPress={() => { animate(); unarchiveNote(n.id); }} hitSlop={8}>
               <Text size="xs" style={{ color: colors.accent }}>Restore</Text>

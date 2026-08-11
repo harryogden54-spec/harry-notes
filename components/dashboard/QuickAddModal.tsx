@@ -13,6 +13,7 @@ import { type TaskCategory, type UniCourse, useTasksData } from "@/lib/TasksCont
 import { useNotesData, useNotesActions } from "@/lib/NotesContext";
 import { useThemeContext } from "@/lib/ThemeContext";
 import { TaskComposerForm } from "@/components/tasks/TaskComposerForm";
+import { noteDisplayTitle } from "@/components/notes/utils";
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -82,7 +83,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
     // ── Recent items ──────────────────────────────────────────────────────────
     const recent = [
       ...tasks.filter(t => !t.archived).map(t => ({ label: t.title, sub: "Task", stamp: t.updated_at ?? t.created_at ?? "", run: () => { onClose(); router.push(`/(tabs)/tasks?taskId=${t.id}` as any); } })),
-      ...notes.filter(n => !n.archived).map(n => ({ label: n.title || "Untitled", sub: "Note", stamp: n.updated_at ?? n.created_at, run: () => { onClose(); router.push(`/(tabs)/notes?openId=${n.id}` as any); } })),
+      ...notes.filter(n => !n.archived).map(n => ({ label: noteDisplayTitle(n), sub: "Note", stamp: n.updated_at ?? n.created_at, run: () => { onClose(); router.push(`/(tabs)/notes?openId=${n.id}` as any); } })),
     ]
       .sort((a, b) => (b.stamp ?? "").localeCompare(a.stamp ?? ""))
       .filter(r => matches(r.label, q))

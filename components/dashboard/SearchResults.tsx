@@ -11,6 +11,7 @@ import { TaskRow } from "@/components/ui/TaskRow";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, fontFamily } from "@/lib/theme";
 import { stripMarkdown } from "@/lib/utils";
+import { noteDisplayTitle } from "@/components/notes/utils";
 import type { Task } from "@/lib/TasksContext";
 import type { Note } from "@/lib/NotesContext";
 
@@ -135,7 +136,7 @@ export function SearchResults({ tasks, notes, query, onTaskPress, onAdd }: Props
                       numberOfLines={1}
                       style={{ flex: 1, color: titleOnly ? colors.textSecondary : colors.textPrimary }}
                     >
-                      {n.title || "Untitled"}
+                      {noteDisplayTitle(n)}
                     </Text>
                     {titleOnly && (
                       <View style={{ backgroundColor: `${colors.textTertiary}22`, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>

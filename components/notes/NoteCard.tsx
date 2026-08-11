@@ -7,7 +7,7 @@ import { spacing, fontFamily, getNotePastelIndex, getShadow, transition, mountSt
 import { useTheme } from "@/lib/useTheme";
 import { useNotesActions } from "@/lib/NotesContext";
 import type { Note } from "@/lib/NotesContext";
-import { timeAgo, notePreview } from "./utils";
+import { timeAgo, notePreview, noteDisplayTitle } from "./utils";
 
 type Props = {
   note: Note;
@@ -61,7 +61,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount, 
             signature mark. See lib/theme.ts elevation notes. */}
         {note.pinned && <Ionicons name="star" size={11} color={colors.accent} />}
         <Text size="sm" numberOfLines={1} style={{ flex: 1, fontFamily: fontFamily.semibold, color: note.title ? colors.textPrimary : colors.textTertiary }}>
-          {note.title || "Untitled"}
+          {noteDisplayTitle(note)}
         </Text>
       </View>
       {preview ? (

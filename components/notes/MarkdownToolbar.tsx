@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
@@ -54,21 +54,37 @@ type Props = {
   uploading?: boolean;
 };
 
+/**
+ * One button per tool. Letter glyphs (the type scale) all render at the same
+ * size and weight; everything else is an Ionicon. The set previously mixed
+ * letters with bare unicode marks (•, ☑, `, —, ⊞) that each carried their own
+ * font metrics, so they sat at different optical sizes and weights along the row.
+ */
+type Tool =
+  | { key: string; glyph: string; bold?: boolean; italic?: boolean; fn: () => void; endsGroup?: boolean }
+  | { key: string; icon: React.ComponentProps<typeof Ionicons>["name"]; fn: () => void; endsGroup?: boolean };
+
 export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading }: Props) {
   const { colors } = useTheme();
-  const tools = [
-    { label: "B", bold: true,   fn: () => { const r = insertInline(body, selRef.current, "**"); onApply(r.text, r.cursor); } },
-    { label: "I", italic: true, fn: () => { const r = insertInline(body, selRef.current, "_");  onApply(r.text, r.cursor); } },
-    { label: "H",               fn: () => { const r = insertLinePrefix(body, selRef.current, "# ");  onApply(r.text, r.cursor); } },
-    { label: "H2",              fn: () => { const r = insertLinePrefix(body, selRef.current, "## "); onApply(r.text, r.cursor); } },
-    { label: "H3",              fn: () => { const r = insertLinePrefix(body, selRef.current, "### "); onApply(r.text, r.cursor); } },
-    { label: "T",               fn: () => { const r = removeLinePrefix(body, selRef.current); onApply(r.text, r.cursor); } },
-    { label: "•",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- ");  onApply(r.text, r.cursor); } },
-    { label: "☑",               fn: () => { const r = insertLinePrefix(body, selRef.current, "- [ ] "); onApply(r.text, r.cursor); } },
-    { label: "`",               fn: () => { const r = insertInline(body, selRef.current, "`");  onApply(r.text, r.cursor); } },
-    { label: "—",               fn: () => { const r = insertBlock(body, selRef.current, "---"); onApply(r.text, r.cursor); } },
-    { label: "⊞",               fn: () => { const r = insertBlock(body, selRef.current, "| Column 1 | Column 2 |\n| --- | --- |\n|  |  |"); onApply(r.text, r.cursor); } },
+  const prefix = (p: string) => () => { const r = insertLinePrefix(body, selRef.current, p); onApply(r.text, r.cursor); };
+  const inline = (m: string) => () => { const r = insertInline(body, selRef.current, m); onApply(r.text, r.cursor); };
+  const block  = (b: string) => () => { const r = insertBlock(body, selRef.current, b); onApply(r.text, r.cursor); };
+
+  const tools: Tool[] = [
+    { key: "bold",   glyph: "B", bold: true,   fn: inline("**") },
+    { key: "italic", glyph: "I", italic: true, fn: inline("_"), endsGroup: true },
+    { key: "h1",     glyph: "H1",              fn: prefix("# ") },
+    { key: "h2",     glyph: "H2",              fn: prefix("## ") },
+    { key: "h3",     glyph: "H3",              fn: prefix("### ") },
+    { key: "text",   glyph: "T",               fn: () => { const r = removeLinePrefix(body, selRef.current); onApply(r.text, r.cursor); }, endsGroup: true },
+    { key: "bullet", icon: "list-outline",             fn: prefix("- ") },
+    { key: "check",  icon: "checkbox-outline",         fn: prefix("- [ ] ") },
+    { key: "code",   icon: "code-slash-outline",       fn: inline("`") },
+    { key: "rule",   icon: "remove-outline",           fn: block("---") },
+    { key: "table",  icon: "grid-outline",             fn: block("| Column 1 | Column 2 |\n| --- | --- |\n|  |  |"), endsGroup: true },
   ];
+
+  const btn = { paddingHorizontal: spacing[3], paddingVertical: spacing[2], minWidth: 40, alignItems: "center" as const };
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always"
@@ -76,14 +92,27 @@ export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading 
       contentContainerStyle={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[2] }}
     >
       {tools.map(t => (
-        <Pressable key={t.label} onPress={t.fn} style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
-          <Text size="sm" style={{ color: colors.textSecondary, fontFamily: (t as any).bold ? fontFamily.bold : fontFamily.regular, fontStyle: (t as any).italic ? "italic" : "normal" }}>
-            {t.label}
-          </Text>
-        </Pressable>
+        <React.Fragment key={t.key}>
+          <Pressable onPress={t.fn} style={btn}>
+            {"icon" in t
+              ? <Ionicons name={t.icon} size={17} color={colors.textSecondary} />
+              : (
+                <Text size="sm" style={{
+                  color: colors.textSecondary,
+                  fontFamily: t.bold ? fontFamily.bold : fontFamily.semibold,
+                  fontStyle: t.italic ? "italic" : "normal",
+                }}>
+                  {t.glyph}
+                </Text>
+              )}
+          </Pressable>
+          {t.endsGroup && (
+            <View style={{ width: 1, height: 16, backgroundColor: colors.bgBorder, marginHorizontal: spacing[1] }} />
+          )}
+        </React.Fragment>
       ))}
       {onPickImage && (
-        <Pressable onPress={onPickImage} disabled={uploading} style={{ paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+        <Pressable onPress={onPickImage} disabled={uploading} style={btn}>
           {uploading
             ? <ActivityIndicator size="small" color={colors.textSecondary} />
             : <Ionicons name="image-outline" size={17} color={colors.textSecondary} />}

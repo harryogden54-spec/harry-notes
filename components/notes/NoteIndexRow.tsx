@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, getNotePastelIndex, getShadow, transition } from "@/lib/theme";
 import type { Note } from "@/lib/NotesContext";
-import { timeAgo, notePreview } from "./utils";
+import { timeAgo, notePreview, noteDisplayTitle } from "./utils";
 
 type Props = { note: Note; isSelected: boolean; onSelect: () => void; pageCount?: number };
 
@@ -46,7 +46,7 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
         {note.pinned && <Ionicons name="star" size={10} color={colors.accent} />}
         <Text size="sm" weight={isSelected ? "semibold" : "medium"} numberOfLines={1} style={{ flex: 1, color: note.title ? colors.textPrimary : colors.textTertiary }}>
-          {note.title || "Untitled"}
+          {noteDisplayTitle(note)}
         </Text>
       </View>
       {preview

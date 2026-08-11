@@ -3,7 +3,7 @@ import { View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, resolveAccentSwatch } from "@/lib/theme";
+import { spacing, radius, resolveAccentSwatch } from "@/lib/theme";
 import { useCategoriesData, topLevel, rootCategoryId } from "@/lib/TaskCategoriesContext";
 import type { Task } from "@/lib/TasksContext";
 import { TaskCard } from "./TaskCard";
@@ -123,11 +123,18 @@ function ColumnHeader({ label, count, color }: { label: string; count: number; c
   );
 }
 
+/**
+ * Empty desktop column. Deliberately wordless: with three categories the old
+ * "Nothing here" label printed three times across a fresh board, which read as
+ * noise. A dashed well holds the column's shape without saying anything.
+ */
 function ColumnEmptyHint() {
   const { colors } = useTheme();
   return (
-    <View style={{ paddingVertical: spacing[4], alignItems: "center" }}>
-      <Text size="xs" style={{ color: colors.textTertiary, opacity: 0.6 }}>Nothing here</Text>
-    </View>
+    <View style={{
+      height: 76, borderRadius: radius.lg,
+      borderWidth: 1, borderStyle: "dashed", borderColor: colors.bgBorder,
+      opacity: 0.5,
+    }} />
   );
 }

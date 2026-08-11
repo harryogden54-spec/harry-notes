@@ -47,7 +47,7 @@ function TasksScreen() {
   const scrollBottom = useScrollBottomPadding();
   const { tasks, loaded } = useTasksData();
   const { addTask, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask, clearCompleted } = useTasksActions();
-  const { syncStatus, syncNow } = useTasksSync();
+  const { syncNow } = useTasksSync();
   const { showToast } = useToast();
   const params = useLocalSearchParams<{ create?: string; taskId?: string; filter?: string }>();
   const { width } = useWindowDimensions();
@@ -229,19 +229,8 @@ function TasksScreen() {
     compact,
   };
 
-  // Sync status pill
-  const [pillText, setPillText] = useState<string | null>(null);
-  useEffect(() => {
-    if (syncStatus === "syncing") {
-      setPillText("Syncing…");
-    } else if (syncStatus === "synced") {
-      setPillText("Synced");
-      const t = setTimeout(() => setPillText(null), 2000);
-      return () => clearTimeout(t);
-    } else {
-      setPillText(null);
-    }
-  }, [syncStatus]);
+  // No sync indicator here: the header's SyncChip reports the same state on
+  // every screen, and a second one just for Tasks read as clutter.
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -269,20 +258,6 @@ function TasksScreen() {
   return (
     <GradientBackground>
       <SideSafeArea style={{ flex: 1 }}>
-        {/* Floats over the content — in normal flow its appearance shifted the whole screen */}
-        {pillText && (
-          <View
-            pointerEvents="none"
-            style={{ position: "absolute", top: spacing[2], left: 0, right: 0, zIndex: 20, alignItems: "center" }}
-          >
-            <View style={{ backgroundColor: colors.bgSecondary, borderRadius: 99, overflow: "hidden" }}>
-              <View style={{ backgroundColor: `${colors.accent}20`, paddingHorizontal: spacing[3], paddingVertical: 3 }}>
-                <Text size="xs" style={{ color: colors.accent }}>{pillText}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
         <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}

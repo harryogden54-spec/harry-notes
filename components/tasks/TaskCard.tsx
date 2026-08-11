@@ -132,7 +132,7 @@ export const TaskCard = React.memo(function TaskCard({
             {/* Legacy uni-course badge, or a subcategory — a plain top-level
                 category needs no badge, its column already says it. */}
             {((task.category === "uni" && task.uniCourse) || isSubCategory) && (
-              <CategoryBadge category={task.category} uniCourse={task.uniCourse} />
+              <CategoryBadge category={task.category} uniCourse={task.uniCourse} rootImplied />
             )}
           </View>
         )}

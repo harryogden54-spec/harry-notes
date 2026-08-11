@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/useTheme";
 import { spacing, radius } from "@/lib/theme";
 import { useNotesData } from "@/lib/NotesContext";
 import { cmpRecentDesc } from "@/lib/utils";
+import { noteDisplayTitle } from "@/components/notes/utils";
 import type { NavItem } from "./navConfig";
 import { NAV_ITEMS } from "./navConfig";
 
@@ -209,7 +210,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                   <Ionicons name="star" size={12} color={hovered ? colors.accent : colors.textTertiary} />
                   {!collapsed && (
                     <Text numberOfLines={1} size="xs" color={hovered ? colors.textPrimary : colors.textSecondary} style={{ flex: 1 }}>
-                      {n.title || "Untitled"}
+                      {noteDisplayTitle(n)}
                     </Text>
                   )}
                 </Pressable>
