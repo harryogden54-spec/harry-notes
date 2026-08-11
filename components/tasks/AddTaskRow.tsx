@@ -89,7 +89,7 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
             onFocus={handleFocus}
             onBlur={handleBlur}
             onSubmitEditing={submit}
-            placeholder="New task… (press N)"
+            placeholder="New task…"
             placeholderTextColor={colors.textTertiary}
             returnKeyType="done"
             style={[
