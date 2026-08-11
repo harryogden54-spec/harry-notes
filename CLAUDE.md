@@ -278,6 +278,33 @@ mouths of the queue (markLocallyDeleted, hydration filter that also rewrites the
 queues, and syncDelete returning success for non-ids so the entry drains). Devices self-heal
 on next load after deploy — no manual localStorage surgery.
 
+August 11 batch (deployed — production is commit 18cbdce, branch
+`claude/tasks-notes-ui-audit-be4adf`): **DatePicker is Monday-first** (the only
+calendar grid in the app). **Tasks sync pill deleted** — it duplicated the header
+SyncChip, and in normal flow its appearance reflowed the whole screen. **Inline
+quick add no longer opens the detail modal** on the new task. **AddTaskRow blur
+guard** — mousedown on an option chip blurred the input, which unmounted the chip
+before the click landed (only visible with an empty input); `setFocused(false)` is
+now delayed 150 ms and cancelled on refocus. This blur-unmounts-the-click-target
+class is a recurring RN-Web hazard, like the inner-Pressable swallow of 2026-07-27.
+**Category tags unified** — AddTaskRow embeds `CategorySelector` (was a flat chip
+list that mixed subcategories in with parents under their own colours), selector
+chips are pills like every other category chip, `TaskRow` (dashboard/search) shows
+`CategoryBadge`, and the badge qualifies a uni course as "Uni · Materials 2" except
+on the board, where `rootImplied` drops the half the column already states.
+**Web editor block buttons are multi-block** — `setCurrentBlockType` converts every
+top-level block the selection touches, resolving Ctrl+A ranges whose boundaries sit
+on the container itself (`findTopLevelBlock` returns null there) and skipping
+image/table/hr blocks. **Untitled notes display their first line** as the title
+(`noteDisplayTitle` in `components/notes/utils.ts`) with `notePreview` starting
+after it — display only, never for `[[wiki link]]` resolution, which still matches
+the stored title. **Empty board columns** hold their shape with a dashed well
+instead of printing "Nothing here" once per category. **Note toolbars**: one size
+and weight for every letter glyph, "H" → "H1", grouped with dividers; the native
+toolbar's unicode marks (• ☑ ` — ⊞) became Ionicons. Require-cycle note: anything
+`components/ui/index.ts` re-exports must not import back through that barrel —
+`CategoryBadge` imports `Text` directly.
+
 In progress: —
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
 Awaiting confirmation: the PWA padding fix could not be verified locally — the
