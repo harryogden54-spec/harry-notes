@@ -305,6 +305,24 @@ toolbar's unicode marks (• ☑ ` — ⊞) became Ionicons. Require-cycle note:
 `components/ui/index.ts` re-exports must not import back through that barrel —
 `CategoryBadge` imports `Text` directly.
 
+August 11 design pass (deployed, master level with prod): **type role tokens** in
+`lib/theme.ts` beside the t-shirt sizes — `meta` (11.5) replaces the caption size that
+was written as 11, 11.5 and 12 in different files; `label` retuned to 11/1.2 uppercase
+(what every call site was already overriding it to); `cardTitle` (15/21) for card and
+list-item headings; `inputText` for body-level TextInputs, which had drifted to
+13/14/15/16. Prefer a role token over a raw step, and never a bare `fontSize`.
+**`shape` tokens** (`pill`/`countPill`/`card`) for the small repeated forms: pill padding
+had existed as paddingHorizontal 5|6|7|8|9 with paddingVertical 1|2|3 across a dozen
+files, so a due pill and a category badge on the same row never aligned. **Colour is
+spent only where it signals** — urgent/high carry their priority colour, medium/low stay
+neutral, and the coloured dot that repeated the priority word is gone; subtask progress
+left the pill language for quiet text. Note: it is deliberately NOT hover-revealed —
+adding a pill on hover re-wraps the meta row and grows the card. **EmptyState takes an
+optional `action`**, so a state that says "tap the field above" offers the thing to tap;
+its holder lost the `accentSubtle` fill that made the emptiest screen the most colourful.
+Illustrations for deleted features were repointed (`lists` → `courses`, `sticky` → `dump`).
+The tasks **loading skeleton mirrors the real layout** rather than five flat bars.
+
 In progress: —
 On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
 Awaiting confirmation: the PWA padding fix could not be verified locally — the
