@@ -323,8 +323,47 @@ its holder lost the `accentSubtle` fill that made the emptiest screen the most c
 Illustrations for deleted features were repointed (`lists` → `courses`, `sticky` → `dump`).
 The tasks **loading skeleton mirrors the real layout** rather than five flat bars.
 
+August 13 batch (deployed): **icon system** — `iconSize` (12/14/16/20/28) replaces
+seventeen ad-hoc sizes; outline is the default for every object icon, FILLED means an
+on-state (`star` = pinned, `checkmark-circle` = filed) and never mere emphasis; geometric
+glyphs (add/close/chevron/ellipsis) get one spelling each (`refresh`, `close-outline`
+and `chevron-back` were each in use alongside their twin). **Note cards** key their
+pastel on the note's first TAG and show the tag name — same tag, same colour, so a grid
+groups itself; untagged notes carry no mark. Pinned cards get an accent edge.
+**Density** left the tasks screen (`tasks_compact`) to become an app-level preference on
+ThemeContext with a Comfortable/Compact control in Settings → Appearance; it currently
+reaches TaskItem rows only. **GradientBackground is flat** — the three per-theme radial
+washes argued with the surface hierarchy once borders and the elevation ladder earned it.
+`kit.wash` is kept, so restoring it is a local change to that one component.
+**`mountStagger()` and `hn-rise` are gone**: they animated nothing and replayed on every
+visit to Notes. Note cards now animate on real changes (enter/exit/reorder).
+
+**THEMES REBUILT AS MATERIALS** (same batch). Four themes, not six —
+Obsidian (neutral), Nord (cool), Ember (warm), Void (true-black OLED, its own
+entry because #000 needs its own surface ramp). Graphite/Evergreen/Solar are gone;
+`theme-v4` supersedes `theme-v3` and maps them to obsidian/nord/ember so no device
+silently resets. `ThemeMaterial` adds `separation` ("border" | "shadow" | "both"),
+`shadowColor` and `shadowStrength`, so Nord is border-led and flat while Ember's cards
+sit on a warm-tinted shadow. **Every theme's light scheme is authored, not inverted.**
+`useTheme()` now returns a material-bound `shadow(level)` — prefer it over
+`getShadow(level, scheme)`, which cannot know the theme's material. Accent precedence is
+explicit: each theme ships a `defaultAccent`, `accentId === null` means "follow the
+theme", an explicit pick wins and persists, and a reset appears only when there is
+something to undo. The picker is a near-full-size **live preview** (real card, task row,
+real type in the previewed material) — the old 86px thumbnail could only show hue.
+**Accents retuned**: same ten hues with real chroma (the originals were Nord's
+deliberately-desaturated palette and read muddy), and each now carries a deeper
+`light`/`lightHover` pair because one hex cannot clear 4.5:1 on both #0D0D0D and #FFFFFF.
+Verified: all ten clear 4.5:1 in both schemes. Also **tabular figures** on the `meta` and
+`label` roles (prose stays proportional) and a **masonry note grid** — `columns` vertical
+stacks, cards as tall as their content, dealt round-robin because heights are unknown
+until layout and RN-Web's first ResizeObserver callback never arrives.
+
 In progress: —
-On hold (user will ask): further themes redesign beyond the 2026-07-12 push.
+Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
+from the accent only (a small accent-derived cue per screen, NOT per-screen surface
+tints). Declined in the same review: a signature display typeface, and a reading-measure
+cap on the notes editor.
 Awaiting confirmation: the PWA padding fix could not be verified locally — the
 web safe-area provider reads `env(safe-area-inset-*)` once at mount via a hidden
 probe div whose listener uses the legacy `webkitTransitionEnd` event Chrome no
