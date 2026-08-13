@@ -24,7 +24,7 @@ function sortedIdsAllIn(collapsed: string[], tables: CourseTable[]): boolean {
 }
 
 function CoursesScreen() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const scrollBottom = useScrollBottomPadding();
   const { tables, loaded } = useCoursesData();
   const { deleteTable } = useCoursesActions();
@@ -124,7 +124,7 @@ function CoursesScreen() {
               backgroundColor: colors.textPrimary,
               opacity: pressed ? 0.85 : hovered ? 0.92 : 1,
               marginBottom: spacing[5],
-              ...getShadow("md", scheme),
+              ...shadow("md"),
               ...(Platform.OS === "web" ? {
                 transitionProperty: "opacity, transform",
                 transitionDuration: "150ms",
@@ -176,7 +176,7 @@ function CoursesScreen() {
                       width: 132, borderRadius: 18, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
                       backgroundColor: colors.bgSecondary, alignItems: "center", justifyContent: "center",
                       gap: spacing[2], paddingVertical: spacing[4],
-                      ...getShadow("sm", scheme),
+                      ...shadow("sm"),
                     }}>
                       <ProgressRing ticked={progress.ticked} total={progress.total} size={72} />
                       <Text size="2xs" tertiary style={{ textAlign: "center" }}>

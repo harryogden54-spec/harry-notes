@@ -7,8 +7,18 @@ import { Platform } from "react-native";
 
 // ─── Theme types ──────────────────────────────────────────────────────────────
 
-export type ThemeId =
-  | "obsidian" | "nord" | "graphite" | "evergreen" | "solar" | "ember";
+/**
+ * Four themes, rebuilt 2026-08-13. Each is a *material*, not a palette: it owns
+ * its surface contrast, where separation comes from (hairline border vs cast
+ * shadow) and what colour its shadows are, on top of the usual colour ramp.
+ *
+ * The previous six included near-neighbours — Graphite was Obsidian with the
+ * accent drained, and Evergreen and Nord shared a mood. What survives is one
+ * theme per temperature (neutral / cool / warm) plus a true-black Void, and
+ * each one's light scheme is authored on its own terms rather than derived by
+ * inverting its dark.
+ */
+export type ThemeId = "obsidian" | "nord" | "ember" | "void";
 
 export type ThemeTokens = {
   bgPrimary: string;
@@ -30,100 +40,166 @@ export type ThemeTokens = {
   scrim: string;
 };
 
+/**
+ * The non-colour half of a theme — what the surfaces are *made of*.
+ *
+ * Two themes can share a hue and still feel unrelated: one separating its cards
+ * with a crisp hairline and no shadow reads as technical and flat, another
+ * lifting them on a soft warm shadow reads as physical. That difference lives
+ * here rather than being hardcoded once for the whole app.
+ */
+export type ThemeMaterial = {
+  /**
+   * Where a surface's edge comes from.
+   *   "border" — hairline only; shadows suppressed. Crisp, flat, technical.
+   *   "shadow" — cast shadow carries it; borders stay nearly invisible.
+   *   "both"   — a hairline plus a soft shadow.
+   */
+  separation: "border" | "shadow" | "both";
+  /** Shadow tint. Warm themes cast warm shadows; pure black looks like soot on them. */
+  shadowColor: string;
+  /** Multiplier on the base shadow opacity — 0 suppresses shadows entirely. */
+  shadowStrength: number;
+};
+
 const SEMANTIC_DARK  = { success: "#3DD68C", warning: "#F5A623", danger: "#F26464", scrim: "#0000008C" } as const;
 const SEMANTIC_LIGHT = { success: "#1E8A5A", warning: "#B86E00", danger: "#C0392B", scrim: "#00000073" } as const;
 
-// ─── Named themes (6) ─────────────────────────────────────────────────────────
+// ─── Named themes (4) ─────────────────────────────────────────────────────────
 
-export const THEMES: Record<ThemeId, { label: string; dark: ThemeTokens; light: ThemeTokens }> = {
+type ThemeScheme = { tokens: ThemeTokens; material: ThemeMaterial };
+
+export type ThemeDef = {
+  label: string;
+  /** One line describing the world — shown in the picker. */
+  blurb: string;
+  /** The accent this theme was authored around. A user accent overrides it. */
+  defaultAccent: AccentId;
+  dark: ThemeScheme;
+  light: ThemeScheme;
+};
+
+export const THEMES: Record<ThemeId, ThemeDef> = {
+  /**
+   * Neutral ink. The default: near-black that stays out of the way, separation
+   * from a hairline plus a whisper of shadow. Its light scheme is true white
+   * paper — the one place a pure #FFF is right, because nothing else tints it.
+   */
   obsidian: {
     label: "Obsidian",
+    blurb: "Neutral ink. Quiet, precise, gets out of the way.",
+    defaultAccent: "indigo",
     dark: {
-      bgPrimary: "#0D0D0D", bgSecondary: "#141414", bgTertiary: "#1A1A1A", bgBorder: "#262626",
-      textPrimary: "#F0F0F0", textSecondary: "#9A9A9A", textTertiary: "#5A5A5A", textInverse: "#0D0D0D",
-      accent: "#6B77D9", accentHover: "#7B87E9", accentSubtle: "#1A1D3A",
-      ...SEMANTIC_DARK,
+      tokens: {
+        bgPrimary: "#0D0D0D", bgSecondary: "#161616", bgTertiary: "#1F1F1F", bgBorder: "#2A2A2A",
+        textPrimary: "#F0F0F0", textSecondary: "#9A9A9A", textTertiary: "#5A5A5A", textInverse: "#0D0D0D",
+        accent: "#6B77D9", accentHover: "#7B87E9", accentSubtle: "#1A1D3A",
+        ...SEMANTIC_DARK,
+      },
+      material: { separation: "both", shadowColor: "#000000", shadowStrength: 1 },
     },
     light: {
-      bgPrimary: "#FFFFFF", bgSecondary: "#F5F5F5", bgTertiary: "#EBEBEB", bgBorder: "#E0E0E0",
-      textPrimary: "#0D0D0D", textSecondary: "#4A4A4A", textTertiary: "#8A8A8A", textInverse: "#F0F0F0",
-      accent: "#5B6AD0", accentHover: "#6B7AE0", accentSubtle: "#ECEFFE",
-      ...SEMANTIC_LIGHT,
+      tokens: {
+        bgPrimary: "#FFFFFF", bgSecondary: "#FAFAFA", bgTertiary: "#F2F2F2", bgBorder: "#E4E4E4",
+        textPrimary: "#141414", textSecondary: "#565656", textTertiary: "#8E8E8E", textInverse: "#FFFFFF",
+        accent: "#5B6AD0", accentHover: "#6B7AE0", accentSubtle: "#ECEFFE",
+        ...SEMANTIC_LIGHT,
+      },
+      material: { separation: "both", shadowColor: "#1A1A2E", shadowStrength: 0.9 },
     },
   },
+
+  /**
+   * Cool blue-grey. Nord's own palette, but the light scheme is no longer the
+   * dark one flipped: it is cool paper with slate ink, so it reads as daylight
+   * on the same material rather than a washed-out negative. Border-led — the
+   * flattest of the four.
+   */
   nord: {
     label: "Nord",
+    blurb: "Cool blue-grey. Calm, slightly clinical, easy on the eye.",
+    defaultAccent: "sky",
     dark: {
-      bgPrimary: "#2E3440", bgSecondary: "#3B4252", bgTertiary: "#434C5E", bgBorder: "#4C566A",
-      textPrimary: "#ECEFF4", textSecondary: "#D8DEE9", textTertiary: "#81A1C1", textInverse: "#2E3440",
-      accent: "#88C0D0", accentHover: "#9DCFDF", accentSubtle: "#1C3040",
-      ...SEMANTIC_DARK,
+      tokens: {
+        bgPrimary: "#2E3440", bgSecondary: "#363E4C", bgTertiary: "#414B5C", bgBorder: "#4C566A",
+        textPrimary: "#ECEFF4", textSecondary: "#C3CCDA", textTertiary: "#8895A8", textInverse: "#2E3440",
+        accent: "#88C0D0", accentHover: "#9DCFDF", accentSubtle: "#1C3040",
+        ...SEMANTIC_DARK,
+      },
+      material: { separation: "border", shadowColor: "#141821", shadowStrength: 0.45 },
     },
     light: {
-      bgPrimary: "#ECEFF4", bgSecondary: "#E5E9F0", bgTertiary: "#D8DEE9", bgBorder: "#C4CDD8",
-      textPrimary: "#2E3440", textSecondary: "#4C566A", textTertiary: "#7A8898", textInverse: "#ECEFF4",
-      accent: "#5E81AC", accentHover: "#6E91BC", accentSubtle: "#DDE5F0",
-      ...SEMANTIC_LIGHT,
+      tokens: {
+        bgPrimary: "#F7F9FC", bgSecondary: "#FFFFFF", bgTertiary: "#EDF1F7", bgBorder: "#D6DEE9",
+        textPrimary: "#2E3440", textSecondary: "#556172", textTertiary: "#8894A6", textInverse: "#FFFFFF",
+        accent: "#5E81AC", accentHover: "#6E91BC", accentSubtle: "#DDE5F0",
+        ...SEMANTIC_LIGHT,
+      },
+      material: { separation: "border", shadowColor: "#2E3440", shadowStrength: 0.5 },
     },
   },
-  graphite: {
-    label: "Graphite",
-    dark: {
-      bgPrimary: "#1C1C1E", bgSecondary: "#2C2C2E", bgTertiary: "#3A3A3C", bgBorder: "#48484A",
-      textPrimary: "#F2F2F7", textSecondary: "#AEAEB2", textTertiary: "#636366", textInverse: "#1C1C1E",
-      accent: "#98989D", accentHover: "#AEAEB2", accentSubtle: "#2C2C2E",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F2F2F7", bgSecondary: "#E5E5EA", bgTertiary: "#D1D1D6", bgBorder: "#C7C7CC",
-      textPrimary: "#1C1C1E", textSecondary: "#3A3A3C", textTertiary: "#6D6D72", textInverse: "#F2F2F7",
-      accent: "#636366", accentHover: "#48484A", accentSubtle: "#E5E5EA",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  evergreen: {
-    label: "Evergreen",
-    dark: {
-      bgPrimary: "#0D1810", bgSecondary: "#142018", bgTertiary: "#1A2A1E", bgBorder: "#253A2A",
-      textPrimary: "#E4EFE6", textSecondary: "#8DB898", textTertiary: "#4A7A54", textInverse: "#0D1810",
-      accent: "#6DBF7E", accentHover: "#7DCF8E", accentSubtle: "#1A3020",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#F2F8F3", bgSecondary: "#E4F0E6", bgTertiary: "#D4E8D8", bgBorder: "#BDD8C4",
-      textPrimary: "#0D2A14", textSecondary: "#2A5A34", textTertiary: "#5A8A64", textInverse: "#F2F8F3",
-      accent: "#3A8A4A", accentHover: "#4A9A5A", accentSubtle: "#DFF0E2",
-      ...SEMANTIC_LIGHT,
-    },
-  },
-  solar: {
-    label: "Solar",
-    dark: {
-      bgPrimary: "#002B36", bgSecondary: "#073642", bgTertiary: "#0E4654", bgBorder: "#205060",
-      textPrimary: "#FDF6E3", textSecondary: "#93A1A1", textTertiary: "#586E75", textInverse: "#002B36",
-      accent: "#B58900", accentHover: "#C59910", accentSubtle: "#1A2418",
-      ...SEMANTIC_DARK,
-    },
-    light: {
-      bgPrimary: "#FDF6E3", bgSecondary: "#EEE8D5", bgTertiary: "#E5DBC2", bgBorder: "#C8BFA0",
-      textPrimary: "#002B36", textSecondary: "#586E75", textTertiary: "#93A1A1", textInverse: "#FDF6E3",
-      accent: "#CB4B16", accentHover: "#DB5B26", accentSubtle: "#F5DCC8",
-      ...SEMANTIC_LIGHT,
-    },
-  },
+
+  /**
+   * Warm hearth. The most physical of the four: shadows carry the separation
+   * and they are warm-tinted, because a neutral black shadow over these browns
+   * reads as dirt. Light is warm paper, not pink.
+   */
   ember: {
     label: "Ember",
+    blurb: "Warm hearth. Soft, lit from somewhere, a little physical.",
+    defaultAccent: "amber",
     dark: {
-      bgPrimary: "#1A1210", bgSecondary: "#221816", bgTertiary: "#2C1E1C", bgBorder: "#3C2A28",
-      textPrimary: "#F5EDE8", textSecondary: "#C4947A", textTertiary: "#7A5040", textInverse: "#1A1210",
-      accent: "#E85D4A", accentHover: "#F06D5A", accentSubtle: "#301A18",
-      ...SEMANTIC_DARK,
+      tokens: {
+        bgPrimary: "#17100E", bgSecondary: "#211815", bgTertiary: "#2C211D", bgBorder: "#3A2B26",
+        textPrimary: "#F7EFE9", textSecondary: "#C8A692", textTertiary: "#8A6553", textInverse: "#17100E",
+        accent: "#E85D4A", accentHover: "#F06D5A", accentSubtle: "#301A18",
+        ...SEMANTIC_DARK,
+      },
+      material: { separation: "shadow", shadowColor: "#1A0B05", shadowStrength: 1.5 },
     },
     light: {
-      bgPrimary: "#FDF4F2", bgSecondary: "#F5E8E5", bgTertiary: "#EDD8D4", bgBorder: "#DFC8C2",
-      textPrimary: "#2A1510", textSecondary: "#6B3020", textTertiary: "#9A6050", textInverse: "#FDF4F2",
-      accent: "#C0392B", accentHover: "#D04030", accentSubtle: "#FAE8E5",
-      ...SEMANTIC_LIGHT,
+      tokens: {
+        bgPrimary: "#FBF6F1", bgSecondary: "#FFFDFB", bgTertiary: "#F3E9E0", bgBorder: "#E4D3C6",
+        textPrimary: "#2A1A12", textSecondary: "#6B4B38", textTertiary: "#9C7B66", textInverse: "#FFFDFB",
+        accent: "#C0512B", accentHover: "#D0613B", accentSubtle: "#F9E7DC",
+        ...SEMANTIC_LIGHT,
+      },
+      material: { separation: "shadow", shadowColor: "#5A3520", shadowStrength: 1.2 },
+    },
+  },
+
+  /**
+   * True black, for OLED. A separate theme rather than a modifier on the other
+   * darks: #000 needs its own ramp to work — surfaces have to lift by real
+   * steps or the screen collapses into one void — and a cast shadow against
+   * black is invisible, so separation is border-only.
+   */
+  void: {
+    label: "Void",
+    blurb: "True black for OLED. Maximum contrast, minimum glow.",
+    defaultAccent: "mono",
+    dark: {
+      tokens: {
+        bgPrimary: "#000000", bgSecondary: "#0B0B0B", bgTertiary: "#161616", bgBorder: "#292929",
+        textPrimary: "#FFFFFF", textSecondary: "#A6A6A6", textTertiary: "#666666", textInverse: "#000000",
+        accent: "#9A9A9A", accentHover: "#AAAAAA", accentSubtle: "#1A1A1A",
+        ...SEMANTIC_DARK,
+      },
+      material: { separation: "border", shadowColor: "#000000", shadowStrength: 0 },
+    },
+    /**
+     * Void is a dark theme by intent. Its light scheme exists so the light/dark
+     * toggle can't strand you on an unreadable screen — it is a high-contrast
+     * paper, not an attempt at a "light true-black".
+     */
+    light: {
+      tokens: {
+        bgPrimary: "#FFFFFF", bgSecondary: "#FFFFFF", bgTertiary: "#F0F0F0", bgBorder: "#D6D6D6",
+        textPrimary: "#000000", textSecondary: "#4A4A4A", textTertiary: "#7A7A7A", textInverse: "#FFFFFF",
+        accent: "#4A4A4A", accentHover: "#333333", accentSubtle: "#EDEDED",
+        ...SEMANTIC_LIGHT,
+      },
+      material: { separation: "border", shadowColor: "#000000", shadowStrength: 0 },
     },
   },
 };
@@ -298,13 +374,19 @@ function opacityToHexAlpha(o: number): string {
 export function getShadow(
   level: ShadowLevel,
   scheme: ColorScheme,
-  options?: { color?: string; opacity?: number },
+  options?: { color?: string; opacity?: number; material?: ThemeMaterial },
 ) {
   const s = SHADOW_SPECS[level];
+  const m = options?.material;
   // Must be 6-digit hex: the web branch appends a 2-digit alpha, and a 3-digit
   // base ("#000" + "14" → "#00014") is invalid CSS that silently kills the shadow.
-  const color   = options?.color ?? "#000000";
-  const opacity = options?.opacity ?? (scheme === "dark" ? s.dark : s.light);
+  const color   = options?.color ?? m?.shadowColor ?? "#000000";
+  const base    = scheme === "dark" ? s.dark : s.light;
+  // A border-led theme keeps its overlays (modals genuinely float) but drops the
+  // shadow from cards, where the hairline is doing the work.
+  const suppressed = m?.separation === "border" && level !== "overlay";
+  const opacity = options?.opacity
+    ?? (suppressed ? 0 : base * (m?.shadowStrength ?? 1));
 
   // RN Web warns that shadow*/elevation style props are deprecated in favour
   // of boxShadow — return the CSS form on web, the native form elsewhere.
@@ -490,7 +572,7 @@ function buildPastels(hues: readonly number[], sat: number, scheme: ColorScheme)
 type KitSpec = {
   /** Six pastel hues (degrees) — the theme's note palette identity. */
   hues: readonly number[];
-  /** Saturation multiplier (graphite wants near-monochrome pastels). */
+  /** Saturation multiplier (Void wants near-monochrome pastels). */
   sat: number;
   wash: { dark: readonly [string, string]; light: readonly [string, string] };
   hero: { dark: readonly [string, string]; light: readonly [string, string] };
@@ -507,25 +589,15 @@ const KIT_SPECS: Record<ThemeId, KitSpec> = {
     wash: { dark: ["#88C0D0", "#B48EAD"], light: ["#5E81AC", "#88C0D0"] },
     hero: { dark: ["#88C0D0", "#A3BE8C"], light: ["#5E81AC", "#4E9A8C"] },
   },
-  graphite: { // near-monochrome studio
-    hues: [228, 200, 280, 150, 340, 45], sat: 0.3,
-    wash: { dark: ["#98989D", "#6E6E73"], light: ["#8E8E93", "#B0B0B5"] },
-    hero: { dark: ["#AEAEB2", "#8E8E93"], light: ["#636366", "#8E8E93"] },
-  },
-  evergreen: { // botanical
-    hues: [140, 95, 170, 60, 200, 28], sat: 0.85,
-    wash: { dark: ["#6DBF7E", "#3A9A8A"], light: ["#3A8A4A", "#6ABF8E"] },
-    hero: { dark: ["#6DBF7E", "#9ACD6A"], light: ["#3A8A4A", "#2A7A6A"] },
-  },
-  solar: { // dawn-lit lagoon
-    hues: [45, 18, 175, 205, 68, 331], sat: 0.85,
-    wash: { dark: ["#B58900", "#2AA198"], light: ["#CB4B16", "#B58900"] },
-    hero: { dark: ["#B58900", "#CB4B16"], light: ["#CB4B16", "#D33682"] },
-  },
   ember: { // hearth glow
     hues: [10, 25, 0, 40, 350, 55], sat: 0.95,
     wash: { dark: ["#E85D4A", "#C2452E"], light: ["#C0392B", "#E87A4A"] },
     hero: { dark: ["#E85D4A", "#F5A623"], light: ["#C0392B", "#E06A30"] },
+  },
+  void: { // no hue at all — note pastels stay near-grey so nothing glows on black
+    hues: [228, 200, 280, 150, 340, 45], sat: 0.22,
+    wash: { dark: ["#9A9A9A", "#5A5A5A"], light: ["#4A4A4A", "#8A8A8A"] },
+    hero: { dark: ["#FFFFFF", "#9A9A9A"], light: ["#000000", "#4A4A4A"] },
   },
 };
 

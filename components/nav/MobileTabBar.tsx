@@ -35,7 +35,7 @@ const BAR_CONTENT_HEIGHT = 55;
  * active-state and navigation without coupling to the navigator internals.
  */
 export function MobileTabBar() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -130,7 +130,7 @@ export function MobileTabBar() {
               paddingTop: spacing[2.5],
               paddingHorizontal: spacing[3],
               paddingBottom: Math.max(insets.bottom, spacing[4]),
-              ...getShadow("overlay", scheme),
+              ...shadow("overlay"),
             }}
           >
             {/* Drag handle */}

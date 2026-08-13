@@ -48,7 +48,7 @@ export const TaskCard = React.memo(function TaskCard({
   task, selected = false, selectMode = false, highlighted = false,
   onPress, onToggleDone, onSelect,
 }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const [hovered, setHovered] = useState(false);
   const today        = getTodayStr();
   const overdue       = !task.done && !!task.due_date && task.due_date < today;
@@ -84,7 +84,7 @@ export const TaskCard = React.memo(function TaskCard({
           task.priority === "urgent" && !task.done ? `${colors.danger}0C` :
           `${colors.bgSecondary}${hovered ? "F0" : "D0"}`,
         opacity: selected && selectMode ? 0.85 : 1,
-        ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
+        ...(hovered && !pressed ? shadow("md") : shadow("sm")),
         ...(Platform.OS === "web" ? {
           // @ts-ignore web-only CSS — smooth hover lift. No backdrop blur:
           // dozens of live blur layers hurt paint perf for no visible gain

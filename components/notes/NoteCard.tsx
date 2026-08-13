@@ -22,7 +22,7 @@ type Props = {
  */
 export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }: Props) {
   const { pinNote } = useNotesActions();
-  const { colors, notePastels, scheme } = useTheme();
+  const { colors, notePastels, scheme, shadow } = useTheme();
   const [hovered, setHovered] = useState(false);
   // Colour keyed on the first TAG, not the note id: same tag always draws the
   // same pastel, so a grid visibly groups itself. Keyed on the id it was pure
@@ -48,7 +48,7 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }
         ...shape.card,
         gap: spacing[2],
         minHeight: 100,
-        ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
+        ...(hovered && !pressed ? shadow("md") : shadow("sm")),
         ...(Platform.OS === "web" ? {
           // @ts-ignore web-only CSS — smooth hover lift (no backdrop blur; see TaskCard)
           ...transition("transform, box-shadow, background-color"),

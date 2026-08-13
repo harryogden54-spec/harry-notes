@@ -10,7 +10,7 @@ import { useFloatingBottom } from "@/lib/TabBarHeightContext";
 export function ToastContainer() {
   const toasts = useToastState();
   const { dismissToast } = useToast();
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   // Sits just above the FAB stack, both derived from the tab bar's measured
   // height. The old Platform.OS === "ios" branch left toasts behind the tab
   // bar in the iOS PWA, where Platform.OS is "web".
@@ -46,7 +46,7 @@ export function ToastContainer() {
             paddingVertical: spacing[3],
             paddingHorizontal: spacing[4],
             gap: spacing[3],
-            ...getShadow("md", scheme),
+            ...shadow("md"),
           }}
         >
           <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{toast.message}</Text>

@@ -6,6 +6,19 @@ import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
 type Scheme = "dark" | "light";
 
 /**
+ * Where the three retired themes send their users. Graphite was Obsidian with
+ * the colour drained, so it goes there; Evergreen and Solar were both
+ * lower-contrast worlds with a warm or cool cast, so they go to the surviving
+ * theme of the same temperature. Chosen so nobody's app changes temperature
+ * overnight without them asking.
+ */
+const LEGACY_THEME_MAP: Record<string, ThemeId> = {
+  graphite:  "obsidian",
+  evergreen: "nord",
+  solar:     "ember",
+};
+
+/**
  * How much air the app gives its lists. This is a genuine preference rather
  * than a value to be picked centrally — the right answer depends on whether you
  * are reading a handful of tasks or scanning eighty.
@@ -16,8 +29,15 @@ type ThemeContextValue = {
   scheme: Scheme;
   toggle: () => void;
   isManual: boolean;
-  accentId: AccentId;
+  /**
+   * `null` means "use whatever accent this theme was authored around". An
+   * explicit id overrides the theme's default and survives a theme change, so
+   * the precedence is visible rather than the picker silently always winning.
+   */
+  accentId: AccentId | null;
   setAccentId: (id: AccentId) => void;
+  /** Drop back to the current theme's own accent. */
+  resetAccent: () => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
   density: Density;
@@ -30,7 +50,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const device = (useColorScheme() ?? "dark") as Scheme;
   const [override, setOverride]      = useState<Scheme | null>(null);
-  const [accentId, setAccentIdState] = useState<AccentId>("indigo");
+  const [accentId, setAccentIdState] = useState<AccentId | null>(null);
   const [themeId, setThemeIdState]   = useState<ThemeId>("obsidian");
   // Compact by default on native: the meta line wraps awkwardly on a phone.
   // This was the tasks screen's own `tasks_compact` state before it became an
@@ -45,13 +65,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     Promise.all([
       storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); }),
-      // accent_id_v2 — bumped from v1 so stale frost/deep/etc ids reset to "indigo"
+      // accent_id_v2 — bumped from v1 so stale frost/deep/etc ids reset.
+      // Absent now means "follow the theme" rather than "indigo".
       storage.get<AccentId>("accent_id_v2").then(v => {
         if (v && ACCENT_OPTIONS.some(a => a.id === v)) setAccentIdState(v);
       }),
-      // theme-v3 — bumped from v2 so stale 16-theme ids reset to "obsidian"
-      storage.get<ThemeId>("theme-v3").then(v => {
-        if (v && (v in THEMES)) setThemeIdState(v);
+      // theme-v4 — bumped from v3 when the six themes became four. A device
+      // still on graphite/evergreen/solar lands on its nearest surviving
+      // neighbour instead of silently snapping back to the default.
+      storage.get<ThemeId>("theme-v4").then(async v => {
+        if (v && (v in THEMES)) { setThemeIdState(v); return; }
+        const legacy = await storage.get<string>("theme-v3");
+        const migrated = legacy ? LEGACY_THEME_MAP[legacy] : undefined;
+        if (migrated) {
+          setThemeIdState(migrated);
+          storage.set("theme-v4", migrated);
+        }
       }),
       // Migrates the tasks screen's old boolean key, so an existing preference
       // carries over rather than silently resetting.
@@ -71,12 +100,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const scheme = override ?? device;
 
   // Keep the CSS --accent variable (focus outlines in global.css) in sync
-  // with the active accent on web.
+  // with the active accent on web. Falls back to the theme's own accent when
+  // none is explicitly chosen, matching useTheme().
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
-    const accent = (ACCENT_OPTIONS.find(a => a.id === accentId) ?? ACCENT_OPTIONS[0]).color;
+    const theme = THEMES[themeId] ?? THEMES.obsidian;
+    const effective = accentId ?? theme.defaultAccent;
+    const accent = (ACCENT_OPTIONS.find(a => a.id === effective) ?? ACCENT_OPTIONS[0]).color;
     document.documentElement.style.setProperty("--accent", accent);
-  }, [accentId]);
+  }, [accentId, themeId]);
 
   // Paint the raw <body> on web. The body otherwise stays browser-default white
   // and shows through as a white bar whenever iOS offsets the app for the
@@ -95,7 +127,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // themed. theme-color keeps bgPrimary — that tints browser UI, not the app.
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
-    const base = (THEMES[themeId] ?? THEMES.obsidian)[scheme];
+    const base = (THEMES[themeId] ?? THEMES.obsidian)[scheme].tokens;
     document.body.style.backgroundColor = base.bgSecondary;
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", base.bgPrimary);
   }, [themeId, scheme]);
@@ -115,7 +147,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setThemeId = useCallback((id: ThemeId) => {
     setThemeIdState(id);
-    storage.set("theme-v3", id);
+    storage.set("theme-v4", id);
+  }, []);
+
+  const resetAccent = useCallback(() => {
+    setAccentIdState(null);
+    storage.remove("accent_id_v2");
   }, []);
 
   const setDensity = useCallback((d: Density) => {
@@ -127,11 +164,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // provider render would re-render most of the app on any parent update.
   const value = useMemo(() => ({
     scheme, toggle, isManual: !!override,
-    accentId, setAccentId,
+    accentId, setAccentId, resetAccent,
     themeId, setThemeId,
     density, setDensity,
     themeReady,
-  }), [scheme, toggle, override, accentId, setAccentId, themeId, setThemeId, density, setDensity, themeReady]);
+  }), [scheme, toggle, override, accentId, setAccentId, resetAccent, themeId, setThemeId, density, setDensity, themeReady]);
 
   return (
     <ThemeContext.Provider value={value}>

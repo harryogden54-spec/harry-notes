@@ -44,7 +44,7 @@ export function Select<T extends string | number>({
   value, options, onChange, placeholder, width, flex, panelMinWidth = 132,
   open: openProp, onOpenChange,
 }: Props<T>) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => {
@@ -92,7 +92,7 @@ export function Select<T extends string | number>({
             borderRadius: radius.lg,
             borderWidth: 1, borderColor: colors.bgBorder,
             overflow: "hidden",
-            ...getShadow("overlay", scheme),
+            ...shadow("overlay"),
           }}
         >
           <ScrollView>

@@ -18,7 +18,7 @@ interface GlassCardProps {
 }
 
 export function GlassCard({ children, style, intensity = 20, variant = "default", ...rest }: GlassCardProps) {
-  const { isDark, colors } = useTheme();
+  const { isDark, colors, shadow } = useTheme();
 
   const br = (style as any)?.borderRadius ?? radius["2xl"];
 
@@ -40,9 +40,9 @@ export function GlassCard({ children, style, intensity = 20, variant = "default"
   };
 
   const shadowStyle: ViewStyle =
-    variant === "elevated" ? getShadow("overlay", scheme)
+    variant === "elevated" ? shadow("overlay")
     : variant === "inset"  ? {}
-    : getShadow("sm", scheme);
+    : shadow("sm");
   const variantBorder = variant === "inset" ? insetBorder : {};
 
   if (Platform.OS === "web") {

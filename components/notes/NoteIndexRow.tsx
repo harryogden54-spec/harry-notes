@@ -15,7 +15,7 @@ type Props = { note: Note; isSelected: boolean; onSelect: () => void; pageCount?
  * identity dot), selection shown with an accent border.
  */
 export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect, pageCount }: Props) {
-  const { colors, notePastels, scheme } = useTheme();
+  const { colors, notePastels, scheme, shadow } = useTheme();
   const [hovered, setHovered] = useState(false);
   // Same rule as NoteCard: the pastel keys on the first tag, so it means
   // something. See the comment there.
@@ -40,7 +40,7 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
           ? `${colors.accent}0C`
           : `${colors.bgSecondary}${hovered ? "F0" : "D0"}`,
         gap: spacing[1],
-        ...(hovered && !pressed ? getShadow("md", scheme) : getShadow("sm", scheme)),
+        ...(hovered && !pressed ? shadow("md") : shadow("sm")),
         ...(Platform.OS === "web" ? {
           // @ts-ignore web-only CSS — smooth hover lift
           ...transition("transform, box-shadow, background-color, border-color"),

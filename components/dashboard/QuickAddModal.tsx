@@ -38,7 +38,7 @@ function matches(text: string, q: string) {
 // ─── Main palette ─────────────────────────────────────────────────────────────
 
 export function QuickAddModal({ visible, onClose, onAdd }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const router = useRouter();
   const { tasks } = useTasksData();
   const { notes } = useNotesData();
@@ -149,7 +149,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
           borderWidth: 1, borderColor: colors.bgBorder,
           padding: mode === "add-task" ? 0 : spacing[5], gap: spacing[3],
           width: "90%" as any, maxWidth: layout.panel.modal,
-          ...getShadow("overlay", scheme),
+          ...shadow("overlay"),
           maxHeight: Platform.OS === "web" ? (mode === "add-task" ? "85vh" : "70vh") as any : (mode === "add-task" ? 640 : 560),
         }}
       >

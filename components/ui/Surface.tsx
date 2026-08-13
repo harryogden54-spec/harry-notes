@@ -19,7 +19,7 @@ interface Props extends ViewProps {
  * Use variant="elevated" for floating panels, variant="inset" for inner wells.
  */
 export function Surface({ variant = "default", style, children, ...props }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
 
   const baseColor =
     variant === "inset"    ? colors.bgTertiary  :
@@ -34,8 +34,8 @@ export function Surface({ variant = "default", style, children, ...props }: Prop
   };
 
   const shadowStyle: ViewStyle =
-    variant === "elevated" ? getShadow("sm", scheme)
-    : variant === "default" ? getShadow("xs", scheme)
+    variant === "elevated" ? shadow("sm")
+    : variant === "default" ? shadow("xs")
     : {};
 
   return (

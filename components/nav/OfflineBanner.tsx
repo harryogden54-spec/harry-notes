@@ -32,7 +32,7 @@ const OVERLAY: any = {
 const FILL: any = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 };
 
 export function OfflineBanner() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   // Roll-up, not Tasks alone: keyed on useTasksSync this banner stayed hidden
   // while another domain was erroring, and its retry button re-synced Tasks —
   // never the collection that had actually failed.
@@ -61,7 +61,7 @@ export function OfflineBanner() {
         // content, and a translucent fill would let that content read through.
         backgroundColor: colors.bgSecondary,
         borderBottomWidth: 1, borderBottomColor: `${colors.warning}30`,
-        ...getShadow("sm", scheme),
+        ...shadow("sm"),
       }}>
         <View style={{ ...FILL, backgroundColor: `${colors.warning}18` }} pointerEvents="none" />
         <Ionicons name="cloud-offline-outline" size={12} color={colors.warning} />
@@ -83,7 +83,7 @@ export function OfflineBanner() {
         paddingHorizontal: spacing[3], paddingVertical: spacing[1] + 2,
         backgroundColor: colors.bgSecondary,
         borderBottomWidth: 1, borderBottomColor: `${colors.danger}30`,
-        ...getShadow("sm", scheme),
+        ...shadow("sm"),
       }}
     >
       <View style={{ ...FILL, backgroundColor: `${colors.danger}18` }} pointerEvents="none" />

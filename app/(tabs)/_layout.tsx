@@ -14,7 +14,7 @@ import { RouteFade } from "@/components/ui";
 import { PersistentHeader, Sidebar, MobileTabBar, NAV_ITEMS } from "@/components/nav";
 
 export default function TabLayout() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const { width } = useWindowDimensions();
   const router = useRouter();
   const { addTask, updateTask } = useTasksActions();
@@ -120,7 +120,7 @@ export default function TabLayout() {
             width: 44, height: 44, borderRadius: 99,
             backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.bgBorder,
             alignItems: "center", justifyContent: "center",
-            ...getShadow("md", scheme),
+            ...shadow("md"),
           }}
         >
           <Ionicons name="create-outline" size={16} color={colors.textSecondary} />

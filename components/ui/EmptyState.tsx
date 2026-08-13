@@ -106,7 +106,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ type, title, subtitle, action }: EmptyStateProps) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const Illustration = ILLUSTRATIONS[type] ?? ILLUSTRATIONS.notes;
 
   return (
@@ -147,7 +147,7 @@ export function EmptyState({ type, title, subtitle, action }: EmptyStateProps) {
             borderRadius: 999,
             borderWidth: 1, borderColor: colors.bgBorder,
             backgroundColor: hovered ? colors.bgTertiary : colors.bgSecondary,
-            ...getShadow("xs", scheme),
+            ...shadow("xs"),
             ...(Platform.OS === "web" ? {
               ...transition("background-color, border-color, transform"),
               transform: [{ scale: pressed ? 0.97 : 1 }],

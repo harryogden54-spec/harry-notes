@@ -25,7 +25,7 @@ type Props = {
 };
 
 export function TaskDetailModal({ task, onClose }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const { width, height } = useWindowDimensions();
   const narrow = width < 640;
 
@@ -57,7 +57,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
             borderWidth: 1,
             borderColor: colors.bgBorder,
             overflow: "hidden",
-            ...getShadow("overlay", scheme),
+            ...shadow("overlay"),
             ...(Platform.OS === "web" ? { maxHeight: narrow ? "90vh" : "85vh" } as any : {}),
           }}
         >

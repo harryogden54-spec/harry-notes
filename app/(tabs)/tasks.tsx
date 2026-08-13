@@ -44,7 +44,7 @@ function isBlankTask(t: Task): boolean {
 }
 
 function TasksScreen() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const { density } = useThemeContext();
   const scrollBottom = useScrollBottomPadding();
   const { tasks, loaded } = useTasksData();
@@ -300,7 +300,7 @@ function TasksScreen() {
                         borderRadius: 999, borderWidth: 1,
                         borderColor: active ? `${colors.accent}66` : `${colors.bgBorder}66`,
                         backgroundColor: active ? `${colors.accent}18` : hovered ? colors.bgTertiary : colors.bgSecondary,
-                        ...getShadow("xs", scheme),
+                        ...shadow("xs"),
                         ...(Platform.OS === "web" ? {
                           transitionProperty: "background-color, border-color, transform",
                           transitionDuration: "150ms",

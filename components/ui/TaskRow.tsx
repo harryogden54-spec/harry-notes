@@ -24,7 +24,7 @@ interface Props {
 }
 
 function RowContent({ task, onPress }: Props) {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   const { toggleTask, updateTask } = useTasksActions();
   const { showToast } = useToast();
   const today    = getTodayStr();
@@ -148,7 +148,7 @@ function RowContent({ task, onPress }: Props) {
 }
 
 function WebTaskRow({ task, onPress }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const [hovered, setHovered] = useState(false);
@@ -188,7 +188,7 @@ function WebTaskRow({ task, onPress }: Props) {
               borderWidth: 1, borderColor: colors.bgBorder,
               borderRadius: radius.lg,
               paddingHorizontal: spacing[1.5], paddingVertical: spacing[1],
-              ...getShadow("md", scheme),
+              ...shadow("md"),
             }}>
               <Pressable
                 onPress={handleComplete}
@@ -243,7 +243,7 @@ function WebTaskRow({ task, onPress }: Props) {
  * Memoised on task identity + the (now stable) onPress.
  */
 export const TaskRow = React.memo(function TaskRow({ task, onPress }: Props) {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   const { toggleTask, deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const swipeRef = useRef<Swipeable | null>(null);

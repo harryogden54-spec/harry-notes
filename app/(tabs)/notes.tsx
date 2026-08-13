@@ -39,7 +39,7 @@ function sortNotes(list: Note[], sortBy: NotesSortBy): Note[] {
 }
 
 function SectionLabel({ label, count }: { label: string; count: number }) {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], marginBottom: spacing[2.5] }}>
       <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>
@@ -83,7 +83,7 @@ function NoteCardGrid({ notes, onOpen, pageCounts, tileWidth = "47%" }: {
 }
 
 function NotesScreen() {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const scrollBottom = useScrollBottomPadding();
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 768;
@@ -358,7 +358,7 @@ function NotesScreen() {
                     borderRadius: 999,
                     // Inverse pill per design 1d — dark on light themes, light on dark.
                     backgroundColor: colors.textPrimary,
-                    ...getShadow("md", scheme),
+                    ...shadow("md"),
                     transform: [{ scale: pressed ? 0.97 : 1 }],
                   })}
                 >
@@ -423,7 +423,7 @@ function NotesScreen() {
         borderRadius: 18,
         backgroundColor: colors.textPrimary,
         opacity: hovered && !pressed ? 0.92 : 1,
-        ...getShadow("md", scheme),
+        ...shadow("md"),
         ...transition("opacity, transform"),
         ...(Platform.OS === "web" ? { transform: [{ scale: pressed ? 0.98 : 1 }] } : {}),
       } as any)}
@@ -565,7 +565,7 @@ function NotesScreen() {
               borderWidth: 1, borderColor: `${colors.bgBorder}88`,
               backgroundColor: colors.bgSecondary,
               overflow: "hidden",
-              ...getShadow("md", scheme),
+              ...shadow("md"),
             }}>
               {openNote ? (
                 <NoteEditor

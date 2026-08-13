@@ -23,7 +23,7 @@ type Props = {
  *  rows (text cells inline-editable, tickbox cells as circular checkboxes),
  *  and an add-row action. */
 export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collapsed, onToggleCollapse }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const { addRow, deleteRow, updateCell } = useCoursesActions();
   const progress = tableProgress(table);
 
@@ -35,7 +35,7 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collaps
         borderColor: `${colors.bgBorder}88`,
         backgroundColor: colors.bgSecondary,
         overflow: "hidden",
-        ...getShadow("sm", scheme),
+        ...shadow("sm"),
       }}
     >
       {/* Header */}

@@ -39,7 +39,7 @@ function defaultColumns(): DraftColumn[] {
  * have their cells pruned by updateTableStructure.
  */
 export function TableEditorModal({ visible, onClose, table }: Props) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const { addTable, updateTableStructure } = useCoursesActions();
   const [title, setTitle]     = useState("");
   const [columns, setColumns] = useState<DraftColumn[]>(defaultColumns);
@@ -93,7 +93,7 @@ export function TableEditorModal({ visible, onClose, table }: Props) {
             backgroundColor: colors.bgSecondary, borderRadius: radius["2xl"],
             borderWidth: 1, borderColor: colors.bgBorder,
             width: "90%" as any, maxWidth: 520,
-            ...getShadow("overlay", scheme),
+            ...shadow("overlay"),
             maxHeight: Platform.OS === "web" ? "85vh" as any : 620,
           }}
         >

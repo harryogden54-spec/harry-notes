@@ -43,7 +43,7 @@ const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
 // panel just filters to today's active items.
 
 function TodayPanel() {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   const { items: allTodayItems } = useTodayData();
   const todayStr = getTodayStr();
 
@@ -80,7 +80,7 @@ function TodayPanel() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function DashboardScreen() {
-  const { colors, notePastels, scheme } = useTheme();
+  const { colors, notePastels, scheme, shadow } = useTheme();
   const scrollBottom = useScrollBottomPadding(spacing[24]);
   const { tasks, loaded: tasksLoaded } = useTasksData();
   const { addTask, updateTask } = useTasksActions();
@@ -323,7 +323,7 @@ function DashboardScreen() {
                 padding: spacing[3],
                 gap: spacing[1],
                 minHeight: 100,
-                ...getShadow("sm", scheme),
+                ...shadow("sm"),
               }}>
                 <Text size="xs" weight="semibold" numberOfLines={1} style={{ color: note.title ? colors.textPrimary : colors.textTertiary }}>
                   {noteDisplayTitle(note)}

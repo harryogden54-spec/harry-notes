@@ -30,7 +30,7 @@ function getYesterdayStr(): string {
 // month-grid calendar was more ceremony than the field deserves, and most
 // captures want no date at all — which is now the default.
 function CompactDateSelector({ value, onChange }: { value?: string; onChange: (d?: string) => void }) {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   const today     = getLocalDateStr();
   const yesterday = getYesterdayStr();
   const presets = [
@@ -83,7 +83,7 @@ function DumpEditModal({
   onDelete: () => void;
 }) {
   const { updateDump } = useDumpsActions();
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
   const [content, setContent] = useState(initialContent);
   const [tag, setTag]         = useState<DumpTag>(initialTag);
   const [date, setDate]       = useState<string | undefined>(initialDate);
@@ -117,7 +117,7 @@ function DumpEditModal({
             borderRadius: radius["2xl"],
             borderWidth: 1, borderColor: colors.bgBorder,
             padding: spacing[5],
-            ...getShadow("overlay", scheme),
+            ...shadow("overlay"),
           }}
         >
           {/* Tag pills */}
@@ -205,7 +205,7 @@ function DumpEditModal({
 function DumpCard({ content, tag, note_date, filed, onPress }: {
   content: string; tag: DumpTag; note_date?: string; filed: boolean; onPress: () => void;
 }) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, shadow } = useTheme();
 
   return (
     <Pressable
@@ -217,7 +217,7 @@ function DumpCard({ content, tag, note_date, filed, onPress }: {
         borderColor: colors.bgBorder,
         padding: spacing[4],
         gap: spacing[2],
-        ...getShadow("xs", scheme),
+        ...shadow("xs"),
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -244,7 +244,7 @@ function DumpCard({ content, tag, note_date, filed, onPress }: {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 function DumpScreen() {
-  const { colors } = useTheme();
+  const { colors, shadow } = useTheme();
   const { dumps, loaded } = useDumpsData();
   const { addDump, deleteDump } = useDumpsActions();
   const { syncNow } = useDumpsSync();
