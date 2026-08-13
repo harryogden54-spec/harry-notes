@@ -215,7 +215,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
                       return (
                         <Pressable key={item.id} onPress={item.run}
                           style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: activeIdx === flatIdx ? `${colors.accent}10` : "transparent" }}>
-                          {"icon" in item && <Ionicons name={item.icon} size={15} color={colors.accent} />}
+                          {"icon" in item && <Ionicons name={item.icon} size={14} color={colors.accent} />}
                           <Text size="sm" style={{ color: colors.textPrimary }}>{item.label}</Text>
                         </Pressable>
                       );
@@ -232,7 +232,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
                       return (
                         <Pressable key={item.id} onPress={item.run}
                           style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: activeIdx === flatIdx ? `${colors.accent}10` : "transparent" }}>
-                          {"icon" in item && <Ionicons name={item.icon} size={15} color={colors.textSecondary} />}
+                          {"icon" in item && <Ionicons name={item.icon} size={14} color={colors.textSecondary} />}
                           <Text size="sm" style={{ color: colors.textPrimary }}>{item.label}</Text>
                         </Pressable>
                       );
@@ -252,7 +252,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
                         <View key={item.id}>
                           <Pressable onPress={item.run}
                             style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: radius.md, backgroundColor: isActive ? `${colors.accent}10` : "transparent" }}>
-                            {"icon" in item && <Ionicons name={item.icon} size={15} color={colors.textTertiary} />}
+                            {"icon" in item && <Ionicons name={item.icon} size={14} color={colors.textTertiary} />}
                             <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={1}>{item.label}</Text>
                             {"sub" in item && <Text size="xs" style={{ color: colors.textTertiary }}>{item.sub}</Text>}
                           </Pressable>
@@ -269,7 +269,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
                                 backgroundColor: `${colors.accent}08`,
                               }}
                             >
-                              <Ionicons name="document-text-outline" size={13} color={colors.accent} />
+                              <Ionicons name="document-text-outline" size={12} color={colors.accent} />
                               <Text size="xs" style={{ color: colors.accent }}>
                                 Take note about "{item.label.length > 30 ? item.label.slice(0, 30) + "…" : item.label}"
                               </Text>

@@ -156,7 +156,7 @@ export function TableEditorModal({ visible, onClose, table }: Props) {
                               borderWidth: 1, borderColor: active ? colors.bgBorder : "transparent",
                             }}
                           >
-                            <Ionicons name={icon} size={13} color={active ? colors.accent : colors.textTertiary} />
+                            <Ionicons name={icon} size={12} color={active ? colors.accent : colors.textTertiary} />
                           </Pressable>
                         );
                       })}

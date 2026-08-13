@@ -34,7 +34,7 @@ function MetaPill({ icon, dot, label, tint, textColor, bold }: {
       flexDirection: "row", alignItems: "center", gap: 5,
       ...shape.pill, backgroundColor: tint,
     }}>
-      {icon && <Ionicons name={icon} size={11} color={textColor} />}
+      {icon && <Ionicons name={icon} size={12} color={textColor} />}
       {dot && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: dot }} />}
       <Text size="meta" weight={bold ? "semibold" : "medium"} color={textColor}>
         {label}
@@ -147,7 +147,7 @@ export const TaskCard = React.memo(function TaskCard({
                 pill on hover re-wraps the row and grows the card. */}
             {subtasks.length > 0 && (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Ionicons name="git-branch-outline" size={11} color={colors.textTertiary} />
+                <Ionicons name="git-branch-outline" size={12} color={colors.textTertiary} />
                 <Text size="meta" tertiary>{doneSubtasks}/{subtasks.length}</Text>
               </View>
             )}

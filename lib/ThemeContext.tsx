@@ -5,6 +5,13 @@ import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
 
 type Scheme = "dark" | "light";
 
+/**
+ * How much air the app gives its lists. This is a genuine preference rather
+ * than a value to be picked centrally — the right answer depends on whether you
+ * are reading a handful of tasks or scanning eighty.
+ */
+export type Density = "comfortable" | "compact";
+
 type ThemeContextValue = {
   scheme: Scheme;
   toggle: () => void;
@@ -13,6 +20,8 @@ type ThemeContextValue = {
   setAccentId: (id: AccentId) => void;
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
+  density: Density;
+  setDensity: (d: Density) => void;
   themeReady: boolean;
 };
 
@@ -23,6 +32,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [override, setOverride]      = useState<Scheme | null>(null);
   const [accentId, setAccentIdState] = useState<AccentId>("indigo");
   const [themeId, setThemeIdState]   = useState<ThemeId>("obsidian");
+  // Compact by default on native: the meta line wraps awkwardly on a phone.
+  // This was the tasks screen's own `tasks_compact` state before it became an
+  // app-level preference.
+  const [density, setDensityState]   = useState<Density>(Platform.OS === "web" ? "comfortable" : "compact");
   const [themeReady, setThemeReady]  = useState(false);
 
   useEffect(() => {
@@ -39,6 +52,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // theme-v3 — bumped from v2 so stale 16-theme ids reset to "obsidian"
       storage.get<ThemeId>("theme-v3").then(v => {
         if (v && (v in THEMES)) setThemeIdState(v);
+      }),
+      // Migrates the tasks screen's old boolean key, so an existing preference
+      // carries over rather than silently resetting.
+      storage.get<Density>("density").then(async v => {
+        if (v === "comfortable" || v === "compact") { setDensityState(v); return; }
+        const legacy = await storage.get<boolean>("tasks_compact");
+        if (typeof legacy === "boolean") setDensityState(legacy ? "compact" : "comfortable");
       }),
     ]).finally(() => {
       clearTimeout(timeout);
@@ -98,14 +118,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     storage.set("theme-v3", id);
   }, []);
 
+  const setDensity = useCallback((d: Density) => {
+    setDensityState(d);
+    storage.set("density", d);
+  }, []);
+
   // Memoized — useTheme() has ~157 call sites, so a fresh value object every
   // provider render would re-render most of the app on any parent update.
   const value = useMemo(() => ({
     scheme, toggle, isManual: !!override,
     accentId, setAccentId,
     themeId, setThemeId,
+    density, setDensity,
     themeReady,
-  }), [scheme, toggle, override, accentId, setAccentId, themeId, setThemeId, themeReady]);
+  }), [scheme, toggle, override, accentId, setAccentId, themeId, setThemeId, density, setDensity, themeReady]);
 
   return (
     <ThemeContext.Provider value={value}>

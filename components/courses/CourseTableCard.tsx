@@ -52,7 +52,7 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collaps
             accessibilityLabel={collapsed ? `Expand ${table.title || "table"}` : `Collapse ${table.title || "table"}`}
             style={({ hovered }: any) => ({ padding: spacing[1], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}
           >
-            <Ionicons name={collapsed ? "chevron-forward" : "chevron-down"} size={15} color={colors.textTertiary} />
+            <Ionicons name={collapsed ? "chevron-forward" : "chevron-down"} size={14} color={colors.textTertiary} />
           </Pressable>
         )}
         {/* Title is also a collapse affordance — a chevron alone is a small target. */}
@@ -77,7 +77,7 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collaps
         <Pressable onPress={onDelete} hitSlop={8} accessibilityLabel="Delete table"
           style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? `${colors.danger}14` : "transparent" })}>
           {({ hovered }: any) => (
-            <Ionicons name="trash-outline" size={15} color={hovered ? colors.danger : colors.textTertiary} />
+            <Ionicons name="trash-outline" size={14} color={hovered ? colors.danger : colors.textTertiary} />
           )}
         </Pressable>
       </View>

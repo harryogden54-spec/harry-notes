@@ -181,7 +181,7 @@ function DumpEditModal({
               hitSlop={12}
               style={{ padding: spacing[1] }}
             >
-              <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+              <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
             </Pressable>
             <Pressable
               onPress={save}
@@ -329,7 +329,7 @@ function DumpScreen() {
                 borderRadius: radius.lg, backgroundColor: colors.accent,
               }}
             >
-              <Ionicons name="add" size={15} color={colors.textInverse} />
+              <Ionicons name="add" size={14} color={colors.textInverse} />
               <Text size="sm" weight="medium" style={{ color: colors.textInverse }}>New</Text>
             </Pressable>
           </View>

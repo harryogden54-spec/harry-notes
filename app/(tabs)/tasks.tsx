@@ -14,6 +14,7 @@ import { useLocalSearchParams } from "expo-router";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 import { useTheme } from "@/lib/useTheme";
+import { useThemeContext } from "@/lib/ThemeContext";
 import { Text, SearchBar, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
 import { spacing, radius, getShadow, layout } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
@@ -44,6 +45,7 @@ function isBlankTask(t: Task): boolean {
 
 function TasksScreen() {
   const { colors, scheme } = useTheme();
+  const { density } = useThemeContext();
   const scrollBottom = useScrollBottomPadding();
   const { tasks, loaded } = useTasksData();
   const { addTask, deleteTask, archiveTask, unarchiveTask, toggleTask, reorderTask, setSectionOrder, updateTask, clearCompleted } = useTasksActions();
@@ -62,8 +64,6 @@ function TasksScreen() {
   const [selectedIds, setSelectedIds]           = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId]           = useState<string | null>(null);
   const [sortBy, setSortBy]                     = useState<SortBy>("priority");
-  // Default compact on mobile — the meta line wraps awkwardly on small screens.
-  const [compact, setCompact]                   = useState(Platform.OS !== "web");
   const [showArchive, setShowArchive]           = useState(false);
   const [showFilters, setShowFilters]           = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
@@ -80,19 +80,17 @@ function TasksScreen() {
   // Load persisted task-view prefs on mount
   useEffect(() => {
     Promise.all([
-      storage.get<boolean>("tasks_compact"),
       storage.get<string>("tasks_sort_by"),
       storage.get<boolean>("tasks_completed_collapsed"),
-    ]).then(([c, s, cc]) => {
-      if (c !== null && c !== undefined) setCompact(c);
+    ]).then(([s, cc]) => {
       if (s !== null && s !== undefined) setSortBy(s as SortBy);
       if (cc !== null && cc !== undefined) setCompletedCollapsed(cc);
       prefsLoaded.current = true;
     });
   }, []);
 
-  // Persist prefs when changed (after initial load)
-  useEffect(() => { if (prefsLoaded.current) storage.set("tasks_compact", compact); }, [compact]);
+  // Persist prefs when changed (after initial load). Density is no longer one
+  // of them — it is an app-level preference on ThemeContext, set in Settings.
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_sort_by", sortBy); }, [sortBy]);
   useEffect(() => { if (prefsLoaded.current) storage.set("tasks_completed_collapsed", completedCollapsed); }, [completedCollapsed]);
 
@@ -226,7 +224,7 @@ function TasksScreen() {
     highlightId, onTaskMeasureY: handleTaskMeasureY,
     sortBy, onLongPress: handleLongPress,
     onUpdate: updateTask,
-    compact,
+    compact: density === "compact",
   };
 
   // No sync indicator here: the header's SyncChip reports the same state on
@@ -289,7 +287,7 @@ function TasksScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
                     <Pressable onPress={() => setShowCategoriesModal(true)} hitSlop={10} accessibilityLabel="Edit categories"
                       style={{ padding: spacing[1] }}>
-                      <Ionicons name="pricetags-outline" size={18} color={colors.textSecondary} />
+                      <Ionicons name="pricetags-outline" size={16} color={colors.textSecondary} />
                     </Pressable>
                     {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
                         ["select", selectMode, () => { setSelectMode(v => !v); setSelectedIds(new Set()); }, selectMode ? "Cancel" : "Select"],
@@ -330,7 +328,7 @@ function TasksScreen() {
                     onPress={() => setShowFilters(v => !v)}
                     style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], alignSelf: "flex-start" }}
                   >
-                    <Ionicons name="options-outline" size={13} color={hasActiveFilters ? colors.accent : colors.textTertiary} />
+                    <Ionicons name="options-outline" size={12} color={hasActiveFilters ? colors.accent : colors.textTertiary} />
                     <Text size="xs" style={{ color: hasActiveFilters ? colors.accent : colors.textTertiary }}>
                       Filters{hasActiveFilters ? " · active" : ""}
                     </Text>
@@ -347,19 +345,9 @@ function TasksScreen() {
                         ))}
                       </View>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], flexWrap: "wrap" }}>
-                        {!focusMode && !isDesktop && (
-                          <>
-                            <Pressable onPress={() => setCompact(v => !v)} style={{
-                              paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                              borderRadius: radius.sm, borderWidth: 1,
-                              borderColor: compact ? colors.accent : colors.bgBorder,
-                              backgroundColor: compact ? `${colors.accent}15` : colors.bgTertiary,
-                            }}>
-                              <Text size="xs" style={{ color: compact ? colors.accent : colors.textSecondary }}>Compact</Text>
-                            </Pressable>
-                            <View style={{ width: 1, height: 14, backgroundColor: colors.bgBorder }} />
-                          </>
-                        )}
+                        {/* The Compact toggle used to live here, mobile-only and
+                            scoped to this screen. It is now an app-wide
+                            Density preference in Settings. */}
                         {([["priority", "Priority"], ["due_date", "Due date"], ["title", "A–Z"], ["created", "Added"]] as [SortBy, string][]).map(([key, label]) => (
                           <Pressable key={key} onPress={() => setSortBy(key)} style={{
                             paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],

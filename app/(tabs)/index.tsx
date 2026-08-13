@@ -380,7 +380,7 @@ function DashboardScreen() {
               borderBottomWidth: i === arr.length - 1 ? 0 : 1, borderBottomColor: colors.bgBorder,
             }}
           >
-            <Ionicons name={item.icon} size={17} color={colors.accent} />
+            <Ionicons name={item.icon} size={16} color={colors.accent} />
             <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.label}</Text>
             <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
           </Pressable>

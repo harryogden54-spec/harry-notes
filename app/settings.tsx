@@ -25,7 +25,7 @@ import { getSyncKey, setSyncKey, generateSyncKey } from "@/lib/syncKey";
 
 export default function SettingsScreen() {
   const { colors }     = useTheme();
-  const { scheme, toggle, themeId } = useThemeContext();
+  const { scheme, toggle, themeId, density, setDensity } = useThemeContext();
   // One source for sync state and the manual trigger, shared with the header
   // chip — see lib/useSyncStatus.ts.
   const { status: overallSync, lastSynced, domains: syncDomains, syncAll } = useSyncAll();
@@ -212,7 +212,6 @@ export default function SettingsScreen() {
             <Row
               icon={scheme === "dark" ? "moon-outline" : "sunny-outline"}
               label="Dark mode"
-              isLast
               right={
                 <Switch
                   value={scheme === "dark"}
@@ -220,6 +219,40 @@ export default function SettingsScreen() {
                   trackColor={{ false: colors.bgBorder, true: colors.accent }}
                   thumbColor={colors.textInverse}
                 />
+              }
+            />
+            {/* How much air lists get. The right answer depends on how many
+                tasks you are looking at, so it is yours to set rather than a
+                value picked centrally. */}
+            <Row
+              icon="reorder-three-outline"
+              label="Density"
+              subtitle={density === "compact" ? "Compact — more on screen" : "Comfortable — more air"}
+              isLast
+              right={
+                <View style={{ flexDirection: "row", gap: spacing[1], alignItems: "center" }}>
+                  {(["comfortable", "compact"] as const).map(opt => {
+                    const active = density === opt;
+                    return (
+                      <Pressable
+                        key={opt}
+                        onPress={() => setDensity(opt)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        style={{
+                          paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
+                          borderRadius: 999, borderWidth: 1,
+                          borderColor: active ? colors.accent : colors.bgBorder,
+                          backgroundColor: active ? `${colors.accent}18` : "transparent",
+                        }}
+                      >
+                        <Text size="meta" weight="medium" style={{ color: active ? colors.accent : colors.textSecondary }}>
+                          {opt === "comfortable" ? "Comfortable" : "Compact"}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               }
             />
           </RowGroup>

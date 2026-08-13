@@ -95,7 +95,7 @@ export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading 
         <React.Fragment key={t.key}>
           <Pressable onPress={t.fn} style={btn}>
             {"icon" in t
-              ? <Ionicons name={t.icon} size={17} color={colors.textSecondary} />
+              ? <Ionicons name={t.icon} size={16} color={colors.textSecondary} />
               : (
                 <Text size="sm" style={{
                   color: colors.textSecondary,
@@ -115,7 +115,7 @@ export function MarkdownToolbar({ body, selRef, onApply, onPickImage, uploading 
         <Pressable onPress={onPickImage} disabled={uploading} style={btn}>
           {uploading
             ? <ActivityIndicator size="small" color={colors.textSecondary} />
-            : <Ionicons name="image-outline" size={17} color={colors.textSecondary} />}
+            : <Ionicons name="image-outline" size={16} color={colors.textSecondary} />}
         </Pressable>
       )}
     </ScrollView>

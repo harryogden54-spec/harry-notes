@@ -155,7 +155,7 @@ export function FocusTimer() {
                 alignItems: "center", justifyContent: "center",
               }}
             >
-              <Ionicons name="refresh" size={16} color={colors.textSecondary} />
+              <Ionicons name="refresh-outline" size={16} color={colors.textSecondary} />
             </Pressable>
           )}
         </View>

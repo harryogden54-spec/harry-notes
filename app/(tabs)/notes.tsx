@@ -11,7 +11,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/useTheme";
 import { Text, SearchBar, EmptyState, GradientBackground } from "@/components/ui";
-import { spacing, radius, getShadow, layout, transition } from "@/lib/theme";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
+import { spacing, radius, getShadow, layout, transition, motion } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { cmpRecentDesc } from "@/lib/utils";
 import { storage } from "@/lib/storage";
@@ -62,10 +63,20 @@ function NoteCardGrid({ notes, onOpen, pageCounts, tileWidth = "47%" }: {
 }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[4] }}>
-      {notes.map((note, i) => (
-        <View key={note.id} style={{ width: tileWidth as any, flexGrow: 1 }}>
-          <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} index={i} />
-        </View>
+      {notes.map(note => (
+        // Motion here tracks a real change: a card genuinely entering or
+        // leaving (pin, archive, filter) and sliding to its new position when
+        // the sort or the pinned set changes. The old per-index mount stagger
+        // animated nothing — it replayed on every visit to the screen.
+        <Animated.View
+          key={note.id}
+          entering={FadeIn.duration(motion.base)}
+          exiting={FadeOut.duration(motion.fast)}
+          layout={LinearTransition.duration(motion.base)}
+          style={{ width: tileWidth as any, flexGrow: 1 }}
+        >
+          <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} />
+        </Animated.View>
       ))}
     </View>
   );
@@ -417,7 +428,7 @@ function NotesScreen() {
         ...(Platform.OS === "web" ? { transform: [{ scale: pressed ? 0.98 : 1 }] } : {}),
       } as any)}
     >
-      <Ionicons name="add" size={15} color={colors.bgPrimary} />
+      <Ionicons name="add" size={14} color={colors.bgPrimary} />
       <Text size="sm" weight="semibold" style={{ color: colors.bgPrimary }}>New note</Text>
     </Pressable>
   );

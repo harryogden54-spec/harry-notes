@@ -35,7 +35,7 @@ function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: Acc
               alignItems: "center", justifyContent: "center",
             }}
           >
-            {active && <Ionicons name="checkmark" size={11} color={colors.textInverse} />}
+            {active && <Ionicons name="checkmark" size={12} color={colors.textInverse} />}
           </Pressable>
         );
       })}
@@ -154,7 +154,7 @@ function CategoryRow({
             {onAddSub && (
               <Pressable onPress={onAddSub} hitSlop={6} accessibilityLabel={`Add subcategory to ${category.name}`}
                 style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                <Ionicons name="add" size={13} color={colors.accent} />
+                <Ionicons name="add" size={12} color={colors.accent} />
                 <Text size="xs" style={{ color: colors.accent }}>Subcategory</Text>
               </Pressable>
             )}

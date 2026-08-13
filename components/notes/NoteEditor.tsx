@@ -116,7 +116,7 @@ function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: strin
           }}
         >
           <Text size="xs" style={{ color: colors.textSecondary }}>{tag}</Text>
-          <Ionicons name="close" size={10} color={colors.textTertiary} />
+          <Ionicons name="close-outline" size={12} color={colors.textTertiary} />
         </Pressable>
       ))}
       <TextInput
@@ -176,16 +176,16 @@ function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage, onMovePage }
                 <>
                   {i > 1 && (
                     <Pressable onPress={() => onMovePage(p.id, -1)} hitSlop={6} accessibilityLabel="Move page left">
-                      <Ionicons name="chevron-back" size={11} color={colors.textTertiary} />
+                      <Ionicons name="chevron-back" size={12} color={colors.textTertiary} />
                     </Pressable>
                   )}
                   {i < pages.length - 1 && (
                     <Pressable onPress={() => onMovePage(p.id, 1)} hitSlop={6} accessibilityLabel="Move page right">
-                      <Ionicons name="chevron-forward" size={11} color={colors.textTertiary} />
+                      <Ionicons name="chevron-forward" size={12} color={colors.textTertiary} />
                     </Pressable>
                   )}
                   <Pressable onPress={() => onDeletePage(p.id)} hitSlop={8} accessibilityLabel="Delete page">
-                    <Ionicons name="close" size={11} color={colors.textTertiary} />
+                    <Ionicons name="close-outline" size={12} color={colors.textTertiary} />
                   </Pressable>
                 </>
               )}
@@ -193,7 +193,7 @@ function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage, onMovePage }
           );
         })}
         <Pressable onPress={onAdd} hitSlop={8} accessibilityLabel="Add page" style={{ padding: spacing[1] }}>
-          <Ionicons name="add" size={15} color={colors.textTertiary} />
+          <Ionicons name="add" size={14} color={colors.textTertiary} />
         </Pressable>
       </ScrollView>
     </View>
@@ -438,7 +438,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             title={Platform.OS === "web" ? "Add page" : undefined}
             style={{ padding: spacing[1] }}
           >
-            <Ionicons name="duplicate-outline" size={15} color={colors.textTertiary} />
+            <Ionicons name="duplicate-outline" size={14} color={colors.textTertiary} />
           </Pressable>
           <Pressable
             onPress={() => setFocusMode(true)}
@@ -446,10 +446,10 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             accessibilityLabel="Focus mode"
             style={{ padding: spacing[1] }}
           >
-            <Ionicons name="expand-outline" size={15} color={colors.textTertiary} />
+            <Ionicons name="expand-outline" size={14} color={colors.textTertiary} />
           </Pressable>
           <Pressable onPress={handleCopy} hitSlop={12} style={{ padding: spacing[1] }}>
-            <Ionicons name="copy-outline" size={15} color={colors.textTertiary} />
+            <Ionicons name="copy-outline" size={14} color={colors.textTertiary} />
           </Pressable>
           <Pressable
             onPress={() => { pinNote(note.id); if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
@@ -473,7 +473,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
             accessibilityLabel="Archive note"
             style={{ padding: spacing[1] }}
           >
-            <Ionicons name="archive-outline" size={15} color={colors.textTertiary} />
+            <Ionicons name="archive-outline" size={14} color={colors.textTertiary} />
           </Pressable>
           <Pressable
             onPress={() => {

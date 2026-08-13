@@ -123,7 +123,7 @@ export default function TabLayout() {
             ...getShadow("md", scheme),
           }}
         >
-          <Ionicons name="create-outline" size={19} color={colors.textSecondary} />
+          <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
         </Pressable>
         <Pressable
           onPress={() => {

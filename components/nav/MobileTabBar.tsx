@@ -90,7 +90,7 @@ export function MobileTabBar() {
               accessibilityState={{ selected: active }}
               style={{ flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing[1] }}
             >
-              <Ionicons name={active ? item.iconFilled : item.iconOutline} size={22} color={active ? colors.accent : colors.textTertiary} />
+              <Ionicons name={active ? item.iconFilled : item.iconOutline} size={20} color={active ? colors.accent : colors.textTertiary} />
               <Text size="2xs" weight="medium" style={{ color: active ? colors.accent : colors.textTertiary }}>
                 {item.label}
               </Text>
@@ -106,7 +106,7 @@ export function MobileTabBar() {
           accessibilityState={{ selected: moreActive }}
           style={{ flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing[1] }}
         >
-          <Ionicons name={moreActive ? "ellipsis-horizontal-circle" : "ellipsis-horizontal-circle-outline"} size={22} color={moreActive ? colors.accent : colors.textTertiary} />
+          <Ionicons name={moreActive ? "ellipsis-horizontal-circle" : "ellipsis-horizontal-circle-outline"} size={20} color={moreActive ? colors.accent : colors.textTertiary} />
           <Text size="2xs" weight="medium" style={{ color: moreActive ? colors.accent : colors.textTertiary }}>
             More
           </Text>

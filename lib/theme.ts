@@ -154,6 +154,31 @@ export const radius = {
 } as const;
 
 /**
+ * Icon sizes. Ionicons were being set at seventeen different sizes (10…28),
+ * picked per call site, so two icons doing the same job in different components
+ * rendered at different weights.
+ *
+ * Naming rules that go with these, since Ionicons offers two families:
+ *   - OUTLINE is the default for every object icon (gear, trash, archive, tag).
+ *   - FILLED means an on-state, not a different icon: `star` = pinned,
+ *     `checkmark-circle` = filed. Never use filled purely for emphasis.
+ *   - Geometric glyphs (add, close, checkmark, chevron-*, ellipsis-*) have no
+ *     meaningful outline/filled pair — pick one spelling and keep to it.
+ */
+export const iconSize = {
+  /** Sits inside meta text and small chips. */
+  xs: 12,
+  /** Inline with body text, list-row affordances. */
+  sm: 14,
+  /** App chrome: header, nav, buttons. */
+  md: 16,
+  /** Prominent single actions. */
+  lg: 20,
+  /** FAB and feature marks. */
+  xl: 28,
+} as const;
+
+/**
  * Shared geometry for the small repeated shapes, so two components sitting side
  * by side actually match. Every one of these existed already — as
  * `paddingHorizontal: 5 | 6 | 7 | 8 | 9` and `paddingVertical: 1 | 2 | 3`
@@ -349,11 +374,6 @@ export const motion = {
    * responsive rather than floaty.
    */
   easing: "cubic-bezier(0.2, 0, 0, 1)",
-  /** Per-item delay for a list mount stagger, in ms. Small on purpose: enough to
-   *  read as sequence, not enough to make the list feel slow to arrive. */
-  stagger: 40,
-  /** Cap the stagger so a long list's last row isn't delayed absurdly. */
-  staggerMaxItems: 8,
   /** Standard pressable feedback. */
   pressOpacity: 0.85,
   pressScale: 0.98,
@@ -372,24 +392,17 @@ export function transition(
   };
 }
 
-/**
- * Staggered mount animation for item `index` in a list. Web only.
+/*
+ * `mountStagger()` lived here: a per-index `hn-rise` keyframe that rippled the
+ * notes grid in on every mount. Removed 2026-08-13 — motion should explain a
+ * change, and nothing had changed. It replayed on every route visit, so the
+ * cost (a delay before the grid is readable, every single time you open Notes)
+ * was paid repeatedly for a one-off flourish.
  *
- * Note this has to be an *animation*, not a transition with a delay: on first
- * paint there is no state change to transition from, so transitionDelay would do
- * nothing on mount and would instead lag every subsequent hover. The `hn-rise`
- * keyframes live in global.css.
+ * Motion that stays is motion that carries meaning: `LinearTransition` moving a
+ * task card when it changes column, `FadeIn`/`FadeOut` as rows genuinely enter
+ * and leave, the route fade in GradientBackground.
  */
-export function mountStagger(index: number): Record<string, string> {
-  if (Platform.OS !== "web") return {};
-  return {
-    animationName: "hn-rise",
-    animationDuration: `${motion.base}ms`,
-    animationTimingFunction: motion.easing,
-    animationDelay: `${Math.min(index, motion.staggerMaxItems) * motion.stagger}ms`,
-    animationFillMode: "both",
-  };
-}
 
 // ─── Priority colours ─────────────────────────────────────────────────────────
 // Keys into ThemeTokens so priorities follow the active theme/scheme.

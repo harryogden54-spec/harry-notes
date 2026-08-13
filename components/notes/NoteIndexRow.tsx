@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, getNotePastelIndex, getShadow, transition } from "@/lib/theme";
 import type { Note } from "@/lib/NotesContext";
-import { timeAgo, notePreview, noteDisplayTitle } from "./utils";
+import { timeAgo, notePreview, noteDisplayTitle, extractTags } from "./utils";
 
 type Props = { note: Note; isSelected: boolean; onSelect: () => void; pageCount?: number };
 
@@ -17,7 +17,10 @@ type Props = { note: Note; isSelected: boolean; onSelect: () => void; pageCount?
 export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected, onSelect, pageCount }: Props) {
   const { colors, notePastels, scheme } = useTheme();
   const [hovered, setHovered] = useState(false);
-  const idx = getNotePastelIndex(note.id);
+  // Same rule as NoteCard: the pastel keys on the first tag, so it means
+  // something. See the comment there.
+  const tag = extractTags(note.body ?? "")[0];
+  const idx = tag ? getNotePastelIndex(tag) : -1;
   const preview = notePreview(note);
   return (
     <Pressable
@@ -29,7 +32,10 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
         paddingVertical: spacing[3], paddingHorizontal: spacing[4],
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: isSelected ? colors.accent : `${colors.bgBorder}88`,
+        // Selection outranks pinned; both outrank a plain row. See NoteCard.
+        borderColor: isSelected ? colors.accent
+          : note.pinned ? `${colors.accent}55`
+          : `${colors.bgBorder}88`,
         backgroundColor: isSelected
           ? `${colors.accent}0C`
           : `${colors.bgSecondary}${hovered ? "F0" : "D0"}`,
@@ -44,7 +50,7 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
       })}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-        {note.pinned && <Ionicons name="star" size={10} color={colors.accent} />}
+        {note.pinned && <Ionicons name="star" size={12} color={colors.accent} />}
         <Text size="cardTitle" weight={isSelected ? "semibold" : "medium"} numberOfLines={1} style={{ flex: 1 }}>
           {noteDisplayTitle(note)}
         </Text>
@@ -54,11 +60,16 @@ export const NoteIndexRow = React.memo(function NoteIndexRow({ note, isSelected,
         : <Text size="xs" tertiary numberOfLines={1}>No content</Text>
       }
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5], paddingTop: 1 }}>
-        <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: notePastels.bg[idx], borderWidth: 1, borderColor: notePastels.border[idx] }} />
+        {tag && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 99, backgroundColor: notePastels.bg[idx], borderWidth: 1, borderColor: notePastels.border[idx] }} />
+            <Text size="meta" tertiary numberOfLines={1}>{tag}</Text>
+          </View>
+        )}
         <Text size="meta" tertiary>{timeAgo(note.updated_at ?? note.created_at)}</Text>
         {!!pageCount && pageCount > 1 && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-            <Ionicons name="documents-outline" size={10} color={colors.textTertiary} />
+            <Ionicons name="documents-outline" size={12} color={colors.textTertiary} />
             <Text size="meta" tertiary>{pageCount}</Text>
           </View>
         )}

@@ -80,7 +80,7 @@ export function Select<T extends string | number>({
         >
           {selected ? selected.label : placeholder}
         </Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={13} color={colors.textTertiary} />
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={12} color={colors.textTertiary} />
       </Pressable>
 
       {open && (

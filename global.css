@@ -91,20 +91,3 @@ html, body {
   text-size-adjust: 100%;
 }
 
-/* ── List mount stagger ─────────────────────────────────────────────────── */
-/* Used by mountStagger() in lib/theme.ts. Has to be an animation rather than a
-   transition: on first paint there is no prior state to transition from, so a
-   transitionDelay would do nothing on mount and would only lag later hovers.
-   Kept small — this should read as the list arriving in order, not as a wait. */
-@keyframes hn-rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* Respect the OS setting — a motion-sensitive viewer gets the end state only. */
-@media (prefers-reduced-motion: reduce) {
-  @keyframes hn-rise {
-    from { opacity: 1; transform: none; }
-    to   { opacity: 1; transform: none; }
-  }
-}

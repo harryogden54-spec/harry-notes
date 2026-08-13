@@ -139,7 +139,7 @@ function TodayScreen() {
             (RNGH drag is unreliable on web — same pattern as TaskItem). */}
         {Platform.OS !== "web" ? (
           <Pressable onLongPress={drag} hitSlop={8} delayLongPress={150}>
-            <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
+            <Ionicons name="reorder-three-outline" size={16} color={colors.textTertiary} />
           </Pressable>
         ) : (
           <View style={{ flexDirection: "row", gap: 2 }}>
@@ -191,7 +191,7 @@ function TodayScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                     <Text size="base" weight="semibold">Set time block</Text>
                     <Pressable onPress={() => setTimePickerFor(null)} hitSlop={12}>
-                      <Ionicons name="close-outline" size={18} color={colors.textTertiary} />
+                      <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
                     </Pressable>
                   </View>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[2] }}>

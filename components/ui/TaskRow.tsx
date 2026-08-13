@@ -228,7 +228,7 @@ function WebTaskRow({ task, onPress }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Task actions"
             >
-              <Ionicons name="ellipsis-horizontal" size={13} color={colors.textSecondary} />
+              <Ionicons name="ellipsis-horizontal" size={12} color={colors.textSecondary} />
             </Pressable>
           )}
         </View>
@@ -256,7 +256,7 @@ export const TaskRow = React.memo(function TaskRow({ task, onPress }: Props) {
   function renderCompleteAction() {
     return (
       <View style={{ backgroundColor: colors.accent, justifyContent: "center", alignItems: "center", width: 80 }}>
-        <Ionicons name="checkmark-done-outline" size={22} color={colors.textInverse} />
+        <Ionicons name="checkmark-done-outline" size={20} color={colors.textInverse} />
       </View>
     );
   }

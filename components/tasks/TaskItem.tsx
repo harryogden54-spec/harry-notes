@@ -197,7 +197,7 @@ export const TaskItem = React.memo(function TaskItem({
             </Pressable>
             {!selectMode && !isExpanded && Platform.OS !== "web" && onDragStart && (
               <Pressable onLongPress={onDragStart} hitSlop={8} style={{ paddingLeft: spacing[1] }}>
-                <Ionicons name="reorder-three-outline" size={18} color={colors.textTertiary} />
+                <Ionicons name="reorder-three-outline" size={16} color={colors.textTertiary} />
               </Pressable>
             )}
           </View>

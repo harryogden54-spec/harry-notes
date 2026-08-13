@@ -111,7 +111,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
             }}
           >
             <ReAnimated.View style={chevronStyle}>
-              <Ionicons name="chevron-back-outline" size={13} color={colors.textTertiary} />
+              <Ionicons name="chevron-back" size={12} color={colors.textTertiary} />
             </ReAnimated.View>
           </Pressable>
         </View>
@@ -239,7 +239,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
           marginTop: spacing[2],
         }}
       >
-        <Ionicons name="settings-outline" size={18} color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary} />
+        <Ionicons name="settings-outline" size={16} color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary} />
         {!collapsed && (
           <Text size="sm" color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary}>
             Settings

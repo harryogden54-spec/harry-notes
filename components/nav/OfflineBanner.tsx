@@ -64,7 +64,7 @@ export function OfflineBanner() {
         ...getShadow("sm", scheme),
       }}>
         <View style={{ ...FILL, backgroundColor: `${colors.warning}18` }} pointerEvents="none" />
-        <Ionicons name="cloud-offline-outline" size={13} color={colors.warning} />
+        <Ionicons name="cloud-offline-outline" size={12} color={colors.warning} />
         <Text size="xs" weight="medium" color={colors.warning} style={{ flex: 1 }}>
           Offline — changes will sync when reconnected
         </Text>
@@ -87,11 +87,11 @@ export function OfflineBanner() {
       }}
     >
       <View style={{ ...FILL, backgroundColor: `${colors.danger}18` }} pointerEvents="none" />
-      <Ionicons name="cloud-offline-outline" size={13} color={colors.danger} />
+      <Ionicons name="cloud-offline-outline" size={12} color={colors.danger} />
       <Text size="xs" weight="medium" color={colors.danger} style={{ flex: 1 }}>
         Sync failed — tap to retry
       </Text>
-      <Ionicons name="refresh-outline" size={13} color={colors.danger} />
+      <Ionicons name="refresh-outline" size={12} color={colors.danger} />
     </Pressable>
   );
 }

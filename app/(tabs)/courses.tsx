@@ -132,7 +132,7 @@ function CoursesScreen() {
               } : {}),
             } as any)}
           >
-            <Ionicons name="add" size={17} color={colors.bgPrimary} />
+            <Ionicons name="add" size={16} color={colors.bgPrimary} />
             <Text size="sm" weight="semibold" style={{ color: colors.bgPrimary }}>New table</Text>
           </Pressable>
 
@@ -150,7 +150,7 @@ function CoursesScreen() {
                   hitSlop={6}
                   style={{ alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: spacing[1] }}
                 >
-                  <Ionicons name={allCollapsed ? "chevron-down" : "chevron-up"} size={13} color={colors.textTertiary} />
+                  <Ionicons name={allCollapsed ? "chevron-down" : "chevron-up"} size={12} color={colors.textTertiary} />
                   <Text size="xs" tertiary>{allCollapsed ? "Expand all" : "Condense all"}</Text>
                 </Pressable>
               )}

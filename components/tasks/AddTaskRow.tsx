@@ -81,7 +81,7 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
     <Surface variant="elevated" style={{ borderRadius: radius.xl, borderColor: focused ? colors.accent : undefined, marginBottom: spacing[4] }}>
       <View style={{ paddingVertical: spacing[3], paddingHorizontal: spacing[4], gap: spacing[2] }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
-          <Ionicons name="add" size={17} color={colors.accent} />
+          <Ionicons name="add" size={16} color={colors.accent} />
           <TextInput
             ref={inputRef}
             value={value}
@@ -109,7 +109,7 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
             hitSlop={8}
             accessibilityLabel="More task options"
           >
-            <Ionicons name="expand-outline" size={15} color={colors.textTertiary} />
+            <Ionicons name="expand-outline" size={14} color={colors.textTertiary} />
           </Pressable>
         </View>
 
