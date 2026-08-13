@@ -16,7 +16,8 @@ type Props = {
 /** Small 10-dot accent swatch picker — same visual language as
  *  Settings → Appearance's accent picker, sized down for an inline row. */
 function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: AccentId) => void }) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
+  const swatchOf = (opt: typeof ACCENT_OPTIONS[number]) => scheme === "dark" ? opt.color : opt.light;
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5] }}>
       {ACCENT_OPTIONS.map(opt => {
@@ -28,10 +29,11 @@ function AccentPicker({ value, onChange }: { value: AccentId; onChange: (id: Acc
             hitSlop={4}
             accessibilityLabel={opt.label}
             style={{
+              // Per-scheme variant, matching what the category chip will render.
               width: 24, height: 24, borderRadius: 12,
-              backgroundColor: opt.color,
+              backgroundColor: swatchOf(opt),
               borderWidth: active ? 2.5 : 1.5,
-              borderColor: active ? colors.textPrimary : `${opt.color}40`,
+              borderColor: active ? colors.textPrimary : `${swatchOf(opt)}40`,
               alignItems: "center", justifyContent: "center",
             }}
           >

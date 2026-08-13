@@ -47,7 +47,10 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }
         borderColor: note.pinned ? `${colors.accent}55` : `${colors.bgBorder}88`,
         ...shape.card,
         gap: spacing[2],
-        minHeight: 100,
+        // No fixed height: in a masonry the card's job is to be as tall as its
+        // own content. minHeight is only a floor for a near-empty note, so a
+        // bare title still reads as a card rather than a strip.
+        minHeight: 76,
         ...(hovered && !pressed ? shadow("md") : shadow("sm")),
         ...(Platform.OS === "web" ? {
           // @ts-ignore web-only CSS — smooth hover lift (no backdrop blur; see TaskCard)
@@ -67,8 +70,10 @@ export const NoteCard = React.memo(function NoteCard({ note, onOpen, pageCount }
           {noteDisplayTitle(note)}
         </Text>
       </View>
+      {/* Up to 6 lines rather than 3 — the cap is what actually varies card
+          height, so a longer note now looks longer on the wall. */}
       {preview ? (
-        <Text size="xs" numberOfLines={3} secondary style={{ lineHeight: 19 }}>
+        <Text size="xs" numberOfLines={6} secondary style={{ lineHeight: 19 }}>
           {preview}
         </Text>
       ) : null}

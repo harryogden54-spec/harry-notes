@@ -52,31 +52,48 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
   );
 }
 
-/** `tileWidth` is a flex basis, not a hard width — the wrapper still flexGrows,
- *  so a short final row fills out. 47% gives two up (mobile), 23% four (desktop
- *  browse view). */
-function NoteCardGrid({ notes, onOpen, pageCounts, tileWidth = "47%" }: {
+/**
+ * Masonry: `columns` vertical stacks, each card as tall as its own content.
+ *
+ * The grid was a wrapping row of equal-height tiles, so every note occupied an
+ * identical rectangle whatever it held — a one-line thought took the same space
+ * as a page of working, and the wall read as a spreadsheet. Letting height
+ * follow content is what makes a set of notes look like a set of notes.
+ *
+ * Notes are dealt round-robin rather than into the shortest column: it needs no
+ * measurement (heights aren't known until layout, and on web the first
+ * ResizeObserver callback never arrives — see the TabBarHeightContext note), it
+ * is stable as the list changes, and it keeps reading order predictable across
+ * a row.
+ */
+function NoteCardGrid({ notes, onOpen, pageCounts, columns = 2 }: {
   notes: Note[];
   onOpen: (id: string) => void;
   pageCounts?: Map<string, number>;
-  tileWidth?: string;
+  columns?: number;
 }) {
+  const stacks: Note[][] = Array.from({ length: columns }, () => []);
+  notes.forEach((note, i) => stacks[i % columns].push(note));
+
   return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[4] }}>
-      {notes.map(note => (
-        // Motion here tracks a real change: a card genuinely entering or
-        // leaving (pin, archive, filter) and sliding to its new position when
-        // the sort or the pinned set changes. The old per-index mount stagger
-        // animated nothing — it replayed on every visit to the screen.
-        <Animated.View
-          key={note.id}
-          entering={FadeIn.duration(motion.base)}
-          exiting={FadeOut.duration(motion.fast)}
-          layout={LinearTransition.duration(motion.base)}
-          style={{ width: tileWidth as any, flexGrow: 1 }}
-        >
-          <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} />
-        </Animated.View>
+    <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "flex-start" }}>
+      {stacks.map((stack, col) => (
+        <View key={col} style={{ flex: 1, gap: spacing[4], minWidth: 0 }}>
+          {stack.map(note => (
+            // Motion here tracks a real change: a card genuinely entering or
+            // leaving (pin, archive, filter) and sliding to its new position when
+            // the sort or the pinned set changes. The old per-index mount stagger
+            // animated nothing — it replayed on every visit to the screen.
+            <Animated.View
+              key={note.id}
+              entering={FadeIn.duration(motion.base)}
+              exiting={FadeOut.duration(motion.fast)}
+              layout={LinearTransition.duration(motion.base)}
+            >
+              <NoteCard note={note} onOpen={() => onOpen(note.id)} pageCount={pageCounts?.get(note.id)} />
+            </Animated.View>
+          ))}
+        </View>
       ))}
     </View>
   );
@@ -477,13 +494,13 @@ function NotesScreen() {
                   {pinnedNotes.length > 0 && (
                     <View style={{ marginBottom: spacing[6] }}>
                       <SectionLabel label="Pinned" count={pinnedNotes.length} />
-                      <NoteCardGrid notes={pinnedNotes} onOpen={id => setSelectedNote(id)} pageCounts={pageCounts} tileWidth="23%" />
+                      <NoteCardGrid notes={pinnedNotes} onOpen={id => setSelectedNote(id)} pageCounts={pageCounts} columns={4} />
                     </View>
                   )}
                   {restNotes.length > 0 && (
                     <View>
                       <SectionLabel label="All notes" count={restNotes.length} />
-                      <NoteCardGrid notes={restNotes} onOpen={id => setSelectedNote(id)} pageCounts={pageCounts} tileWidth="23%" />
+                      <NoteCardGrid notes={restNotes} onOpen={id => setSelectedNote(id)} pageCounts={pageCounts} columns={4} />
                     </View>
                   )}
                 </>

@@ -18,11 +18,15 @@ export function useTheme() {
     // theme can ship a finished look while an explicit choice still wins.
     const effectiveAccentId = accentId ?? theme.defaultAccent;
     const accentOpt = ACCENT_OPTIONS.find(a => a.id === effectiveAccentId) ?? ACCENT_OPTIONS[0];
+    // Each accent carries a deeper light-scheme variant: one hex cannot clear
+    // 4.5:1 as text on both #0D0D0D and #FFFFFF, and trying made every accent
+    // look washed out in light mode.
+    const isDark = scheme === "dark";
     const colors = {
       ...base,
-      accent:       accentOpt.color,
-      accentHover:  accentOpt.hover,
-      accentSubtle: scheme === "dark" ? accentOpt.subtle : accentOpt.lightSubtle,
+      accent:       isDark ? accentOpt.color : accentOpt.light,
+      accentHover:  isDark ? accentOpt.hover : accentOpt.lightHover,
+      accentSubtle: isDark ? accentOpt.subtle : accentOpt.lightSubtle,
     };
 
     // Per-theme personality kit: note pastels, background wash, hero gradient.

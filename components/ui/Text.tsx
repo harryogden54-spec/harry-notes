@@ -21,6 +21,17 @@ const fontFamilyMap: Record<Weight, string> = {
   bold:     fontFamily.bold,
 };
 
+/**
+ * Roles that are mostly numbers — counts, dates, timers, progress. Inter's
+ * default figures are proportional, so a "1" is narrower than a "7" and a
+ * ticking timer or a changing count visibly jitters, shifting everything after
+ * it. Tabular figures are fixed-width, so those stay put.
+ *
+ * Prose keeps proportional figures: tabular ones are slightly wider and look
+ * mechanical mid-sentence, which is exactly where they don't belong.
+ */
+const TABULAR_ROLES: ReadonlySet<Size> = new Set<Size>(["meta", "label"]);
+
 export function Text({
   size = "base",
   weight = "regular",
@@ -42,6 +53,7 @@ export function Text({
           ...typography[size],
           fontFamily: fontFamilyMap[weight],
           color: textColor,
+          ...(TABULAR_ROLES.has(size) ? { fontVariant: ["tabular-nums" as const] } : {}),
         },
         style,
       ]}

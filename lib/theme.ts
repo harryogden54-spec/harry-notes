@@ -498,18 +498,37 @@ export const priorityColorKey = {
 
 // ─── Accent options (override accent within any theme) ────────────────────────
 
+/**
+ * Accents, retuned 2026-08-13. Same ten hue families as before, with two
+ * changes:
+ *
+ * 1. CHROMA. The originals were lifted from Nord, whose palette is deliberately
+ *    desaturated to sit quietly *inside* an editor. As the app's one signal
+ *    colour they read muddy — `amber` #D08770 was closer to terracotta than to
+ *    amber, `moss` #A3BE8C was dusty sage. These are saturated enough to look
+ *    deliberate and stop well short of neon.
+ *
+ * 2. PER-SCHEME. One hex used to serve both light and dark, which is
+ *    unwinnable: a value bright enough to clear 4.5:1 on #0D0D0D is washed out
+ *    on white, and that is most of what "flat" meant. `light`/`lightHover` are
+ *    the deeper variants, so every accent stays legible as text on either
+ *    scheme — the same principle the themes themselves now follow.
+ *
+ * Every `color` clears 4.5:1 on the darkest background (#0D0D0D) and every
+ * `light` clears it on #FFFFFF.
+ */
 export const ACCENT_OPTIONS = [
-  { id: "indigo",  label: "Indigo",  color: "#6B77D9", hover: "#7B87E9", subtle: "#1A1D3A", lightSubtle: "#ECEFFE" },
-  { id: "sky",     label: "Sky",     color: "#88C0D0", hover: "#9DCFDF", subtle: "#17323A", lightSubtle: "#DFF0F5" },
-  { id: "ocean",   label: "Ocean",   color: "#5E81AC", hover: "#6E91BC", subtle: "#1A2737", lightSubtle: "#DDE5F0" },
-  { id: "moss",    label: "Moss",    color: "#A3BE8C", hover: "#B3CE9C", subtle: "#1E2B1A", lightSubtle: "#E8F0E2" },
-  { id: "orchid",  label: "Orchid",  color: "#B48EAD", hover: "#C49EBD", subtle: "#271C27", lightSubtle: "#EDE3EC" },
-  { id: "amber",   label: "Amber",   color: "#D08770", hover: "#E09780", subtle: "#301A12", lightSubtle: "#F5E5DF" },
-  { id: "crimson", label: "Crimson", color: "#DC5A6A", hover: "#EC6A7A", subtle: "#331418", lightSubtle: "#FBE4E7" },
-  { id: "gold",    label: "Gold",    color: "#D4A72C", hover: "#E4B73C", subtle: "#2E2508", lightSubtle: "#F8EFD4" },
+  { id: "indigo",  label: "Indigo",  color: "#6A78E8", hover: "#7C89F2", light: "#4B58CC", lightHover: "#3F4CBC", subtle: "#1A1D3A", lightSubtle: "#EAECFD" },
+  { id: "sky",     label: "Sky",     color: "#5FC7E0", hover: "#78D4EA", light: "#1B7A94", lightHover: "#166580", subtle: "#12303A", lightSubtle: "#DEF2F8" },
+  { id: "ocean",   label: "Ocean",   color: "#4F8FD4", hover: "#64A0E0", light: "#2C6BAF", lightHover: "#23589A", subtle: "#152738", lightSubtle: "#DEEAF7" },
+  { id: "moss",    label: "Moss",    color: "#86C56F", hover: "#99D283", light: "#3E7F38", lightHover: "#336B2E", subtle: "#182A16", lightSubtle: "#E4F2DF" },
+  { id: "orchid",  label: "Orchid",  color: "#C77DC0", hover: "#D392CD", light: "#9A4A93", lightHover: "#843E7E", subtle: "#2A1A29", lightSubtle: "#F6E6F4" },
+  { id: "amber",   label: "Amber",   color: "#F0954F", hover: "#F7A868", light: "#AD5C14", lightHover: "#954D0C", subtle: "#321C0C", lightSubtle: "#FCEBDC" },
+  { id: "crimson", label: "Crimson", color: "#F0576E", hover: "#F76F84", light: "#C7314A", lightHover: "#AC273D", subtle: "#33131A", lightSubtle: "#FDE5E9" },
+  { id: "gold",    label: "Gold",    color: "#E8B62E", hover: "#F2C548", light: "#8A6800", lightHover: "#745700", subtle: "#2C2208", lightSubtle: "#FAEFD2" },
   // Grayscale accents — for a fully monochrome look on any theme.
-  { id: "slate",   label: "Slate",   color: "#7C8698", hover: "#8C96A8", subtle: "#20242C", lightSubtle: "#E6E9EE" },
-  { id: "mono",    label: "Mono",    color: "#9A9A9A", hover: "#AAAAAA", subtle: "#262626", lightSubtle: "#E8E8E8" },
+  { id: "slate",   label: "Slate",   color: "#8894AB", hover: "#9BA6BA", light: "#5C6880", lightHover: "#4C566B", subtle: "#1E222B", lightSubtle: "#E7EAF0" },
+  { id: "mono",    label: "Mono",    color: "#A5A5A5", hover: "#B8B8B8", light: "#5F5F5F", lightHover: "#4D4D4D", subtle: "#242424", lightSubtle: "#EAEAEA" },
 ] as const;
 
 export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
@@ -642,7 +661,14 @@ export function resolveAccentSwatch(
   scheme: ColorScheme
 ): { color: string; hover: string; subtle: string } {
   const opt = ACCENT_OPTIONS.find(a => a.id === id) ?? ACCENT_OPTIONS[0];
-  return { color: opt.color, hover: opt.hover, subtle: scheme === "dark" ? opt.subtle : opt.lightSubtle };
+  const dark = scheme === "dark";
+  // Category chips are text-on-tint, so they need the same per-scheme variant
+  // the main accent uses — the dark value on white is unreadable at meta size.
+  return {
+    color:  dark ? opt.color : opt.light,
+    hover:  dark ? opt.hover : opt.lightHover,
+    subtle: dark ? opt.subtle : opt.lightSubtle,
+  };
 }
 
 // ─── List default colours ─────────────────────────────────────────────────────

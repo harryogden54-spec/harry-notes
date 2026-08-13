@@ -135,7 +135,7 @@ function ThemeRow({ id, active, onPress }: { id: ThemeId; active: boolean; onPre
         <View style={{ flex: 1, backgroundColor: tokens.bgPrimary }} />
         <View style={{ flex: 1, backgroundColor: tokens.bgSecondary }} />
         <View style={{ flex: 1, backgroundColor: tokens.bgTertiary }} />
-        <View style={{ width: 8, backgroundColor: swatchAccent.color }} />
+        <View style={{ width: 8, backgroundColor: scheme === "dark" ? swatchAccent.color : swatchAccent.light }} />
       </View>
       <View style={{ flex: 1 }}>
         <Text size="cardTitle" weight={active ? "semibold" : "medium"}>{def.label}</Text>
@@ -214,6 +214,8 @@ export default function AppearanceScreen() {
                 // Lit when it is what you are actually looking at, whether that
                 // came from an explicit pick or from the theme's own default.
                 const active = effectiveAccentId === opt.id;
+                // Swatch shows the variant this scheme will actually use.
+                const swatch = scheme === "dark" ? opt.color : opt.light;
                 return (
                   <Pressable
                     key={opt.id}
@@ -223,9 +225,9 @@ export default function AppearanceScreen() {
                     accessibilityState={{ selected: active }}
                     style={{
                       width: 30, height: 30, borderRadius: 15,
-                      backgroundColor: opt.color,
+                      backgroundColor: swatch,
                       borderWidth: active ? 3 : 2,
-                      borderColor: active ? colors.textPrimary : `${opt.color}40`,
+                      borderColor: active ? colors.textPrimary : `${swatch}40`,
                       transform: [{ scale: active ? 1.1 : 1 }],
                       alignItems: "center", justifyContent: "center",
                     }}

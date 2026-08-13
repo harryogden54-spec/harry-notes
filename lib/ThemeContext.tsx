@@ -106,9 +106,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     const theme = THEMES[themeId] ?? THEMES.obsidian;
     const effective = accentId ?? theme.defaultAccent;
-    const accent = (ACCENT_OPTIONS.find(a => a.id === effective) ?? ACCENT_OPTIONS[0]).color;
-    document.documentElement.style.setProperty("--accent", accent);
-  }, [accentId, themeId]);
+    const opt = ACCENT_OPTIONS.find(a => a.id === effective) ?? ACCENT_OPTIONS[0];
+    document.documentElement.style.setProperty("--accent", scheme === "dark" ? opt.color : opt.light);
+  }, [accentId, themeId, scheme]);
 
   // Paint the raw <body> on web. The body otherwise stays browser-default white
   // and shows through as a white bar whenever iOS offsets the app for the
