@@ -474,7 +474,7 @@ export async function dbLoadTaskCategories(): Promise<any[]> {
   return rows.map(r => ({
     id: r.id,
     name: r.name ?? "",
-    color: r.color ?? "indigo",
+    color: r.color ?? "navy",
     order: r.sort_order ?? 0,
     created_at: r.created_at,
     updated_at: r.updated_at,
@@ -502,7 +502,7 @@ export async function dbSaveTaskCategories(categories: any[], changes?: SaveChan
     await db.runAsync(
       `INSERT OR REPLACE INTO task_categories (id,name,color,sort_order,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
       [
-        c.id, c.name ?? "", c.color ?? "indigo", c.order ?? 0,
+        c.id, c.name ?? "", c.color ?? "navy", c.order ?? 0,
         c.created_at, c.updated_at ?? c.created_at,
       ]
     );

@@ -30,6 +30,10 @@ function ThemePreview({ tokens, material, accent, scheme }: {
 }) {
   const cardShadow = getShadow("sm", scheme, { material });
   const border = material.separation === "shadow" ? `${tokens.bgBorder}66` : tokens.bgBorder;
+  // Accents are per-scheme: `color` is the value for dark surfaces, `light` the
+  // deeper one for paper. The preview was drawing `color` in both, so light mode
+  // previewed a hue the app would never actually use there.
+  const accentColor = scheme === "dark" ? accent.color : accent.light;
 
   return (
     <View style={{
@@ -61,7 +65,7 @@ function ThemePreview({ tokens, material, accent, scheme }: {
       }}>
         <View style={{
           width: 18, height: 18, borderRadius: 99,
-          borderWidth: 1.5, borderColor: accent.color, marginTop: 1,
+          borderWidth: 1.5, borderColor: accentColor, marginTop: 1,
         }} />
         <View style={{ flex: 1, gap: spacing[2] }}>
           <Text size="cardTitle" weight="medium" color={tokens.textPrimary} numberOfLines={1}>
@@ -91,16 +95,18 @@ function ThemePreview({ tokens, material, accent, scheme }: {
         <Text size="meta" color={tokens.textTertiary} style={{ flex: 1 }}>Lecture notes · 2 pages</Text>
         <View style={{
           paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-          borderRadius: 999, backgroundColor: accent.color,
+          borderRadius: 999, backgroundColor: accentColor,
         }}>
-          <Text size="meta" weight="semibold" color={tokens.bgPrimary}>Open</Text>
+          <Text size="meta" weight="semibold" color={tokens.textInverse}>Open</Text>
         </View>
       </View>
     </View>
   );
 }
 
-/** Compact row in the theme list — swatch, name, one-line description. */
+/** Compact row in the theme list — swatch, name, tick. The name and the swatch
+ *  say everything a one-line description was saying less directly, and the
+ *  preview above says the rest. */
 function ThemeRow({ id, active, onPress }: { id: ThemeId; active: boolean; onPress: () => void }) {
   const { colors, shadow } = useTheme();
   const { scheme, accentId } = useThemeContext();
@@ -137,10 +143,9 @@ function ThemeRow({ id, active, onPress }: { id: ThemeId; active: boolean; onPre
         <View style={{ flex: 1, backgroundColor: tokens.bgTertiary }} />
         <View style={{ width: 8, backgroundColor: scheme === "dark" ? swatchAccent.color : swatchAccent.light }} />
       </View>
-      <View style={{ flex: 1 }}>
-        <Text size="cardTitle" weight={active ? "semibold" : "medium"}>{def.label}</Text>
-        <Text size="meta" tertiary numberOfLines={1}>{def.blurb}</Text>
-      </View>
+      <Text size="cardTitle" weight={active ? "semibold" : "medium"} style={{ flex: 1 }}>
+        {def.label}
+      </Text>
       {active && <Ionicons name="checkmark" size={iconSize.md} color={colors.accent} />}
     </Pressable>
   );
@@ -240,9 +245,7 @@ export default function AppearanceScreen() {
             {/* Only offered once there is something to undo. */}
             {accentId !== null && accentId !== def.defaultAccent && (
               <Pressable onPress={resetAccent} hitSlop={8} style={{ alignSelf: "flex-start" }}>
-                <Text size="meta" color={colors.accent}>
-                  Use {THEMES[themeId].label}&apos;s own accent
-                </Text>
+                <Text size="meta" color={colors.accent}>Use the theme default</Text>
               </Pressable>
             )}
           </View>
@@ -263,12 +266,9 @@ export default function AppearanceScreen() {
                 size={iconSize.md} color={colors.textSecondary}
                 style={{ marginRight: spacing[3] }}
               />
-              <View style={{ flex: 1 }}>
-                <Text size="sm" weight="medium">{scheme === "dark" ? "Dark mode" : "Light mode"}</Text>
-                <Text size="meta" tertiary>
-                  {scheme === "dark" ? "Easy on the eyes at night" : "Crisp and bright"}
-                </Text>
-              </View>
+              <Text size="sm" weight="medium" style={{ flex: 1 }}>
+                {scheme === "dark" ? "Dark mode" : "Light mode"}
+              </Text>
               <Switch
                 value={scheme === "dark"}
                 onValueChange={toggle}

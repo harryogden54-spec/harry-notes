@@ -71,8 +71,6 @@ type ThemeScheme = { tokens: ThemeTokens; material: ThemeMaterial };
 
 export type ThemeDef = {
   label: string;
-  /** One line describing the world — shown in the picker. */
-  blurb: string;
   /** The accent this theme was authored around. A user accent overrides it. */
   defaultAccent: AccentId;
   dark: ThemeScheme;
@@ -87,13 +85,12 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
    */
   obsidian: {
     label: "Obsidian",
-    blurb: "Neutral ink. Quiet, precise, gets out of the way.",
-    defaultAccent: "indigo",
+    defaultAccent: "navy",
     dark: {
       tokens: {
         bgPrimary: "#0D0D0D", bgSecondary: "#161616", bgTertiary: "#1F1F1F", bgBorder: "#2A2A2A",
         textPrimary: "#F0F0F0", textSecondary: "#9A9A9A", textTertiary: "#5A5A5A", textInverse: "#0D0D0D",
-        accent: "#6B77D9", accentHover: "#7B87E9", accentSubtle: "#1A1D3A",
+        accent: "#5F84CA", accentHover: "#7A99D3", accentSubtle: "#10192B",
         ...SEMANTIC_DARK,
       },
       material: { separation: "both", shadowColor: "#000000", shadowStrength: 1 },
@@ -102,7 +99,7 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
       tokens: {
         bgPrimary: "#FFFFFF", bgSecondary: "#FAFAFA", bgTertiary: "#F2F2F2", bgBorder: "#E4E4E4",
         textPrimary: "#141414", textSecondary: "#565656", textTertiary: "#8E8E8E", textInverse: "#FFFFFF",
-        accent: "#5B6AD0", accentHover: "#6B7AE0", accentSubtle: "#ECEFFE",
+        accent: "#1B263B", accentHover: "#131B2A", accentSubtle: "#E4E9F4",
         ...SEMANTIC_LIGHT,
       },
       material: { separation: "both", shadowColor: "#1A1A2E", shadowStrength: 0.9 },
@@ -117,13 +114,12 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
    */
   nord: {
     label: "Nord",
-    blurb: "Cool blue-grey. Calm, slightly clinical, easy on the eye.",
-    defaultAccent: "sky",
+    defaultAccent: "frost",
     dark: {
       tokens: {
         bgPrimary: "#2E3440", bgSecondary: "#363E4C", bgTertiary: "#414B5C", bgBorder: "#4C566A",
         textPrimary: "#ECEFF4", textSecondary: "#C3CCDA", textTertiary: "#8895A8", textInverse: "#2E3440",
-        accent: "#88C0D0", accentHover: "#9DCFDF", accentSubtle: "#1C3040",
+        accent: "#9BC3E8", accentHover: "#B8D4EF", accentSubtle: "#0F1E2C",
         ...SEMANTIC_DARK,
       },
       material: { separation: "border", shadowColor: "#141821", shadowStrength: 0.45 },
@@ -132,7 +128,7 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
       tokens: {
         bgPrimary: "#F7F9FC", bgSecondary: "#FFFFFF", bgTertiary: "#EDF1F7", bgBorder: "#D6DEE9",
         textPrimary: "#2E3440", textSecondary: "#556172", textTertiary: "#8894A6", textInverse: "#FFFFFF",
-        accent: "#5E81AC", accentHover: "#6E91BC", accentSubtle: "#DDE5F0",
+        accent: "#2077C7", accentHover: "#1C6AB1", accentSubtle: "#DEECFA",
         ...SEMANTIC_LIGHT,
       },
       material: { separation: "border", shadowColor: "#2E3440", shadowStrength: 0.5 },
@@ -146,13 +142,12 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
    */
   ember: {
     label: "Ember",
-    blurb: "Warm hearth. Soft, lit from somewhere, a little physical.",
-    defaultAccent: "amber",
+    defaultAccent: "brick",
     dark: {
       tokens: {
         bgPrimary: "#17100E", bgSecondary: "#211815", bgTertiary: "#2C211D", bgBorder: "#3A2B26",
         textPrimary: "#F7EFE9", textSecondary: "#C8A692", textTertiary: "#8A6553", textInverse: "#17100E",
-        accent: "#E85D4A", accentHover: "#F06D5A", accentSubtle: "#301A18",
+        accent: "#D26363", accentHover: "#DA7F7F", accentSubtle: "#2C0F0F",
         ...SEMANTIC_DARK,
       },
       material: { separation: "shadow", shadowColor: "#1A0B05", shadowStrength: 1.5 },
@@ -161,7 +156,7 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
       tokens: {
         bgPrimary: "#FBF6F1", bgSecondary: "#FFFDFB", bgTertiary: "#F3E9E0", bgBorder: "#E4D3C6",
         textPrimary: "#2A1A12", textSecondary: "#6B4B38", textTertiary: "#9C7B66", textInverse: "#FFFDFB",
-        accent: "#C0512B", accentHover: "#D0613B", accentSubtle: "#F9E7DC",
+        accent: "#780000", accentHover: "#5F0000", accentSubtle: "#FADEDE",
         ...SEMANTIC_LIGHT,
       },
       material: { separation: "shadow", shadowColor: "#5A3520", shadowStrength: 1.2 },
@@ -176,13 +171,12 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
    */
   void: {
     label: "Void",
-    blurb: "True black for OLED. Maximum contrast, minimum glow.",
-    defaultAccent: "mono",
+    defaultAccent: "stone",
     dark: {
       tokens: {
         bgPrimary: "#000000", bgSecondary: "#0B0B0B", bgTertiary: "#161616", bgBorder: "#292929",
         textPrimary: "#FFFFFF", textSecondary: "#A6A6A6", textTertiary: "#666666", textInverse: "#000000",
-        accent: "#9A9A9A", accentHover: "#AAAAAA", accentSubtle: "#1A1A1A",
+        accent: "#8D8484", accentHover: "#9E9797", accentSubtle: "#231818",
         ...SEMANTIC_DARK,
       },
       material: { separation: "border", shadowColor: "#000000", shadowStrength: 0 },
@@ -196,7 +190,7 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
       tokens: {
         bgPrimary: "#FFFFFF", bgSecondary: "#FFFFFF", bgTertiary: "#F0F0F0", bgBorder: "#D6D6D6",
         textPrimary: "#000000", textSecondary: "#4A4A4A", textTertiary: "#7A7A7A", textInverse: "#FFFFFF",
-        accent: "#4A4A4A", accentHover: "#333333", accentSubtle: "#EDEDED",
+        accent: "#5E5959", accentHover: "#514D4D", accentSubtle: "#F0E8E8",
         ...SEMANTIC_LIGHT,
       },
       material: { separation: "border", shadowColor: "#000000", shadowStrength: 0 },
@@ -499,39 +493,65 @@ export const priorityColorKey = {
 // ─── Accent options (override accent within any theme) ────────────────────────
 
 /**
- * Accents, retuned 2026-08-13. Same ten hue families as before, with two
- * changes:
+ * Accents, replaced 2026-08-15 from a palette the user picked by eye. Eight
+ * hues, ordered cool → green → warm → neutral so the picker reads as a ramp.
  *
- * 1. CHROMA. The originals were lifted from Nord, whose palette is deliberately
- *    desaturated to sit quietly *inside* an editor. As the app's one signal
- *    colour they read muddy — `amber` #D08770 was closer to terracotta than to
- *    amber, `moss` #A3BE8C was dusty sage. These are saturated enough to look
- *    deliberate and stop well short of neon.
+ * Each entry is anchored on ONE supplied hex, kept verbatim in the scheme where
+ * it already clears 4.5:1 — four of them are light enough for a dark background
+ * (frost/jade/sage/harbour), four are deep enough for a white one
+ * (navy/olive/brick/stone). The counterpart is derived from that same hex by
+ * moving lightness with the hue pinned, because one hex cannot clear 4.5:1 as
+ * text on both #0D0D0D and #FFFFFF — attempting it is what made the previous
+ * set look washed out on light.
  *
- * 2. PER-SCHEME. One hex used to serve both light and dark, which is
- *    unwinnable: a value bright enough to clear 4.5:1 on #0D0D0D is washed out
- *    on white, and that is most of what "flat" meant. `light`/`lightHover` are
- *    the deeper variants, so every accent stays legible as text on either
- *    scheme — the same principle the themes themselves now follow.
+ * Derived values aim for 5.2:1 on #0D0D0D rather than the bare 4.5, since
+ * Nord's dark surface is #2E3440 — far lighter than near-black — and anything
+ * that only just clears black goes thin on it. Saturation is capped at 0.55
+ * while lifting: an unbounded lift of #780000 lands on #F80000, which is
+ * exactly the neon the palette is meant to avoid.
  *
- * Every `color` clears 4.5:1 on the darkest background (#0D0D0D) and every
- * `light` clears it on #FFFFFF.
+ * Verified: every `color` ≥ 5.2:1 on #0D0D0D, every `light` ≥ 4.6:1 on #FFFFFF.
  */
 export const ACCENT_OPTIONS = [
-  { id: "indigo",  label: "Indigo",  color: "#6A78E8", hover: "#7C89F2", light: "#4B58CC", lightHover: "#3F4CBC", subtle: "#1A1D3A", lightSubtle: "#EAECFD" },
-  { id: "sky",     label: "Sky",     color: "#5FC7E0", hover: "#78D4EA", light: "#1B7A94", lightHover: "#166580", subtle: "#12303A", lightSubtle: "#DEF2F8" },
-  { id: "ocean",   label: "Ocean",   color: "#4F8FD4", hover: "#64A0E0", light: "#2C6BAF", lightHover: "#23589A", subtle: "#152738", lightSubtle: "#DEEAF7" },
-  { id: "moss",    label: "Moss",    color: "#86C56F", hover: "#99D283", light: "#3E7F38", lightHover: "#336B2E", subtle: "#182A16", lightSubtle: "#E4F2DF" },
-  { id: "orchid",  label: "Orchid",  color: "#C77DC0", hover: "#D392CD", light: "#9A4A93", lightHover: "#843E7E", subtle: "#2A1A29", lightSubtle: "#F6E6F4" },
-  { id: "amber",   label: "Amber",   color: "#F0954F", hover: "#F7A868", light: "#AD5C14", lightHover: "#954D0C", subtle: "#321C0C", lightSubtle: "#FCEBDC" },
-  { id: "crimson", label: "Crimson", color: "#F0576E", hover: "#F76F84", light: "#C7314A", lightHover: "#AC273D", subtle: "#33131A", lightSubtle: "#FDE5E9" },
-  { id: "gold",    label: "Gold",    color: "#E8B62E", hover: "#F2C548", light: "#8A6800", lightHover: "#745700", subtle: "#2C2208", lightSubtle: "#FAEFD2" },
-  // Grayscale accents — for a fully monochrome look on any theme.
-  { id: "slate",   label: "Slate",   color: "#8894AB", hover: "#9BA6BA", light: "#5C6880", lightHover: "#4C566B", subtle: "#1E222B", lightSubtle: "#E7EAF0" },
-  { id: "mono",    label: "Mono",    color: "#A5A5A5", hover: "#B8B8B8", light: "#5F5F5F", lightHover: "#4D4D4D", subtle: "#242424", lightSubtle: "#EAEAEA" },
+  { id: "navy",    label: "Navy",    color: "#5F84CA", hover: "#7A99D3", light: "#1B263B", lightHover: "#131B2A", subtle: "#10192B", lightSubtle: "#E4E9F4" },
+  { id: "harbour", label: "Harbour", color: "#6EA4C4", hover: "#87B4CE", light: "#387BA3", lightHover: "#316D90", subtle: "#122028", lightSubtle: "#E2EEF6" },
+  { id: "frost",   label: "Frost",   color: "#9BC3E8", hover: "#B8D4EF", light: "#2077C7", lightHover: "#1C6AB1", subtle: "#0F1E2C", lightSubtle: "#DEECFA" },
+  { id: "sage",    label: "Sage",    color: "#79A49A", hover: "#8EB2AA", light: "#4F7C72", lightHover: "#456C64", subtle: "#182320", lightSubtle: "#E7F1EE" },
+  { id: "jade",    label: "Jade",    color: "#6EC499", hover: "#87CEAB", light: "#2D8358", lightHover: "#26704B", subtle: "#12281D", lightSubtle: "#E2F6EC" },
+  { id: "olive",   label: "Olive",   color: "#7D8A51", hover: "#91A05E", light: "#5A6142", lightHover: "#4C5238", subtle: "#212416", lightSubtle: "#EEF0E8" },
+  { id: "brick",   label: "Brick",   color: "#D26363", hover: "#DA7F7F", light: "#780000", lightHover: "#5F0000", subtle: "#2C0F0F", lightSubtle: "#FADEDE" },
+  { id: "stone",   label: "Stone",   color: "#8D8484", hover: "#9E9797", light: "#5E5959", lightHover: "#514D4D", subtle: "#231818", lightSubtle: "#F0E8E8" },
 ] as const;
 
 export type AccentId = typeof ACCENT_OPTIONS[number]["id"];
+
+/**
+ * Where the previous ten accent ids land. This matters far more than the theme
+ * map did: task categories store an AccentId as their colour, so without it
+ * every custom category would fail validation, collapse to one colour, and —
+ * worse — have that collapse written back and synced. Mapped by nearest hue,
+ * with the two-into-one cases (amber/crimson → brick, slate/mono → stone)
+ * chosen so nothing lands on a hue it never had.
+ */
+const LEGACY_ACCENT_MAP: Record<string, AccentId> = {
+  indigo:  "navy",
+  sky:     "frost",
+  ocean:   "harbour",
+  moss:    "jade",
+  orchid:  "sage",
+  amber:   "brick",
+  crimson: "brick",
+  gold:    "olive",
+  slate:   "stone",
+  mono:    "stone",
+};
+
+/** Resolve any stored accent id — current or retired — to a live one. */
+export function normalizeAccentId(value: unknown): AccentId | null {
+  if (typeof value !== "string") return null;
+  if (ACCENT_OPTIONS.some(a => a.id === value)) return value as AccentId;
+  return LEGACY_ACCENT_MAP[value] ?? null;
+}
 
 // ─── Font families ────────────────────────────────────────────────────────────
 
@@ -660,7 +680,8 @@ export function resolveAccentSwatch(
   id: string,
   scheme: ColorScheme
 ): { color: string; hover: string; subtle: string } {
-  const opt = ACCENT_OPTIONS.find(a => a.id === id) ?? ACCENT_OPTIONS[0];
+  const resolved = normalizeAccentId(id);
+  const opt = ACCENT_OPTIONS.find(a => a.id === resolved) ?? ACCENT_OPTIONS[0];
   const dark = scheme === "dark";
   // Category chips are text-on-tint, so they need the same per-scheme variant
   // the main accent uses — the dark value on white is unreadable at meta size.

@@ -24,7 +24,7 @@ export const CategoryBadge = React.memo(function CategoryBadge({ category, uniCo
   const cat    = categories.find(c => c.id === category);
   const parent = cat?.parent_id ? categories.find(c => c.id === cat.parent_id) : undefined;
   // A subcategory inherits its parent's colour so a column reads as one family.
-  const color  = resolveAccentSwatch(parent?.color ?? cat?.color ?? "slate", scheme).color;
+  const color  = resolveAccentSwatch(parent?.color ?? cat?.color ?? "stone", scheme).color;
   // The legacy "uni" category carries a course; custom categories the user adds
   // have no course concept. The course alone ("Misc") is cryptic away from the
   // Uni column — badges now also appear on dashboard and search rows — so

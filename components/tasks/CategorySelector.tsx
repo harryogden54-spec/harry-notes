@@ -19,13 +19,13 @@ export function CategorySelector({ category, uniCourse, onChange }: Props) {
   // The uni-course sub-picker only applies to the legacy "uni" seeded
   // category (custom categories the user adds have no course concept).
   const uniCat = categories.find(c => c.id === "uni");
-  const uniSwatch = resolveAccentSwatch(uniCat?.color ?? "orchid", scheme);
+  const uniSwatch = resolveAccentSwatch(uniCat?.color ?? "sage", scheme);
   // Whichever top-level category is in play — either it is selected directly or
   // one of its children is. Drives which subcategory row shows.
   const activeRootId = rootCategoryId(categories, category);
   const subs = activeRootId ? childrenOf(categories, activeRootId) : [];
   const rootCat = activeRootId ? categories.find(c => c.id === activeRootId) : undefined;
-  const rootSwatch = resolveAccentSwatch(rootCat?.color ?? "slate", scheme);
+  const rootSwatch = resolveAccentSwatch(rootCat?.color ?? "stone", scheme);
 
   return (
     <View style={{ gap: spacing[2] }}>

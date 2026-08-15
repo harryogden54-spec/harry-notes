@@ -208,7 +208,7 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
     // Subcategories inherit the parent's colour — the badge shows them as one
     // family, so a separate accent would be noise.
     const parent = categories.find(c => c.id === parentId);
-    addCategory(trimmed, parent?.color ?? "indigo", parentId);
+    addCategory(trimmed, parent?.color ?? "navy", parentId);
     setSubDrafts(d => ({ ...d, [parentId]: "" }));
   }
 

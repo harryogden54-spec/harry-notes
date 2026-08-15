@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { Platform, useColorScheme } from "react-native";
 import { storage } from "./storage";
-import { ACCENT_OPTIONS, THEMES, type AccentId, type ThemeId } from "./theme";
+import { ACCENT_OPTIONS, THEMES, normalizeAccentId, type AccentId, type ThemeId } from "./theme";
 
 type Scheme = "dark" | "light";
 
@@ -66,9 +66,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     Promise.all([
       storage.get<Scheme>("theme_override").then(v => { if (v) setOverride(v); }),
       // accent_id_v2 — bumped from v1 so stale frost/deep/etc ids reset.
-      // Absent now means "follow the theme" rather than "indigo".
-      storage.get<AccentId>("accent_id_v2").then(v => {
-        if (v && ACCENT_OPTIONS.some(a => a.id === v)) setAccentIdState(v);
+      // Absent means "follow the theme" rather than any particular accent. A
+      // value from the retired ten resolves through the legacy map and is
+      // rewritten, so the picker highlights the swatch it actually rendered.
+      storage.get<string>("accent_id_v2").then(v => {
+        const resolved = normalizeAccentId(v);
+        if (!resolved) return;
+        setAccentIdState(resolved);
+        if (resolved !== v) storage.set("accent_id_v2", resolved);
       }),
       // theme-v4 — bumped from v3 when the six themes became four. A device
       // still on graphite/evergreen/solar lands on its nearest surviving

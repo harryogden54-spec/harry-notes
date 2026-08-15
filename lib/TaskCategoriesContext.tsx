@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import { storage } from "./storage";
 import { dbLoadTaskCategories, dbSaveTaskCategories } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
-import { ACCENT_OPTIONS, type AccentId } from "./theme";
+import { normalizeAccentId, type AccentId } from "./theme";
 
 export type Category = {
   id: string;
@@ -51,11 +51,12 @@ export function rootCategoryId(categories: Category[], id?: string): string | un
 // user-editable data stores category: "personal" | "uni". Seeding these two
 // fixed ids on first load (see onLoad below) means those tasks keep
 // resolving to a real category everywhere. Colors match the old fixed
-// categoryColors palette exactly (personal=#88C0D0=sky, uni=#B48EAD=orchid)
-// so nothing visually changes for existing users.
+// categoryColors palette. The accent ids they were seeded with (sky/orchid)
+// retired with the 2026-08-15 palette; these are where the legacy map sends
+// them, written out so a fresh install and a migrated one match.
 const DEFAULT_CATEGORIES: Omit<Category, "created_at" | "updated_at">[] = [
-  { id: "personal", name: "Personal", color: "sky",    order: 0 },
-  { id: "uni",      name: "Uni",      color: "orchid", order: 1 },
+  { id: "personal", name: "Personal", color: "frost", order: 0 },
+  { id: "uni",      name: "Uni",      color: "sage",  order: 1 },
 ];
 
 // Split into data / sync / actions contexts — see TasksContext for rationale.
@@ -102,9 +103,10 @@ function normalizeCategory(c: Category): Category {
   return {
     ...c,
     name:       typeof c.name === "string" ? c.name : "",
-    color:      (typeof c.color === "string" && ACCENT_OPTIONS.some(a => a.id === c.color))
-                  ? c.color as AccentId
-                  : "indigo",
+    // Resolves retired accent ids rather than rejecting them: a straight
+    // membership test would send every pre-2026-08-15 category to one colour
+    // AND persist + sync that collapse.
+    color:      normalizeAccentId(c.color) ?? "navy",
     order:      typeof c.order === "number" ? c.order : 0,
     parent_id:  typeof c.parent_id === "string" && c.parent_id ? c.parent_id : undefined,
     created_at: typeof c.created_at === "string" && c.created_at ? c.created_at : EPOCH,
@@ -153,7 +155,7 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
     normalizeRemote: (row) => normalizeCategory(row),
   });
 
-  const addCategory = useCallback((name: string, color: AccentId = "indigo", parentId?: string): string => {
+  const addCategory = useCallback((name: string, color: AccentId = "navy", parentId?: string): string => {
     const id  = newId();
     const now = new Date().toISOString();
     const all = categoriesRef.current;
