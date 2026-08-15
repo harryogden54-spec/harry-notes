@@ -362,7 +362,7 @@ function DumpScreen() {
           {sorted.length === 0 ? (
             <EmptyState type="dump" title="Nothing captured yet" subtitle="Somewhere to put a thought before deciding what it is." />
           ) : visible.length === 0 ? (
-            <EmptyState type="dump" title="All filed away" subtitle="Every capture is in the vault. Nice." />
+            <EmptyState type="dump" title="All filed away" subtitle="Every capture has been turned into a task or a note." />
           ) : (
             <View style={{ gap: spacing[3] }}>
               {visible.map(d => (

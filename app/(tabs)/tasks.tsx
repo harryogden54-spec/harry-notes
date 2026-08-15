@@ -366,7 +366,7 @@ function TasksScreen() {
 
               {focusMode ? (
                 focusTasks.length === 0 ? (
-                  <EmptyState type="tasks" title="All clear" subtitle="No overdue or due-today tasks — enjoy the moment." />
+                  <EmptyState type="tasks" title="All clear" subtitle="Nothing overdue and nothing due today." />
                 ) : (
                   <Section label={`Focus · ${focusTasks.length}`} tasks={focusTasks} {...sectionProps} />
                 )
