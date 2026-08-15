@@ -359,6 +359,43 @@ Verified: all ten clear 4.5:1 in both schemes. Also **tabular figures** on the `
 stacks, cards as tall as their content, dealt round-robin because heights are unknown
 until layout and RN-Web's first ResizeObserver callback never arrives.
 
+August 15 batch: **Today's carry-forward was resurrecting completed items.** It ran
+from useSyncedCollection's `onLoad` — i.e. against whatever this device last wrote
+down, before any contact with the server — re-dating every undone item to today with
+a fresh `updated_at` and marking it dirty. That is indistinguishable from a user edit,
+so it beat the server's newer `done: true` on timestamps AND was shielded from it by
+doMerge's dirty guard, then pushed the stale copy back. The engine gains
+**`onReconciled`**: same shape as `onLoad`, run after a *successful* reconciliation
+and re-run after every later one (so a session open across midnight also carries
+forward), including on the offline-only paths where there is no race to lose. Rule of
+thumb now: **anything derived from the clock or from other rows goes in `onReconciled`,
+never `onLoad`.** Because adoption now waits for the network, the rule is *also* a
+derivation — `isActiveOn(item, date)` in `TodayContext`, read by the Today screen and
+by the widget (`date <= todayStr`, not `===`) — so nothing is missing while offline;
+toggling or reordering a not-yet-adopted item adopts it on the spot. Verified end to
+end against Supabase with a throwaway sync key (push → complete → rewind the local
+store to the stale undone copy with the cursor cleared → relaunch → stays done); probe
+row deleted. Also **`storage.get` no longer throws on a corrupt value** — an
+unparseable entry made `loadLocal` reject, and that path marks the domain `error` and
+returns WITHOUT calling performSync, so one bad write stranded a whole collection
+permanently (same class as the null in `sync:pendingDelete:courses`). It now drops the
+value and returns null. **Accents replaced** with eight hues the user picked by eye —
+Navy/Harbour/Frost/Sage/Jade/Olive/Brick/Stone. Each is anchored on one supplied hex,
+kept verbatim in the scheme where it already clears 4.5:1 (four are light enough for a
+dark background, four deep enough for white), with the counterpart derived by moving
+lightness with the hue pinned; derived values target 5.2:1 on #0D0D0D because Nord's
+dark surface is far lighter than near-black, and saturation is capped at 0.55 while
+lifting — an unbounded lift of #780000 lands on #F80000. `normalizeAccentId` maps the
+retired ten onto the new eight and rewrites them in place: task categories store an
+AccentId as their colour, so a membership test alone would have collapsed every custom
+category to one colour and synced that collapse. **Theme blurbs deleted** (picker rows
+are name + swatch; the reset link no longer names the theme), and the light/dark row
+lost its subtitle. Two bugs found alongside: the theme preview drew the dark-scheme
+accent in both schemes, and `components/ui/Card` took its shadow from the raw
+`getShadow(level, scheme)`, which cannot see the theme's material. Note: `Card` /
+`CardPressable` are exported from the ui barrel but used nowhere — the app uses
+`GlassCard` and `Surface`.
+
 In progress: —
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface
