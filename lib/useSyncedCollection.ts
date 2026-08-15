@@ -28,6 +28,23 @@ type Config<T extends HasId> = {
   saveLocal: (items: T[], changes: SaveChanges) => void;
   /** Optional post-load transform — e.g. auto-archive. Returns items + dirty IDs. */
   onLoad?: (items: T[]) => { items: T[]; dirty: string[] };
+  /**
+   * Like `onLoad`, but run after a SUCCESSFUL reconciliation instead of before
+   * any network call — and re-run after every later one.
+   *
+   * `onLoad` sees only what this device last wrote down. A transform that stamps
+   * `updated_at` and marks rows dirty from there is indistinguishable from a
+   * user edit: it wins the last-write-wins merge against the server's newer copy
+   * AND is protected from it by the dirty guard in doMerge, so the transform's
+   * view of a stale row gets pushed back over another device's real edit. That
+   * is exactly how Today's carry-forward was resurrecting items completed on a
+   * phone (an undone item is re-dated at launch, which beat the `done` the
+   * server already held).
+   *
+   * Anything DERIVED from the current date or from other rows belongs here, not
+   * in `onLoad`. Anything the user typed belongs in neither.
+   */
+  onReconciled?: (items: T[]) => { items: T[]; dirty: string[] };
   /** Optional transform applied to each remote row before merging — e.g. type coercion.
    *  Receives the row with _updated_at already stripped. */
   normalizeRemote?: (row: T) => T;
@@ -59,7 +76,7 @@ const CURSOR_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export function useSyncedCollection<T extends HasId>(config: Config<T>) {
   const {
     table, storageKey, loadLocal, saveLocal,
-    onLoad, normalizeRemote, mergeRow, mergeTextField,
+    onLoad, onReconciled, normalizeRemote, mergeRow, mergeTextField,
   } = config;
 
   const [items, setItems]           = useState<T[]>([]);
@@ -395,15 +412,39 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * Run the post-reconciliation transform, if the collection declares one.
+   * Called on every path that leaves this device agreeing with the server, so a
+   * date-dependent transform also fires when a long-open session crosses
+   * midnight — not only at launch. A no-op transform returns no dirty ids and
+   * costs one array pass.
+   */
+  const applyReconciled = useCallback(() => {
+    if (!onReconciled) return;
+    const result = onReconciled(itemsRef.current);
+    if (result.dirty.length === 0) return;
+    for (const id of result.dirty) {
+      dirtyIdsRef.current.add(id);
+      localDirtyRef.current.add(id);
+    }
+    persistDirty();
+    itemsRef.current = result.items;
+    setItems(result.items);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ─── Sync engine (initial load, foreground, manual) ──────────────────────────
   // Delta fetch by default; full reconciliation fetch when there is no usable
   // cursor or the caller asks for it. The full path is the safety net: deleting
   // the cursor key must always reproduce identical state.
   const performSync = useCallback(async (opts?: { full?: boolean }): Promise<boolean> => {
-    if (!SYNC_ENABLED) return true;
-    // No sync key configured — offline-only mode. Bail before touching
-    // syncStatus so the UI doesn't report "synced" for a no-op.
-    if (!(await getSyncKey())) return true;
+    // Offline-only modes (no Supabase configured, or no sync key). Bail before
+    // touching syncStatus so the UI doesn't report "synced" for a no-op — but
+    // still run the reconciliation transform: with no server there is nothing
+    // it can lose a race against, and skipping it would strand Today's
+    // carry-forward on a device that has never been paired.
+    if (!SYNC_ENABLED) { applyReconciled(); return true; }
+    if (!(await getSyncKey())) { applyReconciled(); return true; }
     if (syncInFlightRef.current) return true;
     syncInFlightRef.current = true;
     try {
@@ -442,6 +483,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         persistDirty();
         lastSyncAtRef.current = Date.now();
         if (!deletesOk) { setSyncStatus("error"); return false; }
+        applyReconciled();
         setSyncStatus("synced");
         setLastSynced(new Date().toISOString());
         return true;
@@ -520,13 +562,14 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       persistBaseText();
       lastSyncAtRef.current = Date.now();
       if (!deletesOk) { setSyncStatus("error"); return false; }
+      applyReconciled();
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
       return true;
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [doMerge, loadCursor, advanceCursor, flushRemoteDeletes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doMerge, loadCursor, advanceCursor, flushRemoteDeletes, applyReconciled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Initial load ─────────────────────────────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -580,8 +623,8 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       loadedRef.current = true;
       setLoaded(true);
 
-      // Skip remote sync entirely when Supabase isn't configured.
-      if (!SYNC_ENABLED) return;
+      // Skip remote sync entirely when Supabase isn't configured — performSync
+      // still runs the reconciliation transform on that path.
       await performSync();
     }).catch((e) => {
       // loadLocal threw (e.g. DB error on native). Mark as loaded so the UI

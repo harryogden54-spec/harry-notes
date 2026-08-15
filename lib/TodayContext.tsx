@@ -130,18 +130,37 @@ async function importLegacyTodayItems(): Promise<TodayItem[]> {
 }
 
 /**
- * Carry incomplete items forward across a day boundary (replaces the old
- * lib/todayCarry.ts, now folded into the sync engine's onLoad hook).
+ * An undone item belongs to today from the moment its own day has passed —
+ * that is the whole point of a carry-forward. This is the DERIVED form of the
+ * rule, and it is the one the UI reads: it holds whether or not the write below
+ * has happened yet, so nothing is missing from Today while the app is offline,
+ * or during the moment between launch and the first sync.
  *
- * Idempotent + conflict-safe by construction: it only ever rewrites the
- * `date` field (same id) of items that are `!done` and whose `date` is
- * strictly before today. Two devices carrying forward the same stale item
- * concurrently both set `date` to today's string — identical outcomes, so
- * last-write-wins merge in useSyncedCollection converges cleanly regardless
- * of which write "wins". Running it twice the same day is a no-op (the
- * items in question no longer have date < today). Completed items are never
- * touched here — they keep their original date, which is what the retention
- * sweep below keys off.
+ * The iOS widget applies the same rule (widget/scriptable-today.js) — it reads
+ * the table directly and would otherwise miss anything not yet adopted.
+ */
+export function isActiveOn(item: TodayItem, dateStr: string): boolean {
+  return !item.done && item.date <= dateStr;
+}
+
+/**
+ * Adopt carried items into today for real — rewrite `date` so the row the
+ * server holds matches what every client derives.
+ *
+ * Runs through the sync engine's `onReconciled` hook, NOT `onLoad`, and that
+ * distinction is the fix for a real bug: an item completed on the phone came
+ * back undone on the desktop. From `onLoad` this ran against whatever the
+ * device had last written down, stamping a fresh `updated_at` and marking the
+ * row dirty — which both beat the server's newer `done: true` on timestamps and
+ * shielded the row from it via doMerge's dirty guard, and then pushed the
+ * resurrected copy back. Running it only once this device already agrees with
+ * the server means it can never re-date a row whose truth has moved on.
+ *
+ * Still idempotent and still conflict-safe otherwise: it only ever rewrites
+ * `date` (same id) on items that are `!done` and dated before today, so two
+ * devices doing it concurrently produce identical rows. Completed items are
+ * never touched — they keep the day they were done on, which is what the Done
+ * list groups by.
  */
 function carryForwardToday(items: TodayItem[]): { items: TodayItem[]; dirty: string[] } {
   const todayStr = getLocalDateStr();
@@ -200,7 +219,7 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
     saveLocal: (curItems, changes) => {
       if (Platform.OS !== "web") dbSaveTodayItems(curItems, changes).catch(console.error);
     },
-    onLoad: (loadedItems) => carryForwardToday(loadedItems),
+    onReconciled: (syncedItems) => carryForwardToday(syncedItems),
     normalizeRemote: (row) => normalizeTodayItem(row),
   });
 
@@ -214,7 +233,7 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
     const todayStr = getLocalDateStr();
     const current = itemsRef.current;
     const activeOrders = current
-      .filter(i => !i.done && i.date === todayStr)
+      .filter(i => isActiveOn(i, todayStr))
       .map(i => i.order);
     // New items appear at the top of today's active list (mirrors the old
     // screen's unshift-to-front behavior).
@@ -228,11 +247,17 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
 
   const toggleItem = useCallback((id: string) => {
     markDirty(id);
+    const todayStr = getLocalDateStr();
     setItems(prev => {
       const item = prev.find(i => i.id === id);
       if (!item) return prev;
       const done = !item.done;
-      const sameDay = prev.filter(i => i.date === item.date);
+      // A carried item can still be filed under the day it was written on —
+      // adoption only happens once this device has reconciled. Completing it
+      // files it under today, which is the day it was actually done and the
+      // day the Done list will group it under.
+      const date = !item.done && item.date < todayStr ? todayStr : item.date;
+      const sameDay = prev.filter(i => i.date === date && i.id !== id);
       let order: number;
       if (done) {
         // Move to the end of the day's list (active or done) — matches the
@@ -241,10 +266,10 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
         order = maxOrder + 1;
       } else {
         // Move back to the top of the day's active list.
-        const activeOrders = sameDay.filter(i => !i.done && i.id !== id).map(i => i.order);
+        const activeOrders = sameDay.filter(i => !i.done).map(i => i.order);
         order = activeOrders.length > 0 ? Math.min(0, ...activeOrders) - 1 : 0;
       }
-      return prev.map(i => i.id === id ? stamp({ ...i, done, order }) : i);
+      return prev.map(i => i.id === id ? stamp({ ...i, done, date, order }) : i);
     });
   }, [markDirty, setItems]);
 
@@ -271,28 +296,35 @@ export function TodayProvider({ children }: { children: React.ReactNode }) {
   // bottom order, assign sequential `order` values and mark only the items
   // whose order actually changed as dirty (a drag typically shifts a handful
   // of items, not the whole day).
+  //
+  // Membership comes from the passed list rather than from `item.date`, so a
+  // carried item the user has just dragged is reordered — and adopted into
+  // `date` — instead of being silently skipped for still being filed under the
+  // day it was written on.
   const reorderActive = useCallback((date: string, newActiveOrder: TodayItem[]) => {
     const orderMap = new Map(newActiveOrder.map((it, idx) => [it.id, idx]));
     const current = itemsRef.current;
     const changedIds: string[] = [];
     for (const item of current) {
-      if (item.date !== date || item.done) continue;
+      if (item.done) continue;
       const next = orderMap.get(item.id);
-      if (next !== undefined && next !== item.order) changedIds.push(item.id);
+      if (next === undefined) continue;
+      if (next !== item.order || item.date !== date) changedIds.push(item.id);
     }
     if (changedIds.length === 0) return;
     markDirty(...changedIds);
     setItems(prev => prev.map(i => {
-      if (i.date !== date || i.done) return i;
+      if (i.done) return i;
       const next = orderMap.get(i.id);
-      if (next === undefined || next === i.order) return i;
-      return stamp({ ...i, order: next });
+      if (next === undefined) return i;
+      if (next === i.order && i.date === date) return i;
+      return stamp({ ...i, date, order: next });
     }));
   }, [markDirty, setItems, itemsRef]);
 
   const moveItem = useCallback((id: string, date: string, direction: "up" | "down") => {
     const activeToday = itemsRef.current
-      .filter(i => i.date === date && !i.done)
+      .filter(i => isActiveOn(i, date))
       .sort((a, b) => a.order - b.order);
     const idx = activeToday.findIndex(i => i.id === id);
     if (idx === -1) return;

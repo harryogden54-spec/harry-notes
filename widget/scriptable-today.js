@@ -113,9 +113,13 @@ async function fetchTable(table) {
 // Filtering — mirrors the shapes documented for today_items / tasks.
 // ---------------------------------------------------------------------------
 
+// `date <= todayStr`, not `===`: an undone item dated before today has been
+// carried forward, and the app only rewrites its stored `date` once a device
+// has reconciled with the server. Matching on equality made the widget quietly
+// drop exactly the items that had been hanging around longest.
 function filterTodayItems(items, todayStr) {
   return items
-    .filter(it => !it.done && it.date === todayStr)
+    .filter(it => !it.done && it.date <= todayStr)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 

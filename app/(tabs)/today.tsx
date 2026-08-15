@@ -15,7 +15,7 @@ import { spacing, radius, fontFamily } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasksData } from "@/lib/TasksContext";
-import { useTodayData, useTodayActions, useTodaySync, type TodayItem } from "@/lib/TodayContext";
+import { useTodayData, useTodayActions, useTodaySync, isActiveOn, type TodayItem } from "@/lib/TodayContext";
 import { getTodayStr, formatHeaderDate } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 
@@ -59,12 +59,14 @@ function TodayScreen() {
 
   const dateLabel = mounted ? formatHeaderDate() : "";
 
-  // The context store holds ALL days' items — carry-forward (past incomplete
-  // items get today's date) runs inside TodayContext itself. Active items are
-  // today's slice; done items stay listed past their day (user request
-  // 2026-07-12) — newest day first, manual order within a day.
+  // The context store holds ALL days' items. Active = anything undone dated
+  // today or earlier (`isActiveOn`) — the carry-forward expressed as a filter,
+  // so a stale item is never missing while this device is offline or has not
+  // reconciled yet; TodayContext rewrites its `date` for real once it has.
+  // Done items stay listed past their day (user request 2026-07-12) — newest
+  // day first, manual order within a day.
   const todayStr = getTodayStr();
-  const dayItems = allItems.filter(i => i.date === todayStr);
+  const dayItems = allItems.filter(i => i.date === todayStr || isActiveOn(i, todayStr));
   const active    = dayItems.filter(i => !i.done).sort(byOrder);
   const completed = allItems.filter(i => i.done)
     .sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
