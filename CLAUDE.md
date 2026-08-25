@@ -103,7 +103,9 @@ All providers are composed in `app/_layout.tsx`. The pattern is: load from local
 ### UI components
 
 Shared primitives live in `components/ui/` and are re-exported from `components/ui/index.ts`:
-`Text`, `Card`, `CardPressable`, `Divider`, `Badge`, `Button`, `Checkbox`, `TextInput`, `DatePicker`, `EmptyState`, `SearchBar`, `Toast`, `ToastContainer`
+`Text`, `Divider`, `Badge`, `Button`, `Checkbox`, `TextInput`, `DatePicker`, `EmptyState`, `SearchBar`, `Toast`, `ToastContainer`, `Surface`, `GlassCard`
+
+Dump-screen blocks live in `components/dump/` (`MonthCalendar`, `SparkBox`, `DayPanel`, `JournalBox`).
 
 Always prefer these over raw RN primitives to keep styling consistent.
 
@@ -392,9 +394,53 @@ category to one colour and synced that collapse. **Theme blurbs deleted** (picke
 are name + swatch; the reset link no longer names the theme), and the light/dark row
 lost its subtitle. Two bugs found alongside: the theme preview drew the dark-scheme
 accent in both schemes, and `components/ui/Card` took its shadow from the raw
-`getShadow(level, scheme)`, which cannot see the theme's material. Note: `Card` /
-`CardPressable` are exported from the ui barrel but used nowhere — the app uses
-`GlassCard` and `Surface`.
+`getShadow(level, scheme)`, which cannot see the theme's material.
+
+August 25 batch: **priority is a left edge**, not a word (task cards) or a dot
+(dashboard rows) — 4px on a card, 3px on a row, urgent and high only, and the
+tinted urgent background goes with it. Dashboard task titles drop to the `sm`
+step and stop turning red when overdue; the due pill on the right already said
+it. **Empty category columns are not drawn** — the dashed well held a shape
+that cost most of the board's width on a board with six categories and two live
+ones. **Task categories archive** (`Category.archived`, additive to the jsonb
+row, no migration): the row and its id stay so a task filed under one keeps
+resolving to a real name and colour, while the column and every picker entry
+go; `topLevel`/`childrenOf` take an `includeArchived` flag and
+`archivedCategories()` feeds the restore list in the Edit-categories sheet.
+Watch the class of bug found there: `CategoryColumns` used to call a task
+categorised if its id was *known*, so archiving a category that still held
+tasks made those tasks vanish — the test is now whether the root has a column.
+**Today's header is a date block** (weekday small over a large tabular numeral,
+month beside it) and the **Done list groups by day** with a divider that sticks
+to the top of the scroller, web only. **Notes remember the open note across a
+tab switch** — module scope, not storage, so a fresh launch still opens the
+list — and the **open note carries its first tag's pastel** as a top edge and
+on its TagRow chips. `components/ui/Card` deleted (barrel-exported, used
+nowhere).
+
+**DUMP REBUILT AS A DAY** (same batch). Four blocks: month calendar, brainstem
+box, selected-day panel, today's journal — two columns above 900px, stacked
+below with the calendar directly above the panel it drives. A day has ONE
+journal entry: `tag: "journal"` + `note_date` is the single row the calendar
+dot, the day panel and the journal box all refer to, and `journalFor()` picks
+the newest when older data holds several. Two additive jsonb fields, no
+migration: a `spark` tag for the brainstem box and `handwritten` on a journal
+entry. The calendar dot is accent once a day's captures have reached Supabase
+and warning while they are only local — **derived from `updated_at` vs the
+collection's `lastSynced`, deliberately NOT from the engine's dirty set**,
+which lives in a ref and never triggers a render; the derivation errs towards
+"pending", never towards a false "synced". Undated captures (older ones, PWA
+share-target ones) get a drawer under the grid rather than being unreachable.
+
+**RN-Web Modal + reduced motion is a trap.** `ModalAnimation` only clears its
+`animatedOut` style — which carries `pointerEvents: 'none'` — when the CSS
+animation fires `animationend`. Under `prefers-reduced-motion: reduce` the
+browser never runs the animation, so a `fade`/`slide` modal can strand an
+inert, invisible copy of itself in the DOM and confuse the next open.
+`animationType="none"` makes the library call its own end callback directly.
+The journal expand modal and `MobileTabBar`'s sheet use `"none"`;
+`TaskDetailModal`, `QuickAddModal`, `TableEditorModal` and NoteEditor's focus
+mode still use `"fade"` and have the same exposure — not yet fixed.
 
 In progress: —
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
@@ -405,7 +451,9 @@ Awaiting confirmation: the PWA padding fix could not be verified locally — the
 web safe-area provider reads `env(safe-area-inset-*)` once at mount via a hidden
 probe div whose listener uses the legacy `webkitTransitionEnd` event Chrome no
 longer fires, so insets can't be simulated after load. Needs an on-device check.
-Not started: point the quick-add FAB at `TaskDetailModal` and delete
+Not started: audit the four remaining `animationType="fade"` modals against
+`prefers-reduced-motion` (see the August 25 batch); point the quick-add FAB at
+`TaskDetailModal` and delete
 `TaskComposerForm` (last duplicate task-creation surface); web push for task
 reminders (postponed by the user 2026-07-27); Settings screen full visual
 redesign (deferred, tracked separately); `notes.tsx` module split (readability
