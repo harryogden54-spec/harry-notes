@@ -46,3 +46,4 @@ deploy.log
 
 # npm run test:merge scratch output
 /.test-out
+/.test-out-md

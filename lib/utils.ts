@@ -1,4 +1,5 @@
 import type { Priority } from "./TasksContext";
+import { MD_EMPHASIS_GLOBAL } from "./mdEmphasis";
 
 /**
  * Format a Date as YYYY-MM-DD using the device's LOCAL timezone.
@@ -60,14 +61,15 @@ export function cmpRecentDesc(
 
 export function stripMarkdown(text: string): string {
   if (typeof text !== "string") return "";
-  return text
+  // Emphasis delimiters come from lib/mdEmphasis so a preview strips exactly
+  // what the editor and MarkdownView render. The old local copies were naive
+  // and ate real underscores: `file_name_here.txt` previewed as
+  // "filenamehere.txt" while the editor showed it intact.
+  let out = text
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")   // images → drop entirely
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/__(.+?)__/g, "$1")
-    .replace(/_(.+?)_/g, "$1")
-    .replace(/`(.+?)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "");
+  for (const pattern of MD_EMPHASIS_GLOBAL) out = out.replace(pattern, "$1");
+  return out
     .replace(/^[-*]\s+\[[ xX]\]\s*/gm, "") // checkbox items → text
     .replace(/^[-*]\s+/gm, "")             // bullets
     .replace(/^---+$/gm, "")

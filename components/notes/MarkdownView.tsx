@@ -5,6 +5,10 @@ import { Text, Checkbox } from "@/components/ui";
 import { spacing, fontFamily, radius } from "@/lib/theme";
 import { evalREPL, type REPLContext } from "./replEval";
 import { splitTableRow } from "./editor/markdownDom";
+import {
+  MD_BOLD_STARS, MD_BOLD_UNDERSCORES, MD_ITALIC_UNDERSCORE, MD_ITALIC_STARS,
+  MD_CODE, MD_WIKILINK,
+} from "@/lib/mdEmphasis";
 
 type Colors = ReturnType<typeof useTheme>["colors"];
 
@@ -38,12 +42,17 @@ function renderInlineUncached(text: string, colors: Colors): React.ReactNode {
   let keyIdx = 0;
 
   const patterns: [RegExp, (m: RegExpMatchArray) => React.ReactNode][] = [
-    [/\*\*(.+?)\*\*/s, (m) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{m[1]}</Text>],
-    [/__(.+?)__/s,     (m) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{m[1]}</Text>],
-    [/_(.+?)_/s,       (m) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{m[1]}</Text>],
-    [/\*(.+?)\*/s,     (m) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{m[1]}</Text>],
-    [/`(.+?)`/s,       (m) => <Text key={keyIdx++} style={{ fontFamily: "monospace" as any, fontSize: 13, color: colors.accent, backgroundColor: colors.bgTertiary }}>{` ${m[1]} `}</Text>],
-    [/\[\[(.+?)\]\]/s, (m) => <Text key={keyIdx++} style={{ color: colors.accent, textDecorationLine: "underline" }}>{m[1]}</Text>],
+    // Shared with the editor and stripMarkdown — see lib/mdEmphasis.ts for why
+    // these are not written out here any more.
+    // Bold/italic recurse so `**_both_**` reads as bold italic rather than a
+    // bold run containing literal underscores. The inner text is always a
+    // strict substring, so this terminates.
+    [MD_BOLD_STARS,        (m) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{renderInlineUncached(m[1], colors)}</Text>],
+    [MD_BOLD_UNDERSCORES,  (m) => <Text key={keyIdx++} style={{ fontFamily: fontFamily.bold, color: colors.textPrimary }}>{renderInlineUncached(m[1], colors)}</Text>],
+    [MD_ITALIC_UNDERSCORE, (m) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{renderInlineUncached(m[1], colors)}</Text>],
+    [MD_ITALIC_STARS,      (m) => <Text key={keyIdx++} style={{ fontStyle: "italic", color: colors.textSecondary }}>{renderInlineUncached(m[1], colors)}</Text>],
+    [MD_CODE,              (m) => <Text key={keyIdx++} style={{ fontFamily: "monospace" as any, fontSize: 13, color: colors.accent, backgroundColor: colors.bgTertiary }}>{` ${m[1]} `}</Text>],
+    [MD_WIKILINK,          (m) => <Text key={keyIdx++} style={{ color: colors.accent, textDecorationLine: "underline" }}>{m[1]}</Text>],
     // Note tags: `//tag` at line start or after whitespace (never protocol
     // slashes in URLs). m[1] = leading whitespace, m[2] = tag name.
     [/(^|\s)\/\/([A-Za-z0-9_-]+)/, (m) => (

@@ -442,6 +442,28 @@ The journal expand modal and `MobileTabBar`'s sheet use `"none"`;
 `TaskDetailModal`, `QuickAddModal`, `TableEditorModal` and NoteEditor's focus
 mode still use `"fade"` and have the same exposure — not yet fixed.
 
+August 25, notes formatting sweep: **the B button could only ever turn bold
+ON.** `document.execCommand("bold")` decides between applying and removing by
+reading the computed font-weight, and the editor stylesheet said
+`.note-editor-body b { font-weight: normal }` — every other weight in the app is
+carried by the family name alone, but here the computed value is load-bearing.
+It is now `font-weight: 700`, which matches the Inter_700Bold @font-face exactly
+(declared at 700) rather than synthesising a face. **Emphasis delimiters moved
+to `lib/mdEmphasis.ts`** — one dependency-free module, three consumers (the web
+editor's `markdownDom.ts`, `MarkdownView.tsx`, and `stripMarkdown` in
+`lib/utils.ts`). They had each carried their own copy of the same four naive
+regexes, and the copies drifted: a card previewed `file_name_here.txt` as
+"filenamehere.txt" while the editor showed it intact. The shared patterns use
+CommonMark flanking rules, so `snake_case`, `2 * 3 * 4` and `****` stay literal.
+**Bold and italic now recurse**, so `**_both_**` is bold italic rather than a
+bold run containing two underscores. `inlineNodeToMarkdown` reads a span's
+inline `font-weight`/`font-style` (rich pastes and styleWithCSS emit those, and
+the unknown-element branch used to flatten them away) and drops contentless
+marks, since an empty `<b>` serialised to `****` and read back as an italicised
+asterisk. Toolbar buttons show an active state off `selectionchange`.
+`npm run test:markdown` runs 34 assertions over these rules — add a case there
+before touching any of them.
+
 In progress: —
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface

@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test:merge": "node node_modules/typescript/bin/tsc lib/textMerge.ts lib/textMerge.test.ts --outDir .test-out --module commonjs --target es2020 --lib es2020 && node .test-out/textMerge.test.js",
+    "test:markdown": "node node_modules/typescript/bin/tsc components/notes/editor/markdownDom.test.ts --rootDir . --outDir .test-out-md --module commonjs --target es2020 --lib es2020,dom && node .test-out-md/components/notes/editor/markdownDom.test.js",
     "deploy": "node scripts/check-env.js && node node_modules/typescript/bin/tsc --noEmit && expo export --platform web --clear && node scripts/inject-pwa-head.js && npx wrangler pages deploy dist --project-name harry-notes --commit-dirty=true --branch=main"
   },
   "dependencies": {
