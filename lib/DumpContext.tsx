@@ -24,19 +24,43 @@ export type Dump = {
   /** Journal entries only: the entry was written on paper and transcribed
    *  elsewhere. Purely a label — nothing in the app treats it differently. */
   handwritten?: boolean;
+  /**
+   * The entry exists but has not been filed yet — the 600ms autosave wrote it
+   * so nothing is lost mid-sentence, and Save is what clears the flag.
+   *
+   * An unfiled draft is deliberately invisible everywhere except the compose
+   * box it belongs to: no calendar dot, not in Browse, not counted as the
+   * day's entry. That is what lets the compose box stop echoing filed text
+   * back at you without a half-finished sentence silently becoming "the day".
+   */
+  draft?: boolean;
   created_at: string;
   updated_at?: string;
 };
+
+/**
+ * A capture is "filed" once it is no longer an unfinished draft. Everything
+ * that reads the record — the calendar dots, Browse, the day's entry — asks
+ * this rather than testing `draft` directly, so the default for old rows
+ * (which have no `draft` field at all) is filed.
+ */
+export function isFiled(d: Dump): boolean {
+  return d.draft !== true;
+}
 
 /**
  * The day's journal entry, if there is one. Older data can hold more than one
  * journal capture for a date (the pre-2026-08-25 screen let you make as many as
  * you liked), so the most recently touched one wins and the rest stay reachable
  * from the day panel.
+ *
+ * Drafts are excluded by default: an unfiled draft is not yet "the day's
+ * entry". The compose box passes `includeDraft` because it is the one place
+ * that must see its own unfinished work.
  */
-export function journalFor(dumps: Dump[], date: string): Dump | undefined {
+export function journalFor(dumps: Dump[], date: string, includeDraft = false): Dump | undefined {
   return dumps
-    .filter(d => d.tag === "journal" && d.note_date === date)
+    .filter(d => d.tag === "journal" && d.note_date === date && (includeDraft || isFiled(d)))
     .sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
 }
 
@@ -52,7 +76,7 @@ type DumpsSync = {
 };
 
 type DumpsActions = {
-  addDump: (opts: { tag: DumpTag; note_date?: string; content?: string }) => string;
+  addDump: (opts: { tag: DumpTag; note_date?: string; content?: string; draft?: boolean }) => string;
   updateDump: (id: string, updates: Partial<Omit<Dump, "id" | "created_at">>) => void;
   deleteDump: (id: string) => () => void;
 };
@@ -77,6 +101,9 @@ function normalizeDump(d: Dump): Dump {
     note_date: typeof d.note_date === "string" && d.note_date ? d.note_date : undefined,
     filed:     !!d.filed,
     handwritten: d.handwritten === true ? true : undefined,
+    // Absent means filed — an older row that predates drafts must not come
+    // back as an invisible draft.
+    draft:     d.draft === true ? true : undefined,
     created_at: created,
     updated_at: typeof d.updated_at === "string" && d.updated_at ? d.updated_at : created,
   };
@@ -110,7 +137,7 @@ export function DumpProvider({ children }: { children: React.ReactNode }) {
     normalizeRemote: (row) => normalizeDump(row),
   });
 
-  const addDump = useCallback((opts: { tag: DumpTag; note_date?: string; content?: string }): string => {
+  const addDump = useCallback((opts: { tag: DumpTag; note_date?: string; content?: string; draft?: boolean }): string => {
     const id  = newId();
     const now = new Date().toISOString();
     const dump: Dump = {
@@ -121,6 +148,7 @@ export function DumpProvider({ children }: { children: React.ReactNode }) {
       tag: opts.tag,
       note_date: opts.note_date,
       filed: false,
+      draft: opts.draft ? true : undefined,
       created_at: now,
       updated_at: now,
     };
