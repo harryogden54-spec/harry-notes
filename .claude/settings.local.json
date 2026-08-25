@@ -37,5 +37,17 @@
     "additionalDirectories": [
       "c:\\Users\\harry\\Documents\\Harry\\harry-notes\\components"
     ]
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\harry\\Documents\\Harry\\harry-notes\\.claude\\kill-worktree-node.ps1\""
+          }
+        ]
+      }
+    ]
   }
 }
