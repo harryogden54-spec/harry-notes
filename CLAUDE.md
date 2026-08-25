@@ -105,7 +105,7 @@ All providers are composed in `app/_layout.tsx`. The pattern is: load from local
 Shared primitives live in `components/ui/` and are re-exported from `components/ui/index.ts`:
 `Text`, `Divider`, `Badge`, `Button`, `Checkbox`, `TextInput`, `DatePicker`, `EmptyState`, `SearchBar`, `Toast`, `ToastContainer`, `Surface`, `GlassCard`
 
-Dump-screen blocks live in `components/dump/` (`MonthCalendar`, `SparkBox`, `DayPanel`, `JournalBox`).
+Dump-screen blocks live in `components/dump/` (`MonthCalendar`, `SparkBox`, `BrowseBox`, `AddDumpBox`).
 
 Always prefer these over raw RN primitives to keep styling consistent.
 
