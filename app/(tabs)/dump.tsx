@@ -1,271 +1,55 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
-  View, ScrollView, Modal,
-  Pressable, Platform, RefreshControl, TextInput as RNTextInput,
+  View, ScrollView, Pressable, RefreshControl, useWindowDimensions,
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
 import { SideSafeArea } from "@/components/ui";
-import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/useTheme";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, GradientBackground, EmptyState, DateFieldDMY } from "@/components/ui";
-import { spacing, radius, fontFamily, getShadow, layout } from "@/lib/theme";
+import { Text, GradientBackground, Surface } from "@/components/ui";
+import { spacing, radius, iconSize } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
-import { useDumpsData, useDumpsActions, useDumpsSync, type DumpTag } from "@/lib/DumpContext";
+import { useDumpsData, useDumpsActions, useDumpsSync, journalFor } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
 import { getLocalDateStr } from "@/lib/utils";
-import { storage } from "@/lib/storage";
+import { MonthCalendar, buildDayMarks, SparkBox, DayPanel, JournalBox } from "@/components/dump";
 
-const HIDE_FILED_KEY = "dump_hide_filed";
-
-function getYesterdayStr(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return getLocalDateStr(d);
-}
-
-// Quick chips for the common cases (today, yesterday) alongside explicit
-// day/month/year dropdowns. A dump capture is meant to be frictionless: a
-// month-grid calendar was more ceremony than the field deserves, and most
-// captures want no date at all — which is now the default.
-function CompactDateSelector({ value, onChange }: { value?: string; onChange: (d?: string) => void }) {
-  const { colors, shadow } = useTheme();
-  const today     = getLocalDateStr();
-  const yesterday = getYesterdayStr();
-  const presets = [
-    { label: "Today", date: today },
-    { label: "Yesterday", date: yesterday },
-  ];
-
-  return (
-    <View style={{ gap: spacing[2] }}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
-        {presets.map(p => (
-          <Pressable
-            key={p.date}
-            onPress={() => onChange(value === p.date ? undefined : p.date)}
-            style={{
-              paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-              borderRadius: radius["2xl"], borderWidth: 1,
-              borderColor: value === p.date ? colors.accent : colors.bgBorder,
-              backgroundColor: value === p.date ? `${colors.accent}18` : "transparent",
-            }}
-          >
-            <Text size="xs" style={{ color: value === p.date ? colors.accent : colors.textSecondary }}>{p.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <DateFieldDMY value={value} onChange={onChange} />
-    </View>
-  );
-}
-
-const TAG_LABELS: Record<DumpTag, string> = {
-  journal:   "Journal",
-  media:     "Media",
-  knowledge: "Knowledge",
-  todo:      "Todo",
-};
-
-const TAGS: DumpTag[] = ["journal", "media", "knowledge", "todo"];
-
-// ─── Edit Modal ───────────────────────────────────────────────────────────────
-
-function DumpEditModal({
-  id, initialContent, initialTag, initialDate, onClose, onDelete,
-}: {
-  id: string;
-  initialContent: string;
-  initialTag: DumpTag;
-  initialDate?: string;
-  onClose: () => void;
-  onDelete: () => void;
+/** One of the four blocks. A plain frame so the blocks read as one grid. */
+function Block({ children, style, grow }: {
+  children: React.ReactNode;
+  style?: any;
+  /** Fill the remaining height of its column (desktop two-column layout). */
+  grow?: boolean;
 }) {
-  const { updateDump } = useDumpsActions();
-  const { colors, scheme, shadow } = useTheme();
-  const [content, setContent] = useState(initialContent);
-  const [tag, setTag]         = useState<DumpTag>(initialTag);
-  const [date, setDate]       = useState<string | undefined>(initialDate);
-  const inputRef = useRef<RNTextInput | null>(null);
-
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, []);
-
-  function save() {
-    const v = content.trim();
-    if (!v) {
-      onDelete();
-    } else {
-      updateDump(id, { content: v, tag, note_date: date });
-    }
-    onClose();
-  }
-
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={save}>
-      <Pressable
-        style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: "center", alignItems: "center", padding: spacing[6] }}
-        onPress={save}
-      >
-        <Pressable
-          onPress={() => {}}
-          style={{
-            width: layout.panel.card, maxWidth: "95%" as any,
-            backgroundColor: colors.bgSecondary,
-            borderRadius: radius["2xl"],
-            borderWidth: 1, borderColor: colors.bgBorder,
-            padding: spacing[5],
-            ...shadow("overlay"),
-          }}
-        >
-          {/* Tag pills */}
-          <View style={{ flexDirection: "row", gap: spacing[2], marginBottom: spacing[4], flexWrap: "wrap" }}>
-            {TAGS.map(t => (
-              <Pressable
-                key={t}
-                onPress={() => setTag(t)}
-                style={{
-                  paddingHorizontal: spacing[3], paddingVertical: spacing[1.5],
-                  borderRadius: radius["2xl"],
-                  backgroundColor: tag === t ? colors.accent : colors.bgTertiary,
-                  borderWidth: 1,
-                  borderColor: tag === t ? colors.accent : colors.bgBorder,
-                }}
-              >
-                <Text size="xs" weight="medium" style={{ color: tag === t ? colors.textInverse : colors.textSecondary }}>
-                  {TAG_LABELS[t]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Date */}
-          <View style={{ marginBottom: spacing[4] }}>
-            <CompactDateSelector value={date} onChange={setDate} />
-          </View>
-
-          {/* Text input */}
-          <RNTextInput
-            ref={inputRef}
-            value={content}
-            onChangeText={setContent}
-            placeholder="Dump something…"
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            returnKeyType="done"
-            blurOnSubmit
-            onSubmitEditing={save}
-            style={[
-              {
-                color: colors.textPrimary,
-                fontSize: 15,
-                fontFamily: fontFamily.regular,
-                lineHeight: 22,
-                minHeight: 100,
-                textAlignVertical: "top",
-              },
-              { outlineStyle: "none" } as any,
-            ]}
-          />
-
-          {/* Footer */}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing[4] }}>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                onDelete();
-                onClose();
-              }}
-              hitSlop={12}
-              style={{ padding: spacing[1] }}
-            >
-              <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
-            </Pressable>
-            <Pressable
-              onPress={save}
-              style={{
-                paddingHorizontal: spacing[4], paddingVertical: spacing[2],
-                borderRadius: radius.lg,
-                backgroundColor: colors.accent,
-              }}
-            >
-              <Text size="sm" weight="semibold" style={{ color: colors.textInverse }}>Done</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-// ─── Dump Card ────────────────────────────────────────────────────────────────
-
-function DumpCard({ content, tag, note_date, filed, onPress }: {
-  content: string; tag: DumpTag; note_date?: string; filed: boolean; onPress: () => void;
-}) {
-  const { colors, scheme, shadow } = useTheme();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        backgroundColor: colors.bgSecondary,
-        borderRadius: radius.xl,
-        borderWidth: 1,
-        borderColor: colors.bgBorder,
-        padding: spacing[4],
-        gap: spacing[2],
-        ...shadow("xs"),
-      }}
+    <Surface
+      variant="elevated"
+      style={[{ padding: spacing[4], borderRadius: radius.xl }, grow ? { flex: 1 } : null, style]}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View style={{
-          paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
-          borderRadius: radius["2xl"],
-          backgroundColor: colors.bgTertiary,
-          borderWidth: 1, borderColor: colors.bgBorder,
-        }}>
-          <Text size="xs" weight="medium" secondary>{TAG_LABELS[tag]}</Text>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[1.5] }}>
-          {filed && <Ionicons name="checkmark-circle" size={14} color={colors.accent} />}
-          {note_date ? <Text size="xs" secondary>{note_date}</Text> : null}
-        </View>
-      </View>
-      <Text size="sm" numberOfLines={4} style={{ color: content ? colors.textPrimary : colors.textTertiary, lineHeight: 20 }}>
-        {content || "Empty…"}
-      </Text>
-    </Pressable>
+      {children}
+    </Surface>
   );
 }
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 function DumpScreen() {
-  const { colors, shadow } = useTheme();
+  const { colors } = useTheme();
   const { dumps, loaded } = useDumpsData();
-  const { addDump, deleteDump } = useDumpsActions();
-  const { syncNow } = useDumpsSync();
+  const { deleteDump } = useDumpsActions();
+  const { syncNow, lastSynced } = useDumpsSync();
   const { showToast } = useToast();
   const scrollBottom = useScrollBottomPadding();
+  const { width } = useWindowDimensions();
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [hideFiled, setHideFiled] = useState(false);
+  // Two columns once there is room for both to hold real content; below that
+  // the same blocks stack, reordered so the calendar is adjacent to the day
+  // panel it drives.
+  const twoColumn = width >= 900;
 
-  useEffect(() => {
-    storage.get<boolean>(HIDE_FILED_KEY).then(v => { if (v != null) setHideFiled(v); });
-  }, []);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [refreshing, setRefreshing]   = useState(false);
 
-  function toggleHideFiled() {
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setHideFiled(v => {
-      storage.set(HIDE_FILED_KEY, !v);
-      return !v;
-    });
-  }
+  const today = getLocalDateStr();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -273,24 +57,29 @@ function DumpScreen() {
     setRefreshing(false);
   }, [syncNow]);
 
-  const sorted = [...dumps].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const filedCount = sorted.filter(d => d.filed).length;
-  const visible = hideFiled ? sorted.filter(d => !d.filed) : sorted;
+  const marks = useMemo(() => buildDayMarks(dumps, lastSynced), [dumps, lastSynced]);
 
-  function handleAdd() {
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // No date by default — the composer offers Today/Yesterday chips and the
-    // day/month/year dropdowns for the captures that actually want one.
-    const id = addDump({ tag: "journal" });
-    setEditingId(id);
-  }
+  const todaysJournal = useMemo(() => journalFor(dumps, today), [dumps, today]);
+  const todaysSparks  = useMemo(
+    () => dumps
+      .filter(d => d.tag === "spark" && d.note_date === today)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [dumps, today]
+  );
 
-  function handleDelete(id: string) {
+  // Captures with no date at all — mostly pre-2026-08-25 ones, plus anything
+  // arriving from the PWA share target. The calendar can't show them and the
+  // day panel can't either, so they get a drawer rather than being stranded.
+  const undated = useMemo(
+    () => dumps.filter(d => !d.note_date).sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [dumps]
+  );
+  const [showUndated, setShowUndated] = useState(false);
+
+  const handleDelete = useCallback((id: string) => {
     const undo = deleteDump(id);
-    showToast("Dump deleted", { label: "Undo", onPress: undo });
-  }
-
-  const editingDump = editingId ? dumps.find(d => d.id === editingId) : null;
+    showToast("Deleted", { label: "Undo", onPress: undo });
+  }, [deleteDump, showToast]);
 
   if (!loaded) {
     return (
@@ -302,93 +91,100 @@ function DumpScreen() {
     );
   }
 
+  const blockD = (
+    <Block key="d">
+      <JournalBox entry={todaysJournal} date={today} />
+    </Block>
+  );
+  const blockC = (
+    <Block key="c" grow={twoColumn} style={twoColumn ? { minHeight: 260 } : { minHeight: 200 }}>
+      <DayPanel date={selectedDay} dumps={dumps} onClear={() => setSelectedDay(null)} />
+    </Block>
+  );
+  const blockB = (
+    <Block key="b">
+      <SparkBox sparks={todaysSparks} date={today} onDelete={handleDelete} />
+    </Block>
+  );
+  const blockA = (
+    <Block key="a" grow={twoColumn}>
+      <MonthCalendar marks={marks} selected={selectedDay} onSelect={setSelectedDay} />
+    </Block>
+  );
+
   return (
     <GradientBackground>
       <SideSafeArea style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: spacing[4], paddingBottom: scrollBottom }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+          }
         >
-          {/* Header */}
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing[4], paddingBottom: spacing[5] }}>
-            <View>
-              <Text size="2xl" weight="bold">Dump</Text>
-              {sorted.length > 0 && (
-                <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-                  {sorted.length} capture{sorted.length !== 1 ? "s" : ""}
-                  {filedCount > 0 ? ` · ${filedCount} filed` : ""}
-                </Text>
-              )}
-            </View>
-            <Pressable
-              onPress={handleAdd}
-              style={{
-                flexDirection: "row", alignItems: "center", gap: spacing[1.5],
-                paddingHorizontal: spacing[3], paddingVertical: spacing[2],
-                borderRadius: radius.lg, backgroundColor: colors.accent,
-              }}
-            >
-              <Ionicons name="add" size={14} color={colors.textInverse} />
-              <Text size="sm" weight="medium" style={{ color: colors.textInverse }}>New</Text>
-            </Pressable>
+          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
+            <Text size="2xl" weight="bold">Dump</Text>
           </View>
 
-          {/* Hide-filed toggle — filed captures are already in the vault, so
-              tucking them away keeps this screen to what still needs filing. */}
-          {filedCount > 0 && (
-            <Pressable
-              onPress={toggleHideFiled}
-              style={{
-                flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
-                gap: spacing[1.5], marginBottom: spacing[4],
-                paddingHorizontal: spacing[2.5], paddingVertical: spacing[1],
-                borderRadius: radius["2xl"], borderWidth: 1,
-                borderColor: hideFiled ? colors.accent : colors.bgBorder,
-                backgroundColor: hideFiled ? `${colors.accent}18` : "transparent",
-              }}
-            >
-              <Ionicons
-                name={hideFiled ? "eye-off-outline" : "checkmark-circle-outline"}
-                size={13}
-                color={hideFiled ? colors.accent : colors.textSecondary}
-              />
-              <Text size="xs" style={{ color: hideFiled ? colors.accent : colors.textSecondary }}>
-                {hideFiled ? `Filed hidden (${filedCount})` : "Hide filed"}
-              </Text>
-            </Pressable>
+          {twoColumn ? (
+            <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "stretch" }}>
+              <View style={{ flex: 1, gap: spacing[4] }}>
+                {blockD}
+                {blockC}
+              </View>
+              <View style={{ flex: 1, gap: spacing[4] }}>
+                {blockB}
+                {blockA}
+              </View>
+            </View>
+          ) : (
+            // Calendar before the day panel here: on one column the panel is
+            // meaningless until a day above it has been tapped.
+            <View style={{ gap: spacing[4] }}>
+              {blockD}
+              {blockB}
+              {blockA}
+              {blockC}
+            </View>
           )}
 
-          {sorted.length === 0 ? (
-            <EmptyState type="dump" title="Nothing captured yet" subtitle="Somewhere to put a thought before deciding what it is." />
-          ) : visible.length === 0 ? (
-            <EmptyState type="dump" title="All filed away" subtitle="Every capture has been turned into a task or a note." />
-          ) : (
-            <View style={{ gap: spacing[3] }}>
-              {visible.map(d => (
-                <DumpCard
-                  key={d.id}
-                  content={d.content}
-                  tag={d.tag}
-                  note_date={d.note_date}
-                  filed={!!d.filed}
-                  onPress={() => setEditingId(d.id)}
+          {undated.length > 0 && (
+            <View style={{ marginTop: spacing[5], gap: spacing[3] }}>
+              <Pressable
+                onPress={() => setShowUndated(v => !v)}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], alignSelf: "flex-start" }}
+              >
+                <Ionicons
+                  name={showUndated ? "chevron-down" : "chevron-forward"}
+                  size={iconSize.xs}
+                  color={colors.textTertiary}
                 />
-              ))}
+                <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase" }}>
+                  Undated captures · {undated.length}
+                </Text>
+              </Pressable>
+
+              {showUndated && (
+                <View style={{ gap: spacing[2] }}>
+                  {undated.map(d => (
+                    <Surface key={d.id} style={{ padding: spacing[3], gap: spacing[1], borderRadius: radius.lg }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+                        <Text size="meta" tertiary style={{ textTransform: "uppercase", flex: 1 }}>{d.tag}</Text>
+                        {d.filed && <Ionicons name="checkmark-circle" size={iconSize.xs} color={colors.accent} />}
+                        <Pressable onPress={() => handleDelete(d.id)} hitSlop={8} accessibilityLabel="Delete capture">
+                          <Ionicons name="close-outline" size={iconSize.sm} color={colors.textTertiary} />
+                        </Pressable>
+                      </View>
+                      <Text size="sm" style={{ lineHeight: 20, color: d.content ? colors.textPrimary : colors.textTertiary }}>
+                        {d.content || "Empty…"}
+                      </Text>
+                    </Surface>
+                  ))}
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
-
-        {editingId && editingDump !== undefined && (
-          <DumpEditModal
-            id={editingId}
-            initialContent={editingDump?.content ?? ""}
-            initialTag={editingDump?.tag ?? "journal"}
-            initialDate={editingDump?.note_date}
-            onClose={() => setEditingId(null)}
-            onDelete={() => handleDelete(editingId)}
-          />
-        )}
       </SideSafeArea>
     </GradientBackground>
   );

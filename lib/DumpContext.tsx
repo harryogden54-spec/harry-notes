@@ -5,7 +5,14 @@ import { dbLoadDumps, dbSaveDumps } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
 import { getLocalDateStr } from "./utils";
 
-export type DumpTag = "journal" | "media" | "knowledge" | "todo";
+/** `spark` is the brainstem box on the Dump screen — a passing thought, always
+ *  dated to the day it was caught. `journal` + a `note_date` is the day's entry:
+ *  the calendar and the day panel both key on that pair. Additive to the `data`
+ *  jsonb row, so no migration; an older client just sees an unknown tag and
+ *  normalizeDump below coerces it to "journal" rather than dropping the row. */
+export type DumpTag = "journal" | "spark" | "media" | "knowledge" | "todo";
+
+export const DUMP_TAGS: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo"];
 
 export type Dump = {
   id: string;
@@ -14,9 +21,24 @@ export type Dump = {
   /** YYYY-MM-DD, or absent — a capture doesn't have to be about a day. */
   note_date?: string;
   filed?: boolean;
+  /** Journal entries only: the entry was written on paper and transcribed
+   *  elsewhere. Purely a label — nothing in the app treats it differently. */
+  handwritten?: boolean;
   created_at: string;
   updated_at?: string;
 };
+
+/**
+ * The day's journal entry, if there is one. Older data can hold more than one
+ * journal capture for a date (the pre-2026-08-25 screen let you make as many as
+ * you liked), so the most recently touched one wins and the rest stay reachable
+ * from the day panel.
+ */
+export function journalFor(dumps: Dump[], date: string): Dump | undefined {
+  return dumps
+    .filter(d => d.tag === "journal" && d.note_date === date)
+    .sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
+}
 
 type DumpsData = {
   dumps: Dump[];
@@ -50,11 +72,11 @@ function normalizeDump(d: Dump): Dump {
   return {
     ...d,
     content:   typeof d.content   === "string" ? d.content   : "",
-    tag:       (["journal","media","knowledge","todo"] as DumpTag[]).includes(d.tag as DumpTag)
-               ? d.tag : "journal",
+    tag:       DUMP_TAGS.includes(d.tag as DumpTag) ? d.tag : "journal",
     // Absence is a real state now — don't substitute today's date for it.
     note_date: typeof d.note_date === "string" && d.note_date ? d.note_date : undefined,
     filed:     !!d.filed,
+    handwritten: d.handwritten === true ? true : undefined,
     created_at: created,
     updated_at: typeof d.updated_at === "string" && d.updated_at ? d.updated_at : created,
   };
