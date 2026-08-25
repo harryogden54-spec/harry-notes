@@ -432,6 +432,36 @@ which lives in a ref and never triggers a render; the derivation errs towards
 "pending", never towards a false "synced". Undated captures (older ones, PWA
 share-target ones) get a drawer under the grid rather than being unreachable.
 
+**DUMP SCREEN v2** (2026-08-25, design canvas artifact
+`18927991-2921-454a-9644-f5c6a14a470b`). Block D is **"Add a dump"**, not
+"Today's dump": Today/Yesterday shortcut buttons beside a day dropdown, and once
+a day has an entry the box collapses to a **receipt** (word count, time, Read it
+/ Add more) instead of echoing the filed text back — the box is a place to put
+something, not a mirror of what is filed.
+
+Saving is deliberately **two-stage**, and that is what makes the receipt
+legible. The 600ms autosave still runs (close the tab mid-sentence and nothing
+is lost) but it writes a **draft**: `Dump.draft`, additive to the jsonb row, no
+migration. A draft is invisible to the calendar dots, to Browse and to
+`journalFor()` — only the compose box it belongs to shows it. **Save** clears
+the flag. So the text leaving the box has a cause the user pressed rather than a
+timer. Read the flag through `isFiled(d)`, never `d.draft` directly: rows
+written before this have no field at all and must default to filed.
+`journalFor(dumps, date, includeDraft?)` excludes drafts unless asked. "Add
+more" APPENDS to the day's entry rather than making a second one — the
+one-journal-row-per-day invariant is what the calendar dot and Browse both rely
+on.
+
+Block B is **"Brainstem ticklers"** with a count pill. Block C is **Browse**
+(DayPanel deleted): full-text search over every capture, category chips
+(`spark` displays as "Brainstem"), and a date range. **A calendar tap only sets
+the date filter**, so the day view and the search results are one list — that is
+what finally gives the calendar somewhere to point. Bounded ranges deliberately
+exclude undated captures, which keep their drawer at the foot of the screen.
+Calendar: the seven columns used to stretch to ~64px at full card width and read
+as a table, so the grid is capped at 340px and centred with fixed 40px day
+chips; the legend is one quiet right-aligned line under a rule.
+
 **RN-Web Modal + reduced motion is a trap.** `ModalAnimation` only clears its
 `animatedOut` style — which carries `pointerEvents: 'none'` — when the CSS
 animation fires `animationend`. Under `prefers-reduced-motion: reduce` the
@@ -465,23 +495,6 @@ asterisk. Toolbar buttons show an active state off `selectionchange`.
 before touching any of them.
 
 In progress: —
-Designed but not yet built — **Dump screen v2** (design canvas 2026-08-25,
-artifact `18927991-2921-454a-9644-f5c6a14a470b`). Block D "Today's dump" becomes
-**"Add a dump"**: Today/Yesterday shortcut buttons beside the day dropdown, and
-once a day has an entry the box shows a receipt (`✓ Dumped for today · N words`,
-Read it / Add more) instead of echoing the text back — the box is a place to put
-something, not a mirror of what is filed. Saving settles as **draft + Save**: the
-existing 600ms autosave stays and writes a DRAFT (a draft keeps showing in the
-box), and Save is what files the entry, collapses the box to the receipt and
-lights the calendar dot — so the text disappearing has a cause the user pressed
-rather than a timer. Block B → **"Brainstem ticklers"**. Block C becomes
-**"Browse"**: full-text search over every capture with category chips and a date
-range, and a calendar tap merely sets the date filter, so the day panel and the
-search results are one list. Empty-state copy is the user's own, verbatim.
-Polish: 40px day chips on a centred 340px grid (the cells were stretched
-full-width), legend to one quiet right-aligned line, page title gains date +
-month count. Second-choice ideas for Block C, drafted and not chosen: On this
-day, Rhythm (streak/heat strip), Loose ends (undated + unfiled), Resurface.
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface
 tints). Declined in the same review: a signature display typeface, and a reading-measure
