@@ -13,6 +13,14 @@
  * plain text while editing, unchanged in storage).
  */
 
+// Relative, not "@/lib/...": `npm run test:markdown` compiles this file with a
+// bare tsc invocation that has no module-alias config. See lib/mdEmphasis.ts.
+import {
+  MD_BOLD_STARS, MD_BOLD_UNDERSCORES, MD_ITALIC_UNDERSCORE, MD_ITALIC_STARS,
+  MD_CODE, MD_WIKILINK,
+} from "../../../lib/mdEmphasis";
+
+
 export type BlockType = "h1" | "h2" | "h3" | "bullet" | "checkbox" | "divider" | "image" | "paragraph" | "empty" | "tablerow" | "tablesep";
 
 export type Block = {
@@ -90,13 +98,17 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Bold and italic recurse into their own content so `**_both_**` renders as
+// bold italic rather than a bold run containing two literal underscores.
+// Recursion terminates because the inner text is always a strict substring.
+// Code and wikilinks deliberately do not recurse: their content is literal.
 const INLINE_PATTERNS: [RegExp, (inner: string) => string][] = [
-  [/\*\*(.+?)\*\*/s, s => `<b>${escapeHtml(s)}</b>`],
-  [/__(.+?)__/s,     s => `<b>${escapeHtml(s)}</b>`],
-  [/_(.+?)_/s,       s => `<i>${escapeHtml(s)}</i>`],
-  [/\*(.+?)\*/s,     s => `<i>${escapeHtml(s)}</i>`],
-  [/`(.+?)`/s,       s => `<code>${escapeHtml(s)}</code>`],
-  [/\[\[(.+?)\]\]/s, s => `<span class="wikilink">[[${escapeHtml(s)}]]</span>`],
+  [MD_BOLD_STARS,         s => `<b>${inlineMarkdownToHtml(s)}</b>`],
+  [MD_BOLD_UNDERSCORES,   s => `<b>${inlineMarkdownToHtml(s)}</b>`],
+  [MD_ITALIC_UNDERSCORE,  s => `<i>${inlineMarkdownToHtml(s)}</i>`],
+  [MD_ITALIC_STARS,       s => `<i>${inlineMarkdownToHtml(s)}</i>`],
+  [MD_CODE,               s => `<code>${escapeHtml(s)}</code>`],
+  [MD_WIKILINK,           s => `<span class="wikilink">[[${escapeHtml(s)}]]</span>`],
 ];
 
 /** Inline markdown text -> HTML string (safe to assign via innerHTML). */
@@ -119,6 +131,21 @@ export function inlineMarkdownToHtml(text: string): string {
   return html || "";
 }
 
+/**
+ * Bold/italic carried by an inline style rather than by tag. Browsers emit
+ * `<span style="font-weight: bold">` for execCommand under styleWithCSS and for
+ * most rich pastes; without this the mark was silently flattened away by the
+ * unknown-element branch below.
+ */
+function styledAs(el: HTMLElement): { bold: boolean; italic: boolean } {
+  const weight = el.style?.fontWeight ?? "";
+  const style  = el.style?.fontStyle ?? "";
+  return {
+    bold: weight === "bold" || weight === "bolder" || (/^\d+$/.test(weight) && Number(weight) >= 600),
+    italic: style === "italic" || style === "oblique",
+  };
+}
+
 /** Walk a DOM node's inline content (bold/italic/code/wikilink/text) back to markdown. */
 export function inlineNodeToMarkdown(node: Node): string {
   let out = "";
@@ -131,13 +158,27 @@ export function inlineNodeToMarkdown(node: Node): string {
     const el = child as HTMLElement;
     const tag = el.tagName.toLowerCase();
     const inner = inlineNodeToMarkdown(el);
-    if (tag === "b" || tag === "strong") { out += `**${inner}**`; return; }
-    if (tag === "i" || tag === "em")     { out += `_${inner}_`; return; }
-    if (tag === "code")                  { out += `\`${inner}\``; return; }
     if (el.classList?.contains("wikilink")) { out += inner; return; }
     if (tag === "br") { out += ""; return; }
-    // Unknown inline element (e.g. from a paste) — keep its text content only.
-    out += el.textContent ?? "";
+
+    // An empty mark has nothing to emphasise and its delimiters collide: an
+    // empty <b> serialises to `****`, which the parser reads back as an
+    // italicised asterisk. Contentless marks are dropped instead.
+    if (inner === "") return;
+
+    const styled = styledAs(el);
+    const bold   = tag === "b" || tag === "strong" || styled.bold;
+    const italic = tag === "i" || tag === "em"     || styled.italic;
+
+    if (tag === "code")  { out += `\`${inner}\``;  return; }
+    if (bold && italic)  { out += `**_${inner}_**`; return; }
+    if (bold)            { out += `**${inner}**`;   return; }
+    if (italic)          { out += `_${inner}_`;     return; }
+
+    // Unknown inline element (e.g. from a paste) — keep its markdown content.
+    // `inner`, not textContent: textContent would throw away any bold or
+    // italic nested inside it.
+    out += inner;
   });
   return out;
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import { spacing, fontFamily } from "@/lib/theme";
 import {
   parseMarkdownToBlocks, blocksToMarkdown, inlineMarkdownToHtml, inlineNodeToMarkdown,
@@ -165,9 +165,18 @@ function serializeContainer(container: HTMLElement): string {
  * reason other than this editor's own last edit (see lastSerializedRef) —
  * otherwise the live DOM (and caret) would be destroyed on every keystroke.
  */
+/** queryCommandState throws in some engines when the document has no
+ *  selection; a toolbar highlight is never worth an exception. */
+function safeQueryState(cmd: string): boolean {
+  try { return document.queryCommandState(cmd); } catch { return false; }
+}
+
+type Marks = { bold: boolean; italic: boolean; block: BlockType | "paragraph" };
+
 export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImage, uploading, onWikiQueryChange }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastSerializedRef = useRef<string | null>(null);
+  const [marks, setMarks] = useState<Marks>({ bold: false, italic: false, block: "paragraph" });
 
   // Editor typography lives in an injected scoped stylesheet rather than
   // inline styles: blocks are created imperatively (createBlockElement), so a
@@ -210,7 +219,16 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
       .note-editor-body li { margin: 3px 0 3px 22px; list-style: disc outside; }
       .note-editor-body li::marker { color: ${colors.textTertiary}; }
       .note-editor-body hr { border: none; border-top: 1px solid ${colors.bgBorder}; margin: 16px 0; }
-      .note-editor-body b, .note-editor-body strong { font-family: 'Inter_700Bold', -apple-system, sans-serif; font-weight: normal; }
+      /* font-weight: 700, NOT normal. Every other weight in this app is carried
+         by the family name alone, but here the computed weight is load-bearing:
+         document.execCommand("bold") decides whether to apply or REMOVE bold by
+         reading it, so a normal weight on <b> meant the browser never
+         believed the selection was bold and the B button could only ever turn
+         bold on. The Inter_700Bold @font-face is declared at weight 700, so an
+         exact 700 here matches that face rather than synthesising one. */
+      .note-editor-body b, .note-editor-body strong { font-family: 'Inter_700Bold', -apple-system, sans-serif; font-weight: 700; }
+      .note-editor-body i, .note-editor-body em { font-style: italic; }
+      .note-toolbar-btn[data-active="true"] { background: ${colors.accent}1F; color: ${colors.accent}; }
       .note-editor-body code {
         font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
         font-size: 0.85em; background: ${colors.bgTertiary};
@@ -373,7 +391,55 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body]);
 
-  const handleInput = useCallback(() => { serialize(); updateWikiQuery(); }, [serialize, updateWikiQuery]);
+  // Word shows you which marks are on at the caret; without it the only way to
+  // find out here was to type and look. Tracked on selectionchange because a
+  // plain arrow-key move changes the answer without firing input.
+  const refreshMarks = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const sel = window.getSelection();
+    const inside = sel && sel.anchorNode && container.contains(sel.anchorNode);
+    if (!inside) return;
+    const block = sel ? findTopLevelBlock(container, sel.anchorNode) : null;
+    const blockType: BlockType | "paragraph" =
+      block?.tagName === "H1" ? "h1" :
+      block?.tagName === "H2" ? "h2" :
+      block?.tagName === "H3" ? "h3" :
+      (block?.getAttribute("data-md-type") as BlockType | null) ?? "paragraph";
+    setMarks({
+      bold:   safeQueryState("bold"),
+      italic: safeQueryState("italic"),
+      block:  blockType,
+    });
+  }, []);
+
+  useEffect(() => {
+    const onSelectionChange = () => refreshMarks();
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => document.removeEventListener("selectionchange", onSelectionChange);
+  }, [refreshMarks]);
+
+  /**
+   * Bold/italic. execCommand is deprecated but remains the only API that
+   * handles a selection spanning several blocks, splits a mark when you unbold
+   * the middle of a run, and carries a pending mark at a collapsed caret — all
+   * of which is what "behaves like Word" means here.
+   *
+   * styleWithCSS is forced off so it emits <b>/<i> rather than styled spans:
+   * tags survive the markdown round-trip exactly, spans only survive because
+   * inlineNodeToMarkdown now reads their inline style as a fallback.
+   */
+  const applyInlineMark = useCallback((mark: "bold" | "italic") => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.focus();
+    try { document.execCommand("styleWithCSS", false, "false"); } catch { /* not supported */ }
+    document.execCommand(mark);
+    serialize();
+    refreshMarks();
+  }, [serialize, refreshMarks]);
+
+  const handleInput = useCallback(() => { serialize(); updateWikiQuery(); refreshMarks(); }, [serialize, updateWikiQuery, refreshMarks]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
@@ -688,9 +754,9 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
   // bare "H" with a 12px "H2", an 11px "H3" and a regular-weight "T", so the
   // row read as four unrelated marks rather than one scale.
   const glyph = { fontFamily: fontFamily.semibold, fontSize: 12.5, letterSpacing: 0.2 };
-  const tools: { key: string; title: string; content: React.ReactNode; onPress: () => void; endsGroup?: boolean }[] = [
-    { key: "bold",   title: "Bold",          content: <span style={{ ...glyph, fontFamily: fontFamily.bold }}>B</span>,             onPress: () => document.execCommand("bold") },
-    { key: "italic", title: "Italic",        content: <span style={{ ...glyph, fontStyle: "italic" }}>I</span>,                     onPress: () => document.execCommand("italic"), endsGroup: true },
+  const tools: { key: string; title: string; content: React.ReactNode; onPress: () => void; endsGroup?: boolean; active?: boolean }[] = [
+    { key: "bold",   title: "Bold",          content: <span style={{ ...glyph, fontFamily: fontFamily.bold }}>B</span>,             onPress: () => applyInlineMark("bold") },
+    { key: "italic", title: "Italic",        content: <span style={{ ...glyph, fontStyle: "italic" }}>I</span>,                     onPress: () => applyInlineMark("italic"), endsGroup: true },
     { key: "h1",     title: "Heading",       content: <span style={glyph}>H1</span>,                                               onPress: () => setCurrentBlockType("h1") },
     { key: "h2",     title: "Subheading",    content: <span style={glyph}>H2</span>,                                               onPress: () => setCurrentBlockType("h2") },
     { key: "h3",     title: "Small heading", content: <span style={glyph}>H3</span>,                                               onPress: () => setCurrentBlockType("h3") },
@@ -715,6 +781,16 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
       ), onPress: insertTable, endsGroup: true },
   ];
 
+  /** Which toolbar buttons read as "on" for the current caret. */
+  const activeFor = (key: string): boolean => {
+    if (key === "bold")   return marks.bold;
+    if (key === "italic") return marks.italic;
+    if (key === "text")   return marks.block === "paragraph" || marks.block === "empty";
+    if (key === "bullet") return marks.block === "bullet";
+    if (key === "check")  return marks.block === "checkbox";
+    return marks.block === key; // h1 / h2 / h3
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
       <div
@@ -732,6 +808,8 @@ export function NoteBodyEditor({ body, onChangeBody, bodyRef, colors, onPickImag
           <React.Fragment key={t.key}>
             <button
               className="note-toolbar-btn"
+              data-active={activeFor(t.key) ? "true" : undefined}
+              aria-pressed={activeFor(t.key)}
               title={t.title}
               aria-label={t.title}
               onMouseDown={e => e.preventDefault()}
