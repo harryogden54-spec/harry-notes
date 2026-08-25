@@ -21,18 +21,41 @@ export type Category = {
    * so this is additive and older clients simply ignore the field.
    */
   parent_id?: string;
+  /**
+   * Retired, but not gone. An archived category keeps its row and its id, so
+   * every task still filed under it keeps resolving to a real name and colour;
+   * it simply stops appearing as a board column or as an option in any picker.
+   * Deleting is still available and still reassigns tasks — archiving is the
+   * reversible half. Additive to the `data` jsonb row, so no migration.
+   */
+  archived?: boolean;
   created_at: string;
   updated_at?: string;
 };
 
-/** Top-level categories, in order. */
-export function topLevel(categories: Category[]): Category[] {
-  return categories.filter(c => !c.parent_id).sort((a, b) => a.order - b.order);
+/** Top-level categories, in order. Archived ones are excluded by default —
+ *  pass `true` for the manage-categories UI, which has to list them. */
+export function topLevel(categories: Category[], includeArchived = false): Category[] {
+  return categories
+    .filter(c => !c.parent_id && (includeArchived || !c.archived))
+    .sort((a, b) => a.order - b.order);
 }
 
-/** Children of `parentId`, in order. */
-export function childrenOf(categories: Category[], parentId: string): Category[] {
-  return categories.filter(c => c.parent_id === parentId).sort((a, b) => a.order - b.order);
+/** Children of `parentId`, in order. Archived ones excluded by default. */
+export function childrenOf(categories: Category[], parentId: string, includeArchived = false): Category[] {
+  return categories
+    .filter(c => c.parent_id === parentId && (includeArchived || !c.archived))
+    .sort((a, b) => a.order - b.order);
+}
+
+/** Archived categories, for the manage-categories UI. A subcategory archived
+ *  as part of its parent is not listed separately — restoring the parent brings
+ *  it back — so only the topmost archived node in each branch appears. */
+export function archivedCategories(categories: Category[]): Category[] {
+  const archivedIds = new Set(categories.filter(c => c.archived).map(c => c.id));
+  return categories
+    .filter(c => c.archived && !(c.parent_id && archivedIds.has(c.parent_id)))
+    .sort((a, b) => a.order - b.order);
 }
 
 /**
@@ -82,6 +105,10 @@ type CategoriesActions = {
    *  BEFORE calling this — tasks live in a sibling context this one has no
    *  access to. Use `childrenOf` to enumerate the ids that will go. */
   deleteCategory: (id: string) => void;
+  /** Retires a category **and its subcategories** without touching any task.
+   *  Unlike delete this needs no reassignment: the rows stay, so a task filed
+   *  under an archived category still renders its badge correctly. */
+  setCategoryArchived: (id: string, archived: boolean) => void;
   /** Persists a full reorder — pass every category id in the new order. */
   reorderCategories: (orderedIds: string[]) => void;
 };
@@ -109,6 +136,7 @@ function normalizeCategory(c: Category): Category {
     color:      normalizeAccentId(c.color) ?? "navy",
     order:      typeof c.order === "number" ? c.order : 0,
     parent_id:  typeof c.parent_id === "string" && c.parent_id ? c.parent_id : undefined,
+    archived:   c.archived === true ? true : undefined,
     created_at: typeof c.created_at === "string" && c.created_at ? c.created_at : EPOCH,
   };
 }
@@ -186,6 +214,16 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
     for (const d of doomed) markLocallyDeleted(d);
   }, [markLocallyDeleted, setCategories, categoriesRef]);
 
+  const setCategoryArchived = useCallback((id: string, archived: boolean) => {
+    // Cascade to subcategories, mirroring delete: a child left visible under an
+    // archived parent would be unreachable in every picker but still offered.
+    const affected = [id, ...categoriesRef.current.filter(c => c.parent_id === id).map(c => c.id)];
+    for (const a of affected) markDirty(a);
+    setCategories(prev => prev.map(c =>
+      affected.includes(c.id) ? stamp({ ...c, archived: archived ? true : undefined }) : c
+    ));
+  }, [markDirty, setCategories, categoriesRef]);
+
   const reorderCategories = useCallback((orderedIds: string[]) => {
     const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
     for (const id of orderedIds) markDirty(id);
@@ -198,8 +236,8 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
     [syncStatus, lastSynced, syncNow]
   );
   const actionsValue = useMemo(
-    () => ({ addCategory, updateCategory, deleteCategory, reorderCategories }),
-    [addCategory, updateCategory, deleteCategory, reorderCategories]
+    () => ({ addCategory, updateCategory, deleteCategory, setCategoryArchived, reorderCategories }),
+    [addCategory, updateCategory, deleteCategory, setCategoryArchived, reorderCategories]
   );
 
   return (

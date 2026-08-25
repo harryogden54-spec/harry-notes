@@ -29,9 +29,11 @@ function RowContent({ task, onPress }: Props) {
   const { showToast } = useToast();
   const today    = getTodayStr();
   const tomorrow = getTomorrowStr();
-  const priorityColor = task.priority ? PRIORITY_COLOR[task.priority] : undefined;
-  const due           = task.due_date ? formatDueDate(task.due_date, today, tomorrow, colors.danger, colors.accent) : null;
-  const isOverdue     = !task.done && !!task.due_date && task.due_date < today;
+  // Only urgent and high carry a priority colour — see TaskCard for why
+  // medium and low stay silent. The colour is spent on the left edge.
+  const isHighPriority = task.priority === "urgent" || task.priority === "high";
+  const priorityColor  = isHighPriority && !task.done ? PRIORITY_COLOR[task.priority!] : undefined;
+  const due            = task.due_date ? formatDueDate(task.due_date, today, tomorrow, colors.danger, colors.accent) : null;
 
   const [renaming, setRenaming]     = useState(false);
   const [renameText, setRenameText] = useState(task.title);
@@ -76,15 +78,16 @@ function RowContent({ task, onPress }: Props) {
         minHeight: 52,
         paddingVertical: spacing[3], paddingHorizontal: spacing[4],
         borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
-        backgroundColor: task.priority === "urgent" && !task.done ? `${colors.danger}12` : colors.bgSecondary,
+        // Priority is a left edge, not a dot and not a tinted row: one signal,
+        // in the same place on every surface a task appears. The transparent
+        // edge on unprioritised rows keeps every title on the same x.
+        borderLeftWidth: 3,
+        borderLeftColor: priorityColor ?? "transparent",
+        backgroundColor: colors.bgSecondary,
         opacity: task.done ? 0.45 : 1,
       }}
     >
       <Checkbox shape="circle" size={20} checked={task.done} onToggle={() => toggleTask(task.id)} accessibilityLabel={task.title} />
-      {/* Priority dot beside the checkbox */}
-      {priorityColor && (
-        <View style={{ width: 8, height: 8, borderRadius: 99, backgroundColor: priorityColor, marginLeft: -spacing[1] }} />
-      )}
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ position: "relative" }}>
           {renaming ? (
@@ -115,8 +118,10 @@ function RowContent({ task, onPress }: Props) {
               onDoubleClick={Platform.OS === "web" ? startRename : undefined}
               style={{ flex: 1 }}
             >
-              <Text size="cardTitle" weight={task.done ? "regular" : "medium"} numberOfLines={1}
-                style={{ color: isOverdue && !task.done ? colors.danger : colors.textPrimary }}>
+              {/* Overdue is said once, by the pill on the right — the title
+                  itself stays plain so a list of tasks reads evenly. */}
+              <Text size="sm" weight={task.done ? "regular" : "medium"} numberOfLines={1}
+                style={{ color: colors.textPrimary }}>
                 {task.title}
               </Text>
               <Animated.View style={[{

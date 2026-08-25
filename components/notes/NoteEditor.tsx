@@ -6,7 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, radius, fontFamily } from "@/lib/theme";
+import { spacing, radius, fontFamily, getNotePastelIndex } from "@/lib/theme";
 import { useNotesData, useNotesActions, type Note } from "@/lib/NotesContext";
 import { useTasksData } from "@/lib/TasksContext";
 import { useToast } from "@/lib/ToastContext";
@@ -86,7 +86,7 @@ function BacklinksPanel({ note, allNotes, onOpen }: { note: Note; allNotes: Note
 /** Tag chips + add-field for the editor top bar. Tags live as a //tag line
  *  at the top of the body, so list filtering and sync are unchanged. */
 function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: string) => void }) {
-  const { colors } = useTheme();
+  const { colors, notePastels } = useTheme();
   const [draft, setDraft] = useState("");
   const tags = extractTags(note.body);
 
@@ -104,21 +104,28 @@ function TagRow({ note, onUpdateBody }: { note: Note; onUpdateBody: (body: strin
       borderBottomWidth: 1, borderBottomColor: colors.bgBorder,
     }}>
       <Ionicons name="pricetag-outline" size={12} color={colors.textTertiary} />
-      {tags.map(tag => (
-        <Pressable
-          key={tag}
-          onPress={() => onUpdateBody(removeTagFromBody(note.body, tag))}
-          accessibilityLabel={`Remove tag ${tag}`}
-          style={{
-            flexDirection: "row", alignItems: "center", gap: 3,
-            paddingHorizontal: spacing[2], paddingVertical: 2,
-            borderRadius: 99, borderWidth: 1, borderColor: colors.bgBorder, backgroundColor: colors.bgSecondary,
-          }}
-        >
-          <Text size="xs" style={{ color: colors.textSecondary }}>{tag}</Text>
-          <Ionicons name="close-outline" size={12} color={colors.textTertiary} />
-        </Pressable>
-      ))}
+      {tags.map(tag => {
+        // Same colour rule as the note wall: the pastel keys on the tag itself,
+        // so a chip here matches the dot on the card it came from.
+        const idx = getNotePastelIndex(tag);
+        return (
+          <Pressable
+            key={tag}
+            onPress={() => onUpdateBody(removeTagFromBody(note.body, tag))}
+            accessibilityLabel={`Remove tag ${tag}`}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 3,
+              paddingHorizontal: spacing[2], paddingVertical: 2,
+              borderRadius: 99, borderWidth: 1,
+              borderColor: notePastels.border[idx],
+              backgroundColor: notePastels.bg[idx],
+            }}
+          >
+            <Text size="xs" style={{ color: colors.textSecondary }}>{tag}</Text>
+            <Ionicons name="close-outline" size={12} color={colors.textTertiary} />
+          </Pressable>
+        );
+      })}
       <TextInput
         value={draft}
         onChangeText={setDraft}
@@ -208,7 +215,7 @@ type Props = {
 };
 
 export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }: Props) {
-  const { colors } = useTheme();
+  const { colors, notePastels } = useTheme();
   const { notes } = useNotesData();
   const { addNote, updateNote, deleteNote, pinNote, archiveNote, unarchiveNote } = useNotesActions();
   const { tasks } = useTasksData();
@@ -372,6 +379,12 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   }, [onOpenNote]);
 
   const wordCount = visibleBody.trim() ? visibleBody.trim().split(/\s+/).length : 0;
+  // Colour identity of the whole document, keyed on its first tag — read from
+  // the note's own body rather than the active page's, so every page of a note
+  // shares the note's colour.
+  const firstTag = extractTags(note.body ?? "")[0];
+  const firstTagIndex = firstTag ? getNotePastelIndex(firstTag) : -1;
+
   // Documents only — pages don't participate in wiki links / backlinks.
   const allNotes = notes.filter(n => !n.archived && !n.parent_id);
 
@@ -393,6 +406,13 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   const editor = (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={{ flex: 1 }}>
+        {/* The open note carries its first tag's pastel as a top edge, so it
+            reads as the same object as the card that was tapped to reach it.
+            An untagged note gets no edge — which is what makes a tagged one
+            recognisable. Hidden in focus mode with the rest of the chrome. */}
+        {!focusMode && firstTagIndex >= 0 && (
+          <View style={{ height: 3, backgroundColor: notePastels.border[firstTagIndex] }} />
+        )}
         {/* Focus mode: all chrome hidden, one floating exit control */}
         {focusMode && (
           <Pressable

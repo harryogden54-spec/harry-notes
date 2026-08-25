@@ -3,7 +3,7 @@ import { View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, radius, shape, resolveAccentSwatch } from "@/lib/theme";
+import { spacing, shape, resolveAccentSwatch } from "@/lib/theme";
 import { useCategoriesData, topLevel, rootCategoryId } from "@/lib/TaskCategoriesContext";
 import type { Task } from "@/lib/TasksContext";
 import { TaskCard } from "./TaskCard";
@@ -36,8 +36,17 @@ export function CategoryColumns({
   // in its parent's column, so group by root id. The subcategory itself shows on
   // the card via CategoryBadge.
   const sorted = topLevel(categories);
-  const knownIds = new Set(categories.map(c => c.id));
-  const uncategorized = tasks.filter(t => !t.category || !knownIds.has(t.category));
+  // Every root that still has a column. A task filed under an ARCHIVED category
+  // has a perfectly valid category id, so the old `knownIds` test called it
+  // categorised and then found no column to put it in — archiving a category
+  // that still held tasks made those tasks vanish from the board. They belong
+  // in the Uncategorized strip until they are refiled; their badge still names
+  // the archived category, because that row is still there.
+  const columnIds = new Set(sorted.map(c => c.id));
+  const uncategorized = tasks.filter(t => {
+    const root = rootCategoryId(categories, t.category);
+    return !root || !columnIds.has(root);
+  });
 
   function renderCard(t: Task) {
     return (
@@ -61,15 +70,14 @@ export function CategoryColumns({
   }
 
   function renderColumn(id: string, label: string, color: string, items: Task[]) {
-    // On mobile, skip empty categories entirely to save space; on desktop
-    // keep the column (with a quiet hint) so the multi-column structure holds.
-    if (items.length === 0 && stacked) return null;
+    // An empty category is not a column. Holding the shape with a dashed well
+    // meant a board with six categories and two live ones spent most of its
+    // width on nothing; the remaining columns simply widen to fill the row.
+    if (items.length === 0) return null;
     return (
       <View key={id} style={stacked ? undefined : { flex: 1, minWidth: 0 }}>
         <ColumnHeader label={label} count={items.length} color={color} />
-        {items.length === 0
-          ? <ColumnEmptyHint />
-          : <View style={{ gap: spacing[2.5] }}>{items.map(renderCard)}</View>}
+        <View style={{ gap: spacing[2.5] }}>{items.map(renderCard)}</View>
       </View>
     );
   }
@@ -120,21 +128,5 @@ function ColumnHeader({ label, count, color }: { label: string; count: number; c
         </View>
       )}
     </View>
-  );
-}
-
-/**
- * Empty desktop column. Deliberately wordless: with three categories the old
- * "Nothing here" label printed three times across a fresh board, which read as
- * noise. A dashed well holds the column's shape without saying anything.
- */
-function ColumnEmptyHint() {
-  const { colors } = useTheme();
-  return (
-    <View style={{
-      height: 76, borderRadius: radius.lg,
-      borderWidth: 1, borderStyle: "dashed", borderColor: colors.bgBorder,
-      opacity: 0.5,
-    }} />
   );
 }

@@ -16,7 +16,7 @@ import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { webContentStyle } from "@/lib/webLayout";
 import { useTasksData } from "@/lib/TasksContext";
 import { useTodayData, useTodayActions, useTodaySync, isActiveOn, type TodayItem } from "@/lib/TodayContext";
-import { getTodayStr, formatHeaderDate } from "@/lib/utils";
+import { getTodayStr, DAY_NAMES, MONTH_NAMES } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 
 const PRIORITY_ORDER = ["urgent", "high", "medium", "low"] as const;
@@ -57,7 +57,12 @@ function TodayScreen() {
   const [timePickerFor, setTimePickerFor] = useState<string | null>(null);
   const inputRef = useRef<TextInput | null>(null);
 
-  const dateLabel = mounted ? formatHeaderDate() : "";
+  // Rendered only after mount: the server-rendered HTML has no clock, so
+  // painting a date during hydration would mismatch.
+  const now       = mounted ? new Date() : null;
+  const weekday   = now ? DAY_NAMES[now.getDay()].slice(0, 3) : "";
+  const dayNum    = now ? String(now.getDate()) : "";
+  const monthYear = now ? `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}` : "";
 
   // The context store holds ALL days' items. Active = anything undone dated
   // today or earlier (`isActiveOn`) — the carry-forward expressed as a filter,
@@ -70,6 +75,13 @@ function TodayScreen() {
   const active    = dayItems.filter(i => !i.done).sort(byOrder);
   const completed = allItems.filter(i => i.done)
     .sort((a, b) => b.date.localeCompare(a.date) || a.order - b.order);
+  // Already sorted newest day first, so contiguous runs are the day groups.
+  const completedByDay: { date: string; items: TodayItem[] }[] = [];
+  for (const item of completed) {
+    const last = completedByDay[completedByDay.length - 1];
+    if (last && last.date === item.date) last.items.push(item);
+    else completedByDay.push({ date: item.date, items: [item] });
+  }
 
   // Suggestions: overdue + today tasks sorted by priority, not already in list
   const existingTexts = new Set(dayItems.map(i => i.text.toLowerCase()));
@@ -243,9 +255,27 @@ function TodayScreen() {
           >
             {/* Header */}
             <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5], flexDirection: "row", alignItems: "flex-end" }}>
-              <View style={{ flex: 1 }}>
-                <Text size="2xl" weight="bold">Today</Text>
-                <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{dateLabel}</Text>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
+                {/* Date block. The day's numeral is the part actually read at a
+                    glance, so it gets the size; the weekday sits above it small.
+                    Tabular figures so the 1st and the 11th share a left edge and
+                    the weekday above stays centred over both. */}
+                <View style={{ alignItems: "center", minWidth: 40 }}>
+                  <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>
+                    {weekday}
+                  </Text>
+                  <Text weight="bold" style={{
+                    fontSize: 34, lineHeight: 38,
+                    fontVariant: ["tabular-nums"],
+                    color: colors.textPrimary,
+                  }}>
+                    {dayNum}
+                  </Text>
+                </View>
+                <View>
+                  <Text size="2xl" weight="bold">Today</Text>
+                  <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{monthYear}</Text>
+                </View>
               </View>
               <View style={{ flexDirection: "row", gap: spacing[2] }}>
                 <Pressable
@@ -442,7 +472,11 @@ function TodayScreen() {
               </View>
             )}
 
-            {/* Completed items */}
+            {/* Completed items — grouped by the day they belong to, since done
+                items stay listed past their own day. Each day's divider sticks
+                to the top of the scroller while its group is on screen, so a
+                long scroll back through last week never loses which day it is
+                looking at. */}
             {completed.length > 0 && (
               <View>
                 <Text size="xs" weight="semibold" style={{
@@ -452,23 +486,66 @@ function TodayScreen() {
                 }}>
                   DONE · {completed.length}
                 </Text>
-                <Surface style={{ overflow: "hidden", padding: 0 }}>
-                  {completed.map((item, i) => (
-                    <CompletedRow
-                      key={item.id}
-                      item={item}
-                      onToggle={() => onToggleItem(item.id)}
-                      onDelete={() => onDeleteItem(item.id)}
-                      isLast={i === completed.length - 1}
-                    />
+                <View style={{ gap: spacing[4] }}>
+                  {completedByDay.map(group => (
+                    <View key={group.date}>
+                      <DayDivider date={group.date} count={group.items.length} today={todayStr} />
+                      <Surface style={{ overflow: "hidden", padding: 0 }}>
+                        {group.items.map((item, i) => (
+                          <CompletedRow
+                            key={item.id}
+                            item={item}
+                            onToggle={() => onToggleItem(item.id)}
+                            onDelete={() => onDeleteItem(item.id)}
+                            isLast={i === group.items.length - 1}
+                          />
+                        ))}
+                      </Surface>
+                    </View>
                   ))}
-                </Surface>
+                </View>
               </View>
             )}
           </ScrollView>
         </KeyboardAvoidingView>
       </SideSafeArea>
     </GradientBackground>
+  );
+}
+
+/**
+ * Day heading in the Done list. Sticky on web only — `position: sticky` has no
+ * native equivalent, and the scroller's other option (a sectioned list) would
+ * mean rebuilding this whole screen around a SectionList for one heading. The
+ * opaque background is load-bearing: rows scroll underneath it.
+ */
+function DayDivider({ date, count, today }: { date: string; count: number; today: string }) {
+  const { colors } = useTheme();
+  const label = (() => {
+    if (date === today) return "Today";
+    const d = new Date(date + "T00:00:00");
+    const yesterday = new Date(today + "T00:00:00");
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date === `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`) {
+      return "Yesterday";
+    }
+    return `${DAY_NAMES[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+  })();
+
+  return (
+    <View style={[
+      {
+        flexDirection: "row", alignItems: "center", gap: spacing[2],
+        paddingVertical: spacing[1.5],
+        marginBottom: spacing[2],
+        backgroundColor: colors.bgPrimary,
+      },
+      Platform.OS === "web" ? ({ position: "sticky", top: 0, zIndex: 5 } as any) : null,
+    ]}>
+      <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase" }}>{label}</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.bgBorder }} />
+      <Text size="meta" tertiary>{count}</Text>
+    </View>
   );
 }
 

@@ -99,6 +99,15 @@ function NoteCardGrid({ notes, onOpen, pageCounts, columns = 2 }: {
   );
 }
 
+/**
+ * Which note was open when the Notes screen last unmounted. The tab screen is
+ * torn down when you navigate away, so plain component state loses the open
+ * note every time you glance at Home. Module scope rather than storage is the
+ * point: coming back mid-session should land you where you were, while a fresh
+ * launch should still open the list.
+ */
+let lastOpenNoteId: string | null = null;
+
 function NotesScreen() {
   const { colors, scheme, shadow } = useTheme();
   const scrollBottom = useScrollBottomPadding();
@@ -118,8 +127,8 @@ function NotesScreen() {
   }, [syncNotes]);
 
   const [search, setSearch]             = useState("");
-  const [selectedNote, setSelectedNote] = useState<string | null>(null);
-  const [openNoteId, setOpenNoteId]     = useState<string | null>(null);
+  const [selectedNote, setSelectedNote] = useState<string | null>(lastOpenNoteId);
+  const [openNoteId, setOpenNoteId]     = useState<string | null>(lastOpenNoteId);
   const [sortBy, setSortBy]             = useState<NotesSortBy>("recent");
   const [activeTag, setActiveTag]       = useState<string | null>(null);
   const [showArchive, setShowArchive]   = useState(false);
@@ -133,6 +142,12 @@ function NotesScreen() {
     });
   }, []);
   useEffect(() => { if (sortLoaded.current) storage.set("notes_sort_by", sortBy); }, [sortBy]);
+
+  // Remembered across unmounts so returning to the tab reopens the same note.
+  // A missing id is harmless: the lookup below falls through to the list.
+  useEffect(() => {
+    lastOpenNoteId = isDesktop ? selectedNote : openNoteId;
+  }, [isDesktop, selectedNote, openNoteId]);
 
   const params = useLocalSearchParams<{ create?: string; openId?: string; _t?: string }>();
   const handledCreate = useRef(false);

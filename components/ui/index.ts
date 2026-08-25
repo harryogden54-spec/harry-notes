@@ -1,5 +1,4 @@
 export { Text }       from "./Text";
-export { Card, CardPressable } from "./Card";
 export { Divider }    from "./Divider";
 export { Badge }      from "./Badge";
 export { Button }     from "./Button";

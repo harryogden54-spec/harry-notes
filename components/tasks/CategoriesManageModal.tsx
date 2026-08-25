@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text, GradientBackground, Divider } from "@/components/ui";
 import { spacing, radius, fontFamily, ACCENT_OPTIONS, resolveAccentSwatch, type AccentId } from "@/lib/theme";
-import { useCategoriesData, useCategoriesActions, topLevel, childrenOf, type Category } from "@/lib/TaskCategoriesContext";
+import { useCategoriesData, useCategoriesActions, topLevel, childrenOf, archivedCategories, type Category } from "@/lib/TaskCategoriesContext";
 import { useTasksData, useTasksActions } from "@/lib/TasksContext";
 
 type Props = {
@@ -63,7 +63,7 @@ function CategoryRow({
   onAddSub?: () => void;
 }) {
   const { colors, scheme } = useTheme();
-  const { updateCategory, deleteCategory } = useCategoriesActions();
+  const { updateCategory, deleteCategory, setCategoryArchived } = useCategoriesActions();
   const { updateTask } = useTasksActions();
   const { tasks } = useTasksData();
   const [name, setName] = useState(category.name);
@@ -160,12 +160,83 @@ function CategoryRow({
                 <Text size="xs" style={{ color: colors.accent }}>Subcategory</Text>
               </Pressable>
             )}
+            {/* Archive is the reversible retirement: the row and its id stay,
+                so tasks already filed here keep their badge. Delete is still
+                here for a category that was a mistake. */}
+            <Pressable onPress={() => setCategoryArchived(category.id, true)} hitSlop={6}
+              accessibilityLabel={`Archive ${category.name}`}>
+              <Ionicons name="archive-outline" size={14} color={colors.textTertiary} />
+            </Pressable>
             <Pressable onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
               <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
             </Pressable>
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+/** An archived category: name, colour and how many tasks still point at it,
+ *  plus the two things you can do to it. Deliberately not a CategoryRow —
+ *  renaming, reordering and adding subcategories are all meaningless here. */
+function ArchivedRow({ category, count, descendantIds }: {
+  category: Category; count: number; descendantIds: string[];
+}) {
+  const { colors, scheme } = useTheme();
+  const { deleteCategory, setCategoryArchived } = useCategoriesActions();
+  const { updateTask } = useTasksActions();
+  const { tasks } = useTasksData();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const swatch = resolveAccentSwatch(category.color, scheme);
+
+  function handleDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    const doomed = new Set([category.id, ...descendantIds]);
+    tasks.filter(t => t.category && doomed.has(t.category))
+         .forEach(t => updateTask(t.id, { category: undefined }));
+    deleteCategory(category.id);
+    setConfirmDelete(false);
+  }
+
+  return (
+    <View style={{
+      flexDirection: "row", alignItems: "center", gap: spacing[2.5],
+      borderRadius: radius.lg, borderWidth: 1, borderColor: colors.bgBorder,
+      backgroundColor: colors.bgSecondary, padding: spacing[3], opacity: 0.75,
+    }}>
+      <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: swatch.color, opacity: 0.6 }} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text size="sm" weight="medium" numberOfLines={1}>{category.name}</Text>
+        <Text size="xs" style={{ color: colors.textTertiary }}>
+          {count} task{count !== 1 ? "s" : ""}
+          {descendantIds.length > 0 ? ` · ${descendantIds.length} subcategor${descendantIds.length === 1 ? "y" : "ies"}` : ""}
+        </Text>
+      </View>
+      {confirmDelete ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+          <Pressable onPress={handleDelete}
+            style={{ paddingHorizontal: spacing[2], paddingVertical: 3, borderRadius: radius.sm, backgroundColor: colors.danger }}>
+            <Text size="xs" weight="semibold" style={{ color: colors.textInverse }}>Delete</Text>
+          </Pressable>
+          <Pressable onPress={() => setConfirmDelete(false)}
+            style={{ paddingHorizontal: spacing[2], paddingVertical: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder }}>
+            <Text size="xs" style={{ color: colors.textSecondary }}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
+          <Pressable onPress={() => setCategoryArchived(category.id, false)} hitSlop={6}
+            accessibilityLabel={`Restore ${category.name}`}
+            style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+            <Ionicons name="arrow-undo-outline" size={12} color={colors.accent} />
+            <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
+          </Pressable>
+          <Pressable onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
+            <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -180,6 +251,7 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
   const [subDrafts, setSubDrafts] = useState<Record<string, string>>({});
 
   const roots = topLevel(categories);
+  const archived = archivedCategories(categories);
   const countFor = (id: string) => tasks.filter(t => t.category === id).length;
 
   /** Reorder within a sibling set. `order` is sibling-scoped, so passing just
@@ -319,6 +391,25 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
                 <Text size="sm" weight="semibold" style={{ color: newName.trim() ? colors.textInverse : colors.textTertiary }}>Add</Text>
               </Pressable>
             </View>
+
+            {archived.length > 0 && (
+              <View style={{ gap: spacing[2], marginTop: spacing[4] }}>
+                <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase" }}>
+                  Archived
+                </Text>
+                {archived.map(cat => {
+                  const subIds = childrenOf(categories, cat.id, true).map(s => s.id);
+                  return (
+                    <ArchivedRow
+                      key={cat.id}
+                      category={cat}
+                      count={countFor(cat.id) + subIds.reduce((n, id) => n + countFor(id), 0)}
+                      descendantIds={subIds}
+                    />
+                  );
+                })}
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </GradientBackground>

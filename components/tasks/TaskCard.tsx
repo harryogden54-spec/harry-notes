@@ -53,15 +53,19 @@ export const TaskCard = React.memo(function TaskCard({
   const today        = getTodayStr();
   const overdue       = !task.done && !!task.due_date && task.due_date < today;
   const dueToday      = !task.done && task.due_date === today;
-  const priorityCfg   = task.priority ? PRIORITY_CONFIG[task.priority] : undefined;
   const isHighPriority = task.priority === "urgent" || task.priority === "high";
+  // Priority is a coloured left edge rather than a word in the meta row: it is
+  // a property of the whole card, it never re-wraps the meta row, and it reads
+  // at a glance down a column. Only urgent/high get one — colour is spent where
+  // it changes what you do next, so medium and low stay silent entirely.
+  const priorityColor = isHighPriority && !task.done ? PRIORITY_CONFIG[task.priority!].color : undefined;
   const subtasks      = task.subtasks ?? [];
   const doneSubtasks  = subtasks.filter(s => s.done).length;
   // Board columns are top level, so only a subcategory adds information here.
   const { categories } = useCategoriesData();
   const isSubCategory = !!categories.find(c => c.id === task.category)?.parent_id;
   const showsCategory = isSubCategory || (task.category === "uni" && !!task.uniCourse);
-  const showMeta = !!task.due_date || !!priorityCfg || subtasks.length > 0 || showsCategory;
+  const showMeta = !!task.due_date || subtasks.length > 0 || showsCategory;
 
   const borderColor =
     highlighted || selected ? colors.accent :
@@ -80,9 +84,8 @@ export const TaskCard = React.memo(function TaskCard({
         borderRadius: 18,
         borderWidth: highlighted || selected ? 2 : 1,
         borderColor,
-        backgroundColor:
-          task.priority === "urgent" && !task.done ? `${colors.danger}0C` :
-          `${colors.bgSecondary}${hovered ? "F0" : "D0"}`,
+        ...(priorityColor ? { borderLeftWidth: 4, borderLeftColor: priorityColor } : null),
+        backgroundColor: `${colors.bgSecondary}${hovered ? "F0" : "D0"}`,
         opacity: selected && selectMode ? 0.85 : 1,
         ...(hovered && !pressed ? shadow("md") : shadow("sm")),
         ...(Platform.OS === "web" ? {
@@ -122,18 +125,6 @@ export const TaskCard = React.memo(function TaskCard({
                 tint={overdue ? `${colors.danger}1A` : dueToday ? `${colors.warning}1E` : colors.bgTertiary}
                 textColor={overdue ? colors.danger : dueToday ? colors.warning : colors.textSecondary}
                 bold={overdue}
-              />
-            )}
-            {/* Colour is the signal, so it is spent only where it means
-                something: urgent and high carry their priority colour, medium
-                and low stay neutral. The old coloured dot alongside the word
-                said the same thing twice. */}
-            {priorityCfg && (
-              <MetaPill
-                label={priorityCfg.label}
-                tint={isHighPriority ? `${priorityCfg.color}1A` : colors.bgTertiary}
-                textColor={isHighPriority ? priorityCfg.color : colors.textSecondary}
-                bold={isHighPriority}
               />
             )}
             {/* Legacy uni-course badge, or a subcategory — a plain top-level
