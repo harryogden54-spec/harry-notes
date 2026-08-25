@@ -10,10 +10,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text, GradientBackground, Surface } from "@/components/ui";
 import { spacing, radius, iconSize } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
-import { useDumpsData, useDumpsActions, useDumpsSync, journalFor } from "@/lib/DumpContext";
+import { useDumpsData, useDumpsActions, useDumpsSync, journalFor, isFiled } from "@/lib/DumpContext";
 import { useToast } from "@/lib/ToastContext";
-import { getLocalDateStr } from "@/lib/utils";
-import { MonthCalendar, buildDayMarks, SparkBox, DayPanel, JournalBox } from "@/components/dump";
+import { getLocalDateStr, DAY_NAMES, MONTH_NAMES } from "@/lib/utils";
+import { MonthCalendar, buildDayMarks, SparkBox, BrowseBox, AddDumpBox } from "@/components/dump";
 
 /** One of the four blocks. A plain frame so the blocks read as one grid. */
 function Block({ children, style, grow }: {
@@ -42,14 +42,15 @@ function DumpScreen() {
   const { width } = useWindowDimensions();
 
   // Two columns once there is room for both to hold real content; below that
-  // the same blocks stack, reordered so the calendar is adjacent to the day
-  // panel it drives.
+  // the same blocks stack, reordered so the calendar is adjacent to the
+  // Browse box it drives.
   const twoColumn = width >= 900;
 
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [refreshing, setRefreshing]   = useState(false);
-
   const today = getLocalDateStr();
+
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [composeDate, setComposeDate] = useState<string>(today);
+  const [refreshing, setRefreshing]   = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -59,19 +60,33 @@ function DumpScreen() {
 
   const marks = useMemo(() => buildDayMarks(dumps, lastSynced), [dumps, lastSynced]);
 
-  const todaysJournal = useMemo(() => journalFor(dumps, today), [dumps, today]);
-  const todaysSparks  = useMemo(
+  const composeFiled = useMemo(() => journalFor(dumps, composeDate), [dumps, composeDate]);
+  const composeDraft = useMemo(
+    () => dumps.find(d => d.tag === "journal" && d.note_date === composeDate && !isFiled(d)),
+    [dumps, composeDate]
+  );
+
+  const todaysSparks = useMemo(
     () => dumps
       .filter(d => d.tag === "spark" && d.note_date === today)
       .sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [dumps, today]
   );
 
+  const daysThisMonth = useMemo(() => {
+    const prefix = today.slice(0, 7);
+    const days = new Set<string>();
+    for (const d of dumps) {
+      if (d.note_date?.startsWith(prefix) && isFiled(d)) days.add(d.note_date);
+    }
+    return days.size;
+  }, [dumps, today]);
+
   // Captures with no date at all — mostly pre-2026-08-25 ones, plus anything
-  // arriving from the PWA share target. The calendar can't show them and the
-  // day panel can't either, so they get a drawer rather than being stranded.
+  // arriving from the PWA share target. Browse's date ranges deliberately
+  // exclude them, so they keep a drawer rather than being stranded.
   const undated = useMemo(
-    () => dumps.filter(d => !d.note_date).sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    () => dumps.filter(d => !d.note_date && isFiled(d)).sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [dumps]
   );
   const [showUndated, setShowUndated] = useState(false);
@@ -80,6 +95,14 @@ function DumpScreen() {
     const undo = deleteDump(id);
     showToast("Deleted", { label: "Undo", onPress: undo });
   }, [deleteDump, showToast]);
+
+  const readDay = useCallback((date: string) => setSelectedDay(date), []);
+
+  const pickDay = useCallback((date: string) => {
+    setSelectedDay(date);
+    // Picking a day is also how you say "I want to write about that day".
+    setComposeDate(date);
+  }, []);
 
   if (!loaded) {
     return (
@@ -91,24 +114,36 @@ function DumpScreen() {
     );
   }
 
+  const todayDate = new Date();
+  const subtitle = `${DAY_NAMES[todayDate.getDay()]} ${todayDate.getDate()} ${MONTH_NAMES[todayDate.getMonth()]}`
+    + (daysThisMonth > 0 ? ` · ${daysThisMonth} day${daysThisMonth === 1 ? "" : "s"} written this month` : "");
+
+  // zIndex: the compose box and Browse both hold a Select whose panel must
+  // paint over the block below it.
   const blockD = (
-    <Block key="d">
-      <JournalBox entry={todaysJournal} date={today} />
+    <Block key="d" style={{ zIndex: 3 }}>
+      <AddDumpBox
+        date={composeDate}
+        onDateChange={setComposeDate}
+        filed={composeFiled}
+        draft={composeDraft}
+        onReadDay={readDay}
+      />
     </Block>
   );
   const blockC = (
-    <Block key="c" grow={twoColumn} style={twoColumn ? { minHeight: 260 } : { minHeight: 200 }}>
-      <DayPanel date={selectedDay} dumps={dumps} onClear={() => setSelectedDay(null)} />
+    <Block key="c" grow={twoColumn} style={twoColumn ? { minHeight: 300, zIndex: 2 } : { minHeight: 280, zIndex: 2 }}>
+      <BrowseBox dumps={dumps} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
     </Block>
   );
   const blockB = (
-    <Block key="b">
+    <Block key="b" style={{ zIndex: 1 }}>
       <SparkBox sparks={todaysSparks} date={today} onDelete={handleDelete} />
     </Block>
   );
   const blockA = (
     <Block key="a" grow={twoColumn}>
-      <MonthCalendar marks={marks} selected={selectedDay} onSelect={setSelectedDay} />
+      <MonthCalendar marks={marks} selected={selectedDay} onSelect={pickDay} />
     </Block>
   );
 
@@ -122,13 +157,14 @@ function DumpScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
           }
         >
-          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
+          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5], gap: 2 }}>
             <Text size="2xl" weight="bold">Dump</Text>
+            <Text size="meta" tertiary>{subtitle}</Text>
           </View>
 
           {twoColumn ? (
             <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "stretch" }}>
-              <View style={{ flex: 1, gap: spacing[4] }}>
+              <View style={{ flex: 1.06, gap: spacing[4] }}>
                 {blockD}
                 {blockC}
               </View>
@@ -138,8 +174,8 @@ function DumpScreen() {
               </View>
             </View>
           ) : (
-            // Calendar before the day panel here: on one column the panel is
-            // meaningless until a day above it has been tapped.
+            // Calendar before Browse here: on one column the Browse box is
+            // most useful directly under the day grid that drives it.
             <View style={{ gap: spacing[4] }}>
               {blockD}
               {blockB}

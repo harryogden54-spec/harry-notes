@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
-import { spacing, radius, fontFamily, iconSize, inputText } from "@/lib/theme";
+import { spacing, radius, shape, fontFamily, iconSize, inputText } from "@/lib/theme";
 import { useDumpsActions, type Dump } from "@/lib/DumpContext";
 
 type Props = {
@@ -36,7 +36,14 @@ export function SparkBox({ sparks, date, onDelete }: Props) {
 
   return (
     <View style={{ gap: spacing[3] }}>
-      <Text size="cardTitle" weight="semibold">Was anything tickling the brainstem today?</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+        <Text size="cardTitle" weight="semibold">Brainstem ticklers</Text>
+        {sparks.length > 0 && (
+          <View style={{ ...shape.countPill, backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder }}>
+            <Text size="meta" tertiary>{sparks.length}</Text>
+          </View>
+        )}
+      </View>
 
       <View style={{
         flexDirection: "row", alignItems: "center", gap: spacing[2],
@@ -51,7 +58,7 @@ export function SparkBox({ sparks, date, onDelete }: Props) {
           onSubmitEditing={commit}
           returnKeyType="done"
           blurOnSubmit={false}
-          placeholder="Go on then…"
+          placeholder="…"
           placeholderTextColor={colors.textTertiary}
           style={[
             { flex: 1, ...inputText, fontFamily: fontFamily.regular, color: colors.textPrimary, paddingVertical: 2 },

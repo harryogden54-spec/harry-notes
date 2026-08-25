@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, radius, iconSize } from "@/lib/theme";
 import { getLocalDateStr, MONTH_NAMES } from "@/lib/utils";
-import type { Dump } from "@/lib/DumpContext";
+import { isFiled, type Dump } from "@/lib/DumpContext";
 
 /** What the dot under a day means. */
 export type DayMark = {
@@ -30,6 +30,9 @@ export function buildDayMarks(dumps: Dump[], lastSynced: string | null): Map<str
   const marks = new Map<string, DayMark>();
   for (const d of dumps) {
     if (!d.note_date) continue;
+    // An unfiled draft is not a written day — lighting the dot for one would
+    // make the calendar claim a half-typed sentence as the day's entry.
+    if (!isFiled(d)) continue;
     const stamp = d.updated_at ?? d.created_at;
     const isSynced = !!lastSynced && stamp <= lastSynced;
     const prev = marks.get(d.note_date);
@@ -113,67 +116,72 @@ export function MonthCalendar({ marks, selected, onSelect }: Props) {
         </Pressable>
       )}
 
-      {/* Weekday header */}
-      <View style={{ flexDirection: "row" }}>
-        {WEEKDAYS.map((w, i) => (
-          <View key={i} style={{ flex: 1, alignItems: "center" }}>
-            <Text size="meta" tertiary weight="semibold">{w}</Text>
-          </View>
-        ))}
-      </View>
+      {/* The grid is capped and centred. At full card width the seven columns
+          stretched to ~64px each, so the month read as a table rather than a
+          calendar; the day itself is a fixed chip with the dot inside it. */}
+      <View style={{ width: "100%", maxWidth: 340, alignSelf: "center", gap: spacing[2] }}>
+        <View style={{ flexDirection: "row" }}>
+          {WEEKDAYS.map((w, i) => (
+            <View key={i} style={{ flex: 1, alignItems: "center" }}>
+              <Text size="label" tertiary weight="semibold">{w}</Text>
+            </View>
+          ))}
+        </View>
 
-      {/* Day grid */}
-      <View style={{ gap: spacing[1] }}>
-        {Array.from({ length: cells.length / 7 }, (_, row) => (
-          <View key={row} style={{ flexDirection: "row" }}>
-            {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
-              if (day === null) return <View key={col} style={{ flex: 1 }} />;
-              const date = `${cursor.year}-${String(cursor.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-              const mark = marks.get(date);
-              const isToday    = date === today;
-              const isSelected = date === selected;
-              // Dot colour is the whole point of the indicator, so it stays a
-              // real signal: accent = safely on the server, warning = written
-              // here and not yet pushed.
-              const dotColor = mark ? (mark.synced ? colors.accent : colors.warning) : undefined;
-              return (
-                <Pressable
-                  key={col}
-                  onPress={() => onSelect(date)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${day} ${MONTH_NAMES[cursor.month]}${mark ? ", has an entry" : ""}`}
-                  style={{
-                    flex: 1, alignItems: "center", justifyContent: "center",
-                    paddingVertical: spacing[1.5], gap: 3,
-                    borderRadius: radius.md,
-                    borderWidth: 1,
-                    borderColor: isSelected ? colors.accent : isToday ? `${colors.accent}55` : "transparent",
-                    backgroundColor: isSelected ? `${colors.accent}18` : "transparent",
-                  }}
-                >
-                  <Text
-                    size="meta"
-                    weight={isToday || isSelected ? "semibold" : "regular"}
-                    style={{ color: isSelected ? colors.accent : colors.textPrimary }}
-                  >
-                    {day}
-                  </Text>
-                  {/* The row is always 5px tall so days without a dot don't sit
-                      a few pixels higher than days with one. */}
-                  <View style={{ height: 5, justifyContent: "center" }}>
-                    {dotColor && (
-                      <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: dotColor }} />
-                    )}
+        <View style={{ gap: spacing[1] }}>
+          {Array.from({ length: cells.length / 7 }, (_, row) => (
+            <View key={row} style={{ flexDirection: "row" }}>
+              {cells.slice(row * 7, row * 7 + 7).map((day, col) => {
+                if (day === null) return <View key={col} style={{ flex: 1 }} />;
+                const date = `${cursor.year}-${String(cursor.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const mark = marks.get(date);
+                const isToday    = date === today;
+                const isSelected = date === selected;
+                // Dot colour is the whole point of the indicator, so it stays a
+                // real signal: accent = safely on the server, warning = written
+                // here and not yet pushed.
+                const dotColor = mark ? (mark.synced ? colors.accent : colors.warning) : undefined;
+                return (
+                  <View key={col} style={{ flex: 1, alignItems: "center" }}>
+                    <Pressable
+                      onPress={() => onSelect(date)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${day} ${MONTH_NAMES[cursor.month]}${mark ? ", has an entry" : ""}`}
+                      style={{
+                        width: 40, alignItems: "center", justifyContent: "center",
+                        paddingVertical: spacing[1], gap: 3,
+                        borderRadius: radius.md,
+                        borderWidth: 1,
+                        borderColor: isSelected ? colors.accent : isToday ? `${colors.accent}55` : "transparent",
+                        backgroundColor: isSelected ? `${colors.accent}18` : "transparent",
+                      }}
+                    >
+                      <Text
+                        size="meta"
+                        weight={isToday || isSelected ? "semibold" : "regular"}
+                        style={{ color: isSelected ? colors.accent : colors.textPrimary }}
+                      >
+                        {day}
+                      </Text>
+                      {/* The row is always 5px tall so days without a dot don't
+                          sit a few pixels higher than days with one. */}
+                      <View style={{ height: 5, justifyContent: "center" }}>
+                        {dotColor && (
+                          <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: dotColor }} />
+                        )}
+                      </View>
+                    </Pressable>
                   </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
+                );
+              })}
+            </View>
+          ))}
+        </View>
       </View>
 
-      {/* Legend — two dots that look alike need saying once. */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], justifyContent: "center" }}>
+      {/* Legend — two dots that look alike need saying once, quietly. */}
+      <View style={{ height: 1, backgroundColor: colors.bgBorder }} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3], justifyContent: "flex-end" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
           <View style={{ width: 5, height: 5, borderRadius: 99, backgroundColor: colors.accent }} />
           <Text size="meta" tertiary>Synced</Text>
