@@ -465,6 +465,23 @@ asterisk. Toolbar buttons show an active state off `selectionchange`.
 before touching any of them.
 
 In progress: —
+Designed but not yet built — **Dump screen v2** (design canvas 2026-08-25,
+artifact `18927991-2921-454a-9644-f5c6a14a470b`). Block D "Today's dump" becomes
+**"Add a dump"**: Today/Yesterday shortcut buttons beside the day dropdown, and
+once a day has an entry the box shows a receipt (`✓ Dumped for today · N words`,
+Read it / Add more) instead of echoing the text back — the box is a place to put
+something, not a mirror of what is filed. Saving settles as **draft + Save**: the
+existing 600ms autosave stays and writes a DRAFT (a draft keeps showing in the
+box), and Save is what files the entry, collapses the box to the receipt and
+lights the calendar dot — so the text disappearing has a cause the user pressed
+rather than a timer. Block B → **"Brainstem ticklers"**. Block C becomes
+**"Browse"**: full-text search over every capture with category chips and a date
+range, and a calendar tap merely sets the date filter, so the day panel and the
+search results are one list. Empty-state copy is the user's own, verbatim.
+Polish: 40px day chips on a centred 340px grid (the cells were stretched
+full-width), legend to one quiet right-aligned line, page title gains date +
+month count. Second-choice ideas for Block C, drafted and not chosen: On this
+day, Rhythm (streak/heat strip), Loose ends (undated + unfiled), Resurface.
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface
 tints). Declined in the same review: a signature display typeface, and a reading-measure
