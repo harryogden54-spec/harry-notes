@@ -105,7 +105,7 @@ All providers are composed in `app/_layout.tsx`. The pattern is: load from local
 Shared primitives live in `components/ui/` and are re-exported from `components/ui/index.ts`:
 `Text`, `Divider`, `Badge`, `Button`, `Checkbox`, `TextInput`, `DatePicker`, `EmptyState`, `SearchBar`, `Toast`, `ToastContainer`, `Surface`, `GlassCard`
 
-Dump-screen blocks live in `components/dump/` (`MonthCalendar`, `SparkBox`, `BrowseBox`, `AddDumpBox`).
+Dump-screen blocks live in `components/dump/` (`MonthCalendar`, `SparkBox`, `BrowseBox`, `AddDumpBox`, `GoalsBox`).
 
 Always prefer these over raw RN primitives to keep styling consistent.
 
@@ -114,7 +114,10 @@ Always prefer these over raw RN primitives to keep styling consistent.
 - Never use raw RN primitives (View/Text/TextInput) in screens; always use components from `components/ui/`
 - Never modify Supabase schema directly; schema changes go via migrations only
 - `npm run typecheck` must pass before any feature is considered done
-- Web fallback is AsyncStorage only — never assume expo-sqlite is available on web
+- On web the durable store is IndexedDB via `lib/storage.ts` (AsyncStorage is the
+  fallback); never assume expo-sqlite is available on web
+- Only `lib/storage.ts` may import AsyncStorage — everything else goes through `storage`
+- Every `<Modal>` uses `animationType="none"`; see the RN-Web ModalAnimation trap below
 
 ## Current state
 Built: tasks (category board with one level of subcategories + a single centred create/edit
@@ -494,6 +497,100 @@ asterisk. Toolbar buttons show an active state off `selectionchange`.
 `npm run test:markdown` runs 34 assertions over these rules — add a case there
 before touching any of them.
 
+August 28 batch: **the service worker had never run — not once.** `public/sw.js`
+was complete, correct and exported to `dist/` on every deploy, but nothing
+registered it: the registration lived in `app/+html.tsx`, which stopped shipping
+when `web.output` became `"single"`, and `scripts/inject-pwa-head.js` — the
+post-build step written to replace it — *claimed in a comment* that it handled
+registration while containing no such code. So the app had zero offline
+capability for months while looking like it had some. Registration now lives in
+that script's injected tags, which is the only path that reaches
+`dist/index.html`; verify after a build with `grep serviceWorker dist/index.html`.
+Two further sw.js fixes were needed before offline actually worked: navigations
+are **network-first** (cache-first served the previous deploy's shell until a
+second load, and `caches.match(request)` can never hit on `/share?text=…`
+because the query string is part of the key — the fallback now matches `/`,
+which is right because `_redirects` rewrites everything to the same SPA stub);
+and **install now discovers the content-hashed bundle by reading index.html**
+rather than pre-caching a hard-coded list. Without that last one the shell came
+back offline and painted a blank page — `entry-<hash>.js` was in no cache, and
+the fetch handler cannot catch it because on the first load the worker is still
+installing and controls nothing. Verified by stopping the server and reloading:
+the app boots. The injector also became two independently-guarded injections —
+as one block, a `dist/` that already had the PWA tags but no SW script failed
+the combined guard and re-appended everything, duplicating every link and meta.
+
+**Web storage moved to IndexedDB.** `@react-native-async-storage/async-storage`
+on web is a thin wrapper over `window.localStorage` — synchronous, ~5MB for the
+whole origin. Journal prose fills that, and then `setItem` throws
+`QuotaExceededError` into a fire-and-forget `saveLocal`, where it is lost with
+no error anywhere: the app looks like it saved. `lib/webKV.ts` is a
+dependency-free IndexedDB KV store; `lib/storage.ts` picks it on web and keeps
+AsyncStorage everywhere else. Migration copies every localStorage key across
+once and **deliberately leaves localStorage intact** for a release, so a device
+where IDB is unavailable still finds real data rather than an empty store.
+`storage.set` now rethrows instead of swallowing. `storage` also gained
+`keys()`/`removeMany()` because `TodayContext`'s legacy importer reached past
+the abstraction to `AsyncStorage.getAllKeys` and would have read an empty
+localStorage after the move. **`lib/storage.ts` is now the only file in the repo
+allowed to import AsyncStorage.**
+
+**Encryption at rest** (`lib/crypto.ts`), off by default, Settings → Sync →
+Encryption at rest. AES-GCM-256 with the key derived from the sync key by
+PBKDF2-SHA256 at 600k iterations — PBKDF2 rather than HKDF because a
+`XXXX-XXXX-XXXX` sync key is only ~60 bits and a fast derivation would let a
+stolen dump be ground offline. Wired in at exactly one place, `lib/supabase.ts`:
+`syncUpsert` encrypts the `data` payload, `syncFetch`/`syncFetchByIds` decrypt
+it. Everything above that line — the three-way merge, dirty guards, tombstones,
+cursors — keeps seeing plaintext and is untouched, which is the whole reason it
+goes there. **Decryption is unconditional; only encryption-on-write is gated by
+the flag**, so enabling it on one device never makes another device see garbage.
+An undecryptable row (written under a different sync key) is SKIPPED with a
+warning, never thrown — throwing would pin the domain at `error`, the same
+failure shape as the stranded `sync:pendingDelete:courses` null.
+`lib/encryptExisting.ts` force-upserts every row for the one-time migration;
+`syncNow({ full: true })` is **not** sufficient, because its upload branch skips
+rows the server already has — precisely the plaintext ones. `setSyncKey` calls
+`resetKeyCache()`, or a rotation would encrypt the new dataset under the old key.
+Verified end to end against a throwaway key on prod: row written → stored as
+`{__enc,iv,ct}` with zero plaintext (`ilike '%PROBE%'` = 0) → local store and
+cursor wiped → reload → decrypted back and rendered. Probe rows deleted.
+KNOWN LIMITS, stated in the UI: the sync key travels to Supabase as a header, so
+this defends against a stolen database, **not** against Supabase itself; note
+images stay in the public `note-images` bucket unencrypted; and losing the sync
+key now means the data is unrecoverable, where before it only meant you could
+not find it. Web only — Hermes has no `crypto.subtle`, and `cryptoAvailable()`
+gates rather than silently writing plaintext.
+
+**Courses archive** (`CourseTable.archived`, additive jsonb, no migration),
+mirroring the task-categories pattern: `activeTables`/`archivedTables`,
+`setTableArchived`, an archive button on the card beside delete, and an
+"Archived · N" drawer shaped like Dump's undated drawer. Note the counts and
+"Condense all" were switched to `activeTables` too — leaving them on the raw
+list would have let an archived module keep inflating "3 tables · 60% ticked"
+while being invisible, the same class of bug as `CategoryColumns` treating a
+KNOWN category as a shown one.
+
+**Dump goals** — in the Browse box's idle space, where the quote was; not a
+page, because a goals page is somewhere you have to decide to visit. A goal is a
+`Dump` with `tag: "goal"` plus additive `horizon` ("month" | "term" | "open")
+and `achieved` — not a new table, which would need a migration AND a matching
+RLS policy. `content`'s first line is the title and the rest is detail, the
+convention `noteDisplayTitle` already uses. **INVARIANT: a goal never carries
+`note_date`** — `normalizeDump` coerces the unknown tag to "journal" on an older
+client, and a dated one would be picked up by `journalFor()` and shadow a real
+day's entry; `addDump` enforces this rather than trusting callers. The `undated`
+filter in `dump.tsx` excludes goals or the drawer scoops every one of them. The
+quote survives as the goals empty state, shown only until the first goal exists.
+
+Also: **all eleven `<Modal>` call sites are now `animationType="none"`.**
+CLAUDE.md recorded four unfixed `"fade"` modals; there were nine, because
+`"slide"` takes the identical path — confirmed from `ModalAnimation.js`, where
+`isAnimated` is true for both and the animated close path calls
+`setIsRendering(false)` ONLY from `onAnimationEnd`. Any missed `animationend`
+strands an invisible `pointer-events: none` overlay. Trade-off accepted: the
+settings and category sheets no longer slide in.
+
 In progress: —
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface
@@ -503,17 +600,27 @@ Awaiting confirmation: the PWA padding fix could not be verified locally — the
 web safe-area provider reads `env(safe-area-inset-*)` once at mount via a hidden
 probe div whose listener uses the legacy `webkitTransitionEnd` event Chrome no
 longer fires, so insets can't be simulated after load. Needs an on-device check.
-Not started: audit the four remaining `animationType="fade"` modals against
-`prefers-reduced-motion` (see the August 25 batch); point the quick-add FAB at
-`TaskDetailModal` and delete
+Not started: point the quick-add FAB at `TaskDetailModal` and delete
 `TaskComposerForm` (last duplicate task-creation surface); web push for task
 reminders (postponed by the user 2026-07-27); Settings screen full visual
 redesign (deferred, tracked separately); `notes.tsx` module split (readability
 only — the audit's parse-cost rationale was wrong, on web the route is already
 its own lazy chunk); Supabase storage bucket (note images) policies not yet
-reviewed — table RLS shipped 2026-07-12; two-browser sync drill.
+reviewed — table RLS shipped 2026-07-12, and encryption at rest does NOT cover
+that bucket, so it matters more now; two-browser sync drill; drop the
+localStorage fallback in `lib/storage.ts` once IndexedDB has ridden a release.
+Deferred at the user's request (2026-08-28): a **Courses page redesign** via the
+Claude design tool.
 Declined by the user, do not re-raise: the dual FAB stack, the Home/Today
 overlap, and the third light/dark control in Settings.
+**Dropped 2026-08-28, do not re-raise as a new idea: CRDT / local-first sync.**
+The reasoning, so it does not get rediscovered: one person with two devices
+almost never edits the same row on both while both are offline, which is the
+only situation a CRDT improves; note bodies already get a line-based three-way
+merge for the case that does bite; and a CRDT works against encryption at rest,
+since the point of one is that a merge can happen anywhere while the point of
+the other is that the server can read nothing. Revisit only if a real "I lost an
+edit" incident happens.
 
 > Update "In progress" and "Not started" at the start of each session.
 

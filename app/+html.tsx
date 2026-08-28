@@ -2,9 +2,12 @@
  * ⚠️  DEAD CODE — app.json uses web.output: "single" (SPA mode), which means
  * Expo Router IGNORES this file entirely during `expo export`.
  *
- * PWA head tags (apple-touch-icon, manifest, theme-color, etc.) are injected
- * into dist/index.html by scripts/inject-pwa-head.js as a post-build step.
- * The service-worker registration is also handled there.
+ * PWA head tags (apple-touch-icon, manifest, theme-color, etc.) AND the
+ * service-worker registration are injected into dist/index.html by
+ * scripts/inject-pwa-head.js as a post-build step. That was not true until
+ * 2026-08-28: the comment claimed it while the script had no such code, so the
+ * swScript below was the only registration in the repo and it shipped nowhere.
+ * public/sw.js was dead weight in every build for months.
  *
  * Do NOT add head logic here expecting it to ship — it won't.
  */

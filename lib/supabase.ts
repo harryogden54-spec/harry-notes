@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSyncKey, getCachedSyncKey } from "./syncKey";
 import { recordSyncFailure } from "./syncLog";
+import { cryptoAvailable, encryptionEnabled, encryptJson, decryptJson, isEncrypted } from "./crypto";
 
 // Values are inlined by Metro at build time from .env (EXPO_PUBLIC_* prefix).
 // Fail loudly if missing so a misconfigured build surfaces immediately rather
@@ -36,6 +37,45 @@ export const supabase = createClient(
     },
   }
 );
+
+/**
+ * Encryption is applied at this boundary and nowhere else.
+ *
+ * Everything above lib/supabase.ts — the three-way merge, the dirty guard,
+ * tombstone queues, delta cursors, every context — keeps working in plaintext
+ * and is completely unaware this exists. That is the whole reason it goes here:
+ * the sync engine's correctness was earned one bug at a time, and threading
+ * ciphertext through it would put all of that back in play.
+ */
+async function encodePayload(item: unknown): Promise<unknown> {
+  if (!cryptoAvailable()) return item;
+  if (!(await encryptionEnabled())) return item;
+  const key = getCachedSyncKey();
+  if (!key) return item;
+  try {
+    return await encryptJson(item, key);
+  } catch (e) {
+    // Never fall back to writing plaintext for a row the user asked to be
+    // encrypted — failing the push is recoverable, silently leaking is not.
+    console.error("[crypto] encrypt failed; refusing to upload plaintext", e);
+    throw e;
+  }
+}
+
+/**
+ * Returns the row's plaintext object, or null if it cannot be read.
+ *
+ * Null happens legitimately: a row written under a different sync key can
+ * never be decrypted. Callers SKIP those rows rather than failing the fetch —
+ * one unreadable row must not pin a whole domain at `error`, which is the
+ * failure shape that stranded Courses for weeks.
+ */
+async function decodePayload(data: any): Promise<any | null> {
+  if (!isEncrypted(data)) return data;          // plaintext / pre-encryption row
+  const key = getCachedSyncKey();
+  if (!key) return null;
+  return decryptJson<any>(data, key);
+}
 
 // Upserts are chunked so a large dirty set (e.g. first-device bootstrap) can't
 // produce one oversized POST that times out on a slow connection.
@@ -111,12 +151,18 @@ export async function syncFetch<T extends { id: string }>(
     const rows: T[] = [];
     const deletedIds: string[] = [];
     let serverMax: string | null = null;
+    let undecryptable = 0;
     for (const row of all as any[]) {
       if (typeof row.updated_at === "string" && (!serverMax || row.updated_at > serverMax)) {
         serverMax = row.updated_at;
       }
-      if (row.deleted) deletedIds.push(row.id);
-      else rows.push({ ...row.data, _updated_at: row.updated_at } as T);
+      if (row.deleted) { deletedIds.push(row.id); continue; }
+      const data = await decodePayload(row.data);
+      if (data === null) { undecryptable++; continue; }
+      rows.push({ ...data, _updated_at: row.updated_at } as T);
+    }
+    if (undecryptable > 0) {
+      console.warn(`syncFetch ${table}: skipped ${undecryptable} row(s) that could not be decrypted (wrong sync key?)`);
     }
     return { ok: true, rows, deletedIds, serverMax };
   } catch (e: any) {
@@ -165,8 +211,10 @@ export async function syncFetchByIds<T extends { id: string }>(
         if (typeof row.updated_at === "string" && (!serverMax || row.updated_at > serverMax)) {
           serverMax = row.updated_at;
         }
-        if (row.deleted) deletedIds.push(row.id);
-        else rows.push({ ...row.data, _updated_at: row.updated_at } as T);
+        if (row.deleted) { deletedIds.push(row.id); continue; }
+        const decoded = await decodePayload(row.data);
+        if (decoded === null) continue;
+        rows.push({ ...decoded, _updated_at: row.updated_at } as T);
       }
     }
     return { ok: true, rows, deletedIds, serverMax };
@@ -196,12 +244,14 @@ export async function syncUpsert<T extends { id: string }>(
   //
   // deleted: false resurrects a tombstoned row when the user undoes a delete
   // (or edits a row another device removed).
-  const rows = items.map(item => ({
+  // `data` is the only field that carries content; id/sync_key/deleted stay
+  // plaintext because the server has to filter and conflict-resolve on them.
+  const rows = await Promise.all(items.map(async item => ({
     id: item.id,
-    data: item,
+    data: await encodePayload(item),
     sync_key: syncKey,
     deleted: false,
-  }));
+  })));
   let allOk = true;
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);

@@ -70,7 +70,7 @@ function RecurrenceModal({
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Pressable
         style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: "flex-end" }}
         onPress={onClose}

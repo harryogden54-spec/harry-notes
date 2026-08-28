@@ -10,6 +10,7 @@
  */
 
 import { storage } from "./storage";
+import { resetKeyCache } from "./crypto";
 
 const STORAGE_KEY = "sync_key";
 
@@ -42,6 +43,10 @@ export function getCachedSyncKey(): string | null {
 export async function setSyncKey(key: string): Promise<void> {
   const trimmed = key.trim();
   _cached = trimmed || null;
+  // The at-rest encryption key is derived from the sync key, so a rotation must
+  // drop the cached CryptoKey — otherwise the next upload encrypts the NEW
+  // dataset under the OLD key and nothing can read it back.
+  resetKeyCache();
   if (trimmed) {
     await storage.set(STORAGE_KEY, trimmed);
   } else {

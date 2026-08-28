@@ -11,6 +11,9 @@ type Props = {
   table: CourseTable;
   onEdit: () => void;
   onDelete: () => void;
+  /** Retire the table without losing it. Optional so the archived-drawer
+   *  preview can render the same card without offering it again. */
+  onArchive?: () => void;
   /** Mobile: render a small progress ring inside the header (desktop shows a
    *  separate ring panel beside the card instead, per the mockup). */
   ringInHeader?: boolean;
@@ -22,7 +25,7 @@ type Props = {
 /** One Courses table: title bar with edit/delete, column headers, editable
  *  rows (text cells inline-editable, tickbox cells as circular checkboxes),
  *  and an add-row action. */
-export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collapsed, onToggleCollapse }: Props) {
+export function CourseTableCard({ table, onEdit, onDelete, onArchive, ringInHeader, collapsed, onToggleCollapse }: Props) {
   const { colors, scheme, shadow } = useTheme();
   const { addRow, deleteRow, updateCell } = useCoursesActions();
   const progress = tableProgress(table);
@@ -74,6 +77,14 @@ export function CourseTableCard({ table, onEdit, onDelete, ringInHeader, collaps
             <Ionicons name="create-outline" size={16} color={hovered ? colors.textPrimary : colors.textTertiary} />
           )}
         </Pressable>
+        {onArchive && (
+          <Pressable onPress={onArchive} hitSlop={8} accessibilityLabel={`Archive ${table.title || "table"}`}
+            style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}>
+            {({ hovered }: any) => (
+              <Ionicons name="archive-outline" size={15} color={hovered ? colors.textPrimary : colors.textTertiary} />
+            )}
+          </Pressable>
+        )}
         <Pressable onPress={onDelete} hitSlop={8} accessibilityLabel="Delete table"
           style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? `${colors.danger}14` : "transparent" })}>
           {({ hovered }: any) => (

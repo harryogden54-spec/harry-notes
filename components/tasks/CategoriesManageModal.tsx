@@ -285,7 +285,7 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <GradientBackground>
         {/* Full-window modal — covers the status bar, so keep all edges. */}
         <SafeAreaView style={{ flex: 1 }}>

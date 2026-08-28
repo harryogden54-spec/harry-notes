@@ -307,7 +307,7 @@ export function QuickAddModal({ visible, onClose, onAdd }: Props) {
   // (RNW portals it to the document root, immune to stacking-context fights).
   if (!visible) return null;
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {content}
     </Modal>
   );

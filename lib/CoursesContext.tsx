@@ -23,9 +23,28 @@ export type CourseTable = {
   title: string;
   columns: CourseColumn[];
   rows: CourseRow[];
+  /**
+   * Retired, but not gone — the table keeps its row, its id and every tick.
+   * A finished module shouldn't have to be deleted to get it off the screen,
+   * and last year's progress is worth being able to look back at.
+   *
+   * Additive to the `data` jsonb row, so no migration; an older client just
+   * ignores the field and shows the table as normal.
+   */
+  archived?: boolean;
   created_at: string;
   updated_at?: string;
 };
+
+/** Live tables — everything the Courses screen shows by default. */
+export function activeTables(tables: CourseTable[]): CourseTable[] {
+  return tables.filter(t => !t.archived);
+}
+
+/** Archived tables, for the restore drawer at the foot of the screen. */
+export function archivedTables(tables: CourseTable[]): CourseTable[] {
+  return tables.filter(t => t.archived);
+}
 
 /** Tick progress across every checkbox-type cell in the table. */
 export function tableProgress(table: CourseTable): { ticked: number; total: number } {
@@ -57,6 +76,8 @@ type CoursesActions = {
   /** Rename + column edits in one shot (the table editor modal saves both).
    *  Cells belonging to removed columns are pruned. */
   updateTableStructure: (id: string, title: string, columns: CourseColumn[]) => void;
+  /** Archive / restore. Keeps the row and its data — see CourseTable.archived. */
+  setTableArchived: (id: string, archived: boolean) => void;
   deleteTable: (id: string) => () => void;
   addRow: (tableId: string) => void;
   deleteRow: (tableId: string, rowId: string) => void;
@@ -92,6 +113,9 @@ function normalizeTable(t: CourseTable): CourseTable {
           cells: r.cells && typeof r.cells === "object" ? r.cells : {},
         }))
       : [],
+    // `undefined` rather than `false` so an unarchived table stops carrying a
+    // dead key in the synced jsonb, matching Category.archived.
+    archived: t.archived === true ? true : undefined,
     created_at: typeof t.created_at === "string" && t.created_at ? t.created_at : EPOCH,
   };
 }
@@ -147,6 +171,13 @@ export function CoursesProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [markDirty, setTables]);
 
+  const setTableArchived = useCallback((id: string, archived: boolean) => {
+    markDirty(id);
+    setTables(prev => prev.map(t =>
+      t.id === id ? stamp({ ...t, archived: archived ? true : undefined }) : t
+    ));
+  }, [markDirty, setTables]);
+
   const deleteTable = useCallback((id: string): (() => void) => {
     const deleted = tablesRef.current.find(t => t.id === id);
     setTables(prev => prev.filter(t => t.id !== id));
@@ -192,8 +223,8 @@ export function CoursesProvider({ children }: { children: React.ReactNode }) {
     [syncStatus, lastSynced, syncNow]
   );
   const actionsValue = useMemo(
-    () => ({ addTable, updateTableStructure, deleteTable, addRow, deleteRow, updateCell }),
-    [addTable, updateTableStructure, deleteTable, addRow, deleteRow, updateCell]
+    () => ({ addTable, updateTableStructure, setTableArchived, deleteTable, addRow, deleteRow, updateCell }),
+    [addTable, updateTableStructure, setTableArchived, deleteTable, addRow, deleteRow, updateCell]
   );
 
   return (

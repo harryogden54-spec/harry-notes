@@ -35,7 +35,7 @@ export function TaskDetailModal({ task, onClose }: Props) {
     <Modal
       visible
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >

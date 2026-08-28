@@ -6,6 +6,7 @@ import { Text, Select } from "@/components/ui";
 import { spacing, radius, shape, fontFamily, iconSize } from "@/lib/theme";
 import { DAY_NAMES, MONTH_NAMES, getLocalDateStr } from "@/lib/utils";
 import { isFiled, journalFor, type Dump, type DumpTag } from "@/lib/DumpContext";
+import { GoalsBox } from "./GoalsBox";
 
 /** Display names for the stored tags — `spark` is "Brainstem" to the user. */
 const TAG_LABEL: Record<DumpTag, string> = {
@@ -14,8 +15,9 @@ const TAG_LABEL: Record<DumpTag, string> = {
   media:     "Media",
   knowledge: "Knowledge",
   todo:      "To-do",
+  goal:      "Goals",
 };
-const TAG_ORDER: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo"];
+const TAG_ORDER: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo", "goal"];
 
 type Range = "any" | "7d" | "month" | "year";
 const RANGE_OPTIONS: { value: Range; label: string }[] = [
@@ -87,7 +89,7 @@ export function BrowseBox({ dumps, selectedDay, onSelectDay }: Props) {
     return dumps
       .filter(isFiled)
       .filter(d => (tags.length === 0 || tags.includes(d.tag)))
-      .filter(d => !selectedDay || d.note_date === selectedDay)
+      .filter(d => !selectedDay || (d.note_date === selectedDay && d.tag !== "goal"))
       .filter(d => {
         if (!floor) return true;
         // An undated capture has no day to compare, so a bounded range
@@ -190,24 +192,7 @@ export function BrowseBox({ dumps, selectedDay, onSelectDay }: Props) {
       <View style={{ height: 1, backgroundColor: colors.bgBorder }} />
 
       {!filtering ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing[2.5], paddingVertical: spacing[6] }}>
-          <View style={{
-            width: 34, height: 34, borderRadius: 999,
-            borderWidth: 1, borderColor: colors.bgBorder,
-            alignItems: "center", justifyContent: "center", marginBottom: spacing[0.5],
-          }}>
-            <Ionicons name="search" size={iconSize.md} color={colors.textTertiary} />
-          </View>
-          <Text size="base" secondary style={{ textAlign: "center", maxWidth: 380 }}>
-            Harry you are probably doing better than you think
-          </Text>
-          <Text size="sm" tertiary style={{ textAlign: "center", maxWidth: 380, fontStyle: "italic" }}>
-            &ldquo;its no swiss picnic for me either&rdquo; — Myself
-          </Text>
-          <Text size="meta" tertiary style={{ textAlign: "center", marginTop: spacing[1] }}>
-            Search above, or pick a day on the calendar.
-          </Text>
-        </View>
+        <GoalsBox dumps={dumps} />
       ) : dayView ? (
         <DayView dumps={results} date={selectedDay!} />
       ) : (

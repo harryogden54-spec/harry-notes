@@ -1,6 +1,50 @@
 # harry-notes audit
 
-Originally written 2026-07-26; **updated 2026-07-27** after the follow-up work landed.
+Originally written 2026-07-26; **updated 2026-08-28**.
+
+## 2026-08-28 pass
+
+### Fixed this session
+- **The service worker had never run.** `public/sw.js` was complete and shipped
+  to `dist/` on every deploy, but nothing registered it — the registration was
+  in `app/+html.tsx` (dead under `web.output: "single"`) and
+  `scripts/inject-pwa-head.js` claimed in a comment to handle it while having no
+  such code. The app had *zero* offline capability, not partial. Registration
+  now ships; navigations went network-first; and install discovers the
+  content-hashed bundle from index.html, without which the shell came back
+  offline and painted blank. Proven by killing the server and reloading.
+- **Web storage ceiling.** AsyncStorage on web is `window.localStorage`, ~5MB,
+  and `storage.set` swallowed `QuotaExceededError` into a fire-and-forget
+  `saveLocal` — writes vanished silently. Moved to IndexedDB (`lib/webKV.ts`),
+  localStorage kept one release as a fallback, `set` now rethrows.
+- **Reduced-motion modal exposure was 9, not 4.** `"slide"` takes the identical
+  path as `"fade"` in RN-Web's `ModalAnimation` — `isAnimated` is true for both
+  and the close path only unmounts from `onAnimationEnd`. All eleven call sites
+  are now `animationType="none"`.
+- **Encryption at rest** shipped (off by default) — see CLAUDE.md for the threat
+  model and its limits.
+- **Leftover test rows** under sync key `ZZTEST-MERGE-9X4Q` (2 rows in `dumps`,
+  from the July three-way-merge testing) deleted.
+
+### Still open, raised or re-emphasised this session
+- **`note-images` bucket is public with guessable URLs**, policies never
+  reviewed. This was already on the list; encryption at rest makes it sharper —
+  rows are now ciphertext while note photos remain world-readable, so the bucket
+  is the weakest point in the story. **S**
+- **A stale `.expo/types/router.d.ts` silently breaks `npm run deploy`.** In a
+  fresh worktree the generated route types can predate route changes (this one
+  still listed the deleted `calendar` and lacked `dump`), so `tsc --noEmit`
+  fails 3 times and the deploy aborts before `expo export`. It regenerates on
+  `expo start`. Worth knowing rather than fixing. **XS**
+- **Accessible names are missing on many `Pressable` + `Text` controls.** Found
+  while driving the UI: the Browse filter chips and `TableEditorModal`'s
+  Cancel/Create buttons expose no accessible name at all, so they are invisible
+  to the accessibility tree (and to any automation). `GoalsBox`'s own button was
+  fixed in passing; the rest were left. **S**
+
+---
+
+Originally written 2026-07-26; the 2026-07-27 notes follow.
 
 Single-user app — one person, two devices (iPhone home-screen PWA as the primary
 surface, desktop web secondary). Judgements below are about whether *you* can get
@@ -61,7 +105,8 @@ convert-on-open fallback. **—**
 
 ### Supabase storage bucket policies never reviewed
 Table RLS shipped 2026-07-12, but the `note-images` bucket's policies have never
-been looked at. **S**
+been looked at. **Still open** — and more pressing since encryption at rest
+shipped 2026-08-28; see the top of this file. **S**
 
 ### Web push for task reminders
 Postponed by you (2026-07-27). Needs a service worker, VAPID keys and a send

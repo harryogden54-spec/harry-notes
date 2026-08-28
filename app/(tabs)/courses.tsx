@@ -8,11 +8,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useTheme } from "@/lib/useTheme";
 import { Text, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
-import { spacing, getShadow } from "@/lib/theme";
+import { spacing, radius, iconSize, getShadow } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { storage } from "@/lib/storage";
 import { webWideContentStyle } from "@/lib/webLayout";
-import { useCoursesData, useCoursesActions, useCoursesSync, tableProgress, type CourseTable } from "@/lib/CoursesContext";
+import {
+  useCoursesData, useCoursesActions, useCoursesSync, tableProgress,
+  activeTables, archivedTables, type CourseTable,
+} from "@/lib/CoursesContext";
 import { useToast } from "@/lib/ToastContext";
 import { CourseTableCard, TableEditorModal, ProgressRing } from "@/components/courses";
 
@@ -27,7 +30,7 @@ function CoursesScreen() {
   const { colors, scheme, shadow } = useTheme();
   const scrollBottom = useScrollBottomPadding();
   const { tables, loaded } = useCoursesData();
-  const { deleteTable } = useCoursesActions();
+  const { deleteTable, setTableArchived } = useCoursesActions();
   const { syncNow } = useCoursesSync();
   const { showToast } = useToast();
   const { width } = useWindowDimensions();
@@ -49,15 +52,18 @@ function CoursesScreen() {
       return next;
     });
   }, []);
-  const allCollapsed = sortedIdsAllIn(collapsedIds, tables);
+  const allCollapsed = sortedIdsAllIn(collapsedIds, activeTables(tables));
   const toggleAll = useCallback(() => {
-    const next = allCollapsed ? [] : tables.map(t => t.id);
+    const next = allCollapsed ? [] : activeTables(tables).map(t => t.id);
     setCollapsedIds(next);
     storage.set(COLLAPSED_KEY, next);
   }, [allCollapsed, tables]);
 
+  const archived = useMemo(() => archivedTables(tables), [tables]);
+  const [showArchived, setShowArchived] = useState(false);
+
   const { sorted, overall } = useMemo(() => {
-    const sorted = [...tables].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const sorted = activeTables(tables).sort((a, b) => a.created_at.localeCompare(b.created_at));
     const overall = sorted.reduce(
       (acc, t) => {
         const p = tableProgress(t);
@@ -73,6 +79,14 @@ function CoursesScreen() {
     await syncNow().catch(() => {});
     setRefreshing(false);
   }, [syncNow]);
+
+  const handleArchive = useCallback((table: CourseTable) => {
+    setTableArchived(table.id, true);
+    showToast(`"${table.title || "Untitled table"}" archived`, {
+      label: "Undo",
+      onPress: () => setTableArchived(table.id, false),
+    });
+  }, [setTableArchived, showToast]);
 
   const handleDelete = useCallback((table: CourseTable) => {
     const undo = deleteTable(table.id);
@@ -168,6 +182,7 @@ function CoursesScreen() {
                         collapsed={isCollapsed}
                         onToggleCollapse={() => toggleCollapsed(table.id)}
                         onEdit={() => { setEditTarget(table); setEditorVisible(true); }}
+                        onArchive={() => handleArchive(table)}
                         onDelete={() => handleDelete(table)}
                       />
                     </View>
@@ -192,10 +207,82 @@ function CoursesScreen() {
                     collapsed={isCollapsed}
                     onToggleCollapse={() => toggleCollapsed(table.id)}
                     onEdit={() => { setEditTarget(table); setEditorVisible(true); }}
+                    onArchive={() => handleArchive(table)}
                     onDelete={() => handleDelete(table)}
                   />
                 );
               })}
+            </View>
+          )}
+          {archived.length > 0 && (
+            <View style={{ marginTop: spacing[6], gap: spacing[3] }}>
+              <Pressable
+                onPress={() => setShowArchived(v => !v)}
+                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], alignSelf: "flex-start" }}
+              >
+                <Ionicons
+                  name={showArchived ? "chevron-down" : "chevron-forward"}
+                  size={iconSize.xs}
+                  color={colors.textTertiary}
+                />
+                <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase" }}>
+                  Archived · {archived.length}
+                </Text>
+              </Pressable>
+
+              {showArchived && (
+                <View style={{ gap: spacing[2] }}>
+                  {archived.map(table => {
+                    const p = tableProgress(table);
+                    return (
+                      <View
+                        key={table.id}
+                        style={{
+                          flexDirection: "row", alignItems: "center", gap: spacing[3],
+                          borderRadius: radius.lg, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
+                          backgroundColor: colors.bgSecondary,
+                          paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+                        }}
+                      >
+                        <View style={{ flex: 1, gap: 1 }}>
+                          <Text size="cardTitle" weight="semibold" numberOfLines={1} secondary>
+                            {table.title || "Untitled table"}
+                          </Text>
+                          <Text size="meta" tertiary>
+                            {table.rows.length} row{table.rows.length !== 1 ? "s" : ""}
+                            {p.total > 0 ? ` · ${p.ticked}/${p.total} ticked` : ""}
+                          </Text>
+                        </View>
+                        <Pressable
+                          onPress={() => setTableArchived(table.id, false)}
+                          hitSlop={6}
+                          accessibilityLabel={`Restore ${table.title || "table"}`}
+                          style={({ hovered }: any) => ({
+                            paddingHorizontal: spacing[2.5], paddingVertical: spacing[1.5],
+                            borderRadius: radius.md,
+                            backgroundColor: hovered ? colors.bgTertiary : "transparent",
+                          })}
+                        >
+                          <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleDelete(table)}
+                          hitSlop={6}
+                          accessibilityLabel={`Delete ${table.title || "table"}`}
+                          style={({ hovered }: any) => ({
+                            padding: spacing[1.5], borderRadius: radius.md,
+                            backgroundColor: hovered ? `${colors.danger}14` : "transparent",
+                          })}
+                        >
+                          {({ hovered }: any) => (
+                            <Ionicons name="trash-outline" size={14} color={hovered ? colors.danger : colors.textTertiary} />
+                          )}
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           )}
         </ScrollView>

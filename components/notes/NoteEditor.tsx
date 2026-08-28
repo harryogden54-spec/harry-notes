@@ -576,7 +576,7 @@ export function NoteEditor({ note, onClose, showBackButton = true, onOpenNote }:
   // modal covers the status-bar / home-indicator areas, so pad them itself.
   if (focusMode) {
     return (
-      <Modal visible animationType="fade" onRequestClose={() => setFocusMode(false)}>
+      <Modal visible animationType="none" onRequestClose={() => setFocusMode(false)}>
         <View style={{ flex: 1, backgroundColor: colors.bgPrimary, paddingTop: insets.top, paddingBottom: insets.bottom }}>{editor}</View>
       </Modal>
     );

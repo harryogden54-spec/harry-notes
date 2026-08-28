@@ -85,8 +85,13 @@ function DumpScreen() {
   // Captures with no date at all — mostly pre-2026-08-25 ones, plus anything
   // arriving from the PWA share target. Browse's date ranges deliberately
   // exclude them, so they keep a drawer rather than being stranded.
+  // Goals are undated by design (see the INVARIANT above goalsOf in
+  // DumpContext), so without this exclusion every goal would be scooped into
+  // the "Undated captures" drawer alongside the share-target leftovers.
   const undated = useMemo(
-    () => dumps.filter(d => !d.note_date && isFiled(d)).sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    () => dumps
+      .filter(d => !d.note_date && isFiled(d) && d.tag !== "goal")
+      .sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [dumps]
   );
   const [showUndated, setShowUndated] = useState(false);

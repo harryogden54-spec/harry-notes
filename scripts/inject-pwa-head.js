@@ -5,13 +5,21 @@
 // and apple-mobile-web-app meta never reach the shipped HTML. Without an explicit
 // apple-touch-icon, iOS "Add to Home Screen" falls back to a generic icon.
 //
+// The service-worker registration is here for the same reason, and it is the
+// ONLY place it exists. It used to live in app/+html.tsx, which stopped shipping
+// when web.output became "single" — so public/sw.js was exported to dist/ on
+// every deploy and never once registered. The app had no offline support at all
+// between then and 2026-08-28, despite a complete and working sw.js sitting in
+// the bundle. If you move this, move it somewhere that actually reaches
+// dist/index.html, and verify with: grep serviceWorker dist/index.html
+//
 // This runs after `expo export`, in the deploy pipeline.
 const fs = require("fs");
 const path = require("path");
 
 const INDEX = path.join(__dirname, "..", "dist", "index.html");
 
-const TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
+const PWA_TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <link rel="manifest" href="/manifest.json?v=2" />
     <meta name="theme-color" content="#0D0D0D" />
@@ -19,6 +27,17 @@ const TAGS = `    <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="harry notes" />
+`;
+
+const SW_TAG = `    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function (err) {
+            console.warn('[sw] registration failed', err);
+          });
+        });
+      }
+    </script>
 `;
 
 // Keep in sync with VIEWPORT_CONTENT in lib/webViewport.ts.
@@ -40,18 +59,36 @@ if (/<meta name="viewport"[^>]*>/.test(html)) {
   changed = true;
 }
 
-// ── PWA tags ────────────────────────────────────────────────────────────────
-if (html.includes('rel="apple-touch-icon"') && html.includes('rel="icon"')) {
-  console.log("inject-pwa-head: PWA tags already present — skipping.");
-} else if (!html.includes("</head>")) {
+// ── PWA tags and the service worker, injected independently ─────────────────
+//
+// Two guarded injections rather than one block. They were a single block until
+// the SW script was added to it: on a dist/ that already carried the PWA tags
+// but no script, the combined guard failed and the WHOLE block went in again,
+// duplicating every link and meta tag. `expo export --clear` rewrites
+// index.html so the deploy pipeline never actually hit that, but a script that
+// can corrupt its own output given a plausible input is a bug either way.
+if (!html.includes("</head>")) {
   console.error("inject-pwa-head: no </head> found in dist/index.html");
   process.exit(1);
-} else {
-  html = html.replace("</head>", TAGS + "  </head>");
+}
+
+const injections = [
+  { name: "PWA tags", have: () => html.includes('rel="apple-touch-icon"'), tag: PWA_TAGS },
+  { name: "service worker", have: () => html.includes("serviceWorker"), tag: SW_TAG },
+];
+
+const added = [];
+for (const { name, have, tag } of injections) {
+  if (have()) continue;
+  html = html.replace("</head>", tag + "  </head>");
+  added.push(name);
   changed = true;
 }
 
 if (changed) {
   fs.writeFileSync(INDEX, html);
-  console.log("✓ inject-pwa-head: updated dist/index.html (viewport + PWA tags)");
+  const what = added.length ? added.join(" + ") : "viewport";
+  console.log(`✓ inject-pwa-head: updated dist/index.html (${what})`);
+} else {
+  console.log("inject-pwa-head: nothing to do — already up to date.");
 }

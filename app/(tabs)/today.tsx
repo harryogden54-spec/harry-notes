@@ -195,7 +195,7 @@ function TodayScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
           {/* Time-picker modal */}
-          <Modal visible={timePickerFor !== null} transparent animationType="slide" onRequestClose={() => setTimePickerFor(null)}>
+          <Modal visible={timePickerFor !== null} transparent animationType="none" onRequestClose={() => setTimePickerFor(null)}>
             <Pressable
               style={{ flex: 1, justifyContent: "flex-end", backgroundColor: colors.scrim }}
               onPress={() => setTimePickerFor(null)}

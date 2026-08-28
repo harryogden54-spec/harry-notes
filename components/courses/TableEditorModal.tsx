@@ -83,7 +83,7 @@ export function TableEditorModal({ visible, onClose, table }: Props) {
   ];
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: Platform.OS === "web" ? 80 : 60 }}>
         <Pressable onPress={onClose} style={{ position: "absolute", inset: 0, backgroundColor: colors.scrim } as any} />
         <Animated.View

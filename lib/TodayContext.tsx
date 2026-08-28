@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useCallback, useMemo, useEffect } from "react";
 import { Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { storage } from "./storage";
 import { dbLoadTodayItems, dbSaveTodayItems } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
@@ -81,7 +80,7 @@ function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ─── One-time import from the legacy per-day AsyncStorage keys ───────────────
+// ─── One-time import from the legacy per-day storage keys ────────────────────
 // The old todayCarry.ts stored each day under `today_items_<date>` with a
 // narrower shape (no `order`, no sync). On first run of this context (i.e. the
 // new "today_items" store is empty) we pull every existing legacy key into the
@@ -94,7 +93,7 @@ type LegacyTodayItem = { id: string; text: string; done: boolean; time_block?: s
 
 async function importLegacyTodayItems(): Promise<TodayItem[]> {
   try {
-    const allKeys = await AsyncStorage.getAllKeys();
+    const allKeys = await storage.keys();
     const dayKeys = allKeys.filter(k => k.startsWith(LEGACY_PREFIX)).sort();
     if (dayKeys.length === 0) return [];
 
@@ -120,7 +119,7 @@ async function importLegacyTodayItems(): Promise<TodayItem[]> {
 
     // Clean up the legacy keys only after we've successfully read them all —
     // if parsing threw above we'd have bailed to the catch below and left them.
-    if (dayKeys.length > 0) await AsyncStorage.multiRemove(dayKeys);
+    if (dayKeys.length > 0) await storage.removeMany(dayKeys);
     return imported;
   } catch {
     // Non-critical — never block Today's load on an import hiccup. Legacy

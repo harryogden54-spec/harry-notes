@@ -10,9 +10,24 @@ import { getLocalDateStr } from "./utils";
  *  the calendar and the day panel both key on that pair. Additive to the `data`
  *  jsonb row, so no migration; an older client just sees an unknown tag and
  *  normalizeDump below coerces it to "journal" rather than dropping the row. */
-export type DumpTag = "journal" | "spark" | "media" | "knowledge" | "todo";
+export type DumpTag = "journal" | "spark" | "media" | "knowledge" | "todo" | "goal";
 
-export const DUMP_TAGS: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo"];
+export const DUMP_TAGS: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo", "goal"];
+
+/**
+ * How far out a goal looks. Named from how the goals were actually written
+ * rather than in months: the useful distinction was "before term starts",
+ * "once I am there", and "no deadline, but I still want it".
+ */
+export type GoalHorizon = "month" | "term" | "open";
+
+export const GOAL_HORIZONS: GoalHorizon[] = ["month", "term", "open"];
+
+export const GOAL_HORIZON_LABEL: Record<GoalHorizon, string> = {
+  month: "Before uni",
+  term:  "First months of uni",
+  open:  "No deadline",
+};
 
 export type Dump = {
   id: string;
@@ -34,6 +49,13 @@ export type Dump = {
    * back at you without a half-finished sentence silently becoming "the day".
    */
   draft?: boolean;
+  /**
+   * Goals only. Absent on a goal row is treated as "open" by goalHorizon(),
+   * so a row that loses the field is never dropped from the list.
+   */
+  horizon?: GoalHorizon;
+  /** Goals only. Achieved goals stay listed — sunk and struck, not deleted. */
+  achieved?: boolean;
   created_at: string;
   updated_at?: string;
 };
@@ -64,6 +86,70 @@ export function journalFor(dumps: Dump[], date: string, includeDraft = false): D
     .sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))[0];
 }
 
+// ─── Goals ───────────────────────────────────────────────────────────────────
+//
+// A goal is a Dump with `tag: "goal"`, not its own synced collection. A new
+// table would need a migration AND a matching RLS policy (see migration 007 —
+// the client already sends x-sync-key, but a table without a policy silently
+// returns nothing). Additive jsonb fields are the house style here for exactly
+// this reason, and a goal really is just a capture with a horizon.
+//
+// INVARIANT: a goal never carries `note_date`.
+// `normalizeDump` coerces an unrecognised tag to "journal", so a client older
+// than this build reads a goal as a journal entry. Undated, that is harmless —
+// it lands in the undated drawer. Dated, it would be picked up by journalFor()
+// and could shadow a real day's entry, which is silent data loss on the one
+// thing in this app that must never lose anything.
+
+/** Every goal, newest first within its horizon. */
+export function goalsOf(dumps: Dump[]): Dump[] {
+  return dumps.filter(d => d.tag === "goal" && isFiled(d));
+}
+
+/** A goal's horizon, defaulting to "open" so a malformed row still appears. */
+export function goalHorizon(d: Dump): GoalHorizon {
+  return d.horizon ?? "open";
+}
+
+/**
+ * Goals for one horizon, achieved ones sunk to the bottom.
+ *
+ * Sinking rather than hiding follows the notes editor's checked-checklist
+ * behaviour (`sinkToggledCheckbox`): the thing you finished should still be
+ * visible, just out of the way of the things you have not.
+ */
+export function goalsForHorizon(dumps: Dump[], horizon: GoalHorizon): Dump[] {
+  return goalsOf(dumps)
+    .filter(d => goalHorizon(d) === horizon)
+    .sort((a, b) => {
+      const aDone = a.achieved ? 1 : 0;
+      const bDone = b.achieved ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      return a.created_at.localeCompare(b.created_at);
+    });
+}
+
+/**
+ * First line of the goal — its title.
+ *
+ * Same convention as `noteDisplayTitle` in components/notes/utils.ts: one text
+ * field, first line reads as the heading, the rest is detail. It avoids a
+ * second stored field that would then need its own normalize + merge handling,
+ * and it means a goal typed as one line simply has no detail.
+ */
+export function goalTitle(d: Dump): string {
+  const first = d.content.split("\n").find(l => l.trim().length > 0);
+  return first?.trim() ?? "";
+}
+
+/** Everything after the first non-empty line. */
+export function goalDetail(d: Dump): string {
+  const lines = d.content.split("\n");
+  const i = lines.findIndex(l => l.trim().length > 0);
+  if (i === -1) return "";
+  return lines.slice(i + 1).join("\n").trim();
+}
+
 type DumpsData = {
   dumps: Dump[];
   loaded: boolean;
@@ -76,7 +162,10 @@ type DumpsSync = {
 };
 
 type DumpsActions = {
-  addDump: (opts: { tag: DumpTag; note_date?: string; content?: string; draft?: boolean }) => string;
+  addDump: (opts: {
+    tag: DumpTag; note_date?: string; content?: string; draft?: boolean;
+    horizon?: GoalHorizon;
+  }) => string;
   updateDump: (id: string, updates: Partial<Omit<Dump, "id" | "created_at">>) => void;
   deleteDump: (id: string) => () => void;
 };
@@ -104,6 +193,8 @@ function normalizeDump(d: Dump): Dump {
     // Absent means filed — an older row that predates drafts must not come
     // back as an invisible draft.
     draft:     d.draft === true ? true : undefined,
+    horizon:   GOAL_HORIZONS.includes(d.horizon as GoalHorizon) ? d.horizon : undefined,
+    achieved:  d.achieved === true ? true : undefined,
     created_at: created,
     updated_at: typeof d.updated_at === "string" && d.updated_at ? d.updated_at : created,
   };
@@ -137,18 +228,26 @@ export function DumpProvider({ children }: { children: React.ReactNode }) {
     normalizeRemote: (row) => normalizeDump(row),
   });
 
-  const addDump = useCallback((opts: { tag: DumpTag; note_date?: string; content?: string; draft?: boolean }): string => {
+  const addDump = useCallback((opts: {
+    tag: DumpTag; note_date?: string; content?: string; draft?: boolean;
+    horizon?: GoalHorizon;
+  }): string => {
     const id  = newId();
     const now = new Date().toISOString();
+    const isGoal = opts.tag === "goal";
     const dump: Dump = {
       id,
       // Normally empty (the row is created, then typed into). The share target
       // supplies content up-front so the capture lands in one state update.
       content: opts.content ?? "",
       tag: opts.tag,
-      note_date: opts.note_date,
+      // A goal is never dated — see the INVARIANT note above goalsOf(). Enforced
+      // here rather than trusted to callers, because the consequence of a dated
+      // goal (shadowing a day's journal entry on an older client) is silent.
+      note_date: isGoal ? undefined : opts.note_date,
       filed: false,
       draft: opts.draft ? true : undefined,
+      horizon: isGoal ? (opts.horizon ?? "open") : undefined,
       created_at: now,
       updated_at: now,
     };

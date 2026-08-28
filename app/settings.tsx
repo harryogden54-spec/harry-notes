@@ -20,6 +20,8 @@ import { spacing, radius, fontFamily } from "@/lib/theme";
 import { webContentStyle } from "@/lib/webLayout";
 import { getLocalDateStr } from "@/lib/utils";
 import { getSyncKey, setSyncKey, generateSyncKey } from "@/lib/syncKey";
+import { cryptoAvailable, encryptionEnabled, setEncryptionEnabled } from "@/lib/crypto";
+import { reEncryptAll } from "@/lib/encryptExisting";
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
@@ -48,6 +50,32 @@ export default function SettingsScreen() {
   // ── Sync key state ────────────────────────────────────────────────────────
   const [currentKey, setCurrentKey]   = useState<string | null>(null);
   const [showKeySheet, setShowKeySheet] = useState(false);
+
+  // ── Encryption at rest ────────────────────────────────────────────────────
+  const [encOn, setEncOn]             = useState(false);
+  const [showEncSheet, setShowEncSheet] = useState(false);
+  const [encBusy, setEncBusy]         = useState(false);
+  const canEncrypt = cryptoAvailable();
+  useEffect(() => { encryptionEnabled().then(setEncOn); }, []);
+
+  async function handleToggleEncryption(next: boolean) {
+    await setEncryptionEnabled(next);
+    setEncOn(next);
+    showToast(next
+      ? "Encryption on — new writes are encrypted. Run \u201cEncrypt existing rows\u201d for older data."
+      : "Encryption off — new writes go up as plain text.");
+  }
+
+  async function handleReEncrypt() {
+    setEncBusy(true);
+    const res = await reEncryptAll();
+    setEncBusy(false);
+    if (res.refused) { showToast(res.refused); return; }
+    const total = Object.values(res.counts).reduce((a, b) => a + b, 0);
+    showToast(res.ok
+      ? `Re-encrypted ${total} row${total === 1 ? "" : "s"}`
+      : `Partly done — ${res.failed.join(", ")} failed. Try again when back online.`);
+  }
   const [keyInput, setKeyInput]       = useState("");
   const [keyVisible, setKeyVisible]   = useState(false);
 
@@ -311,6 +339,19 @@ export default function SettingsScreen() {
               }
               onPress={() => { setKeyInput(currentKey ?? ""); setShowKeySheet(true); }}
               chevron
+            />
+            <Row
+              icon="lock-closed-outline"
+              label="Encryption at rest"
+              subtitle={
+                !canEncrypt
+                  ? "Unavailable on this device"
+                  : encOn
+                    ? "On — rows are unreadable in the database"
+                    : "Off — your text is stored as plain words"
+              }
+              onPress={() => setShowEncSheet(true)}
+              chevron
               isLast
             />
           </RowGroup>
@@ -379,9 +420,91 @@ export default function SettingsScreen() {
             />
           </RowGroup>
 
+          {/* Encryption at rest. Behind a sheet rather than a bare switch: the
+              consequence (losing the sync key destroys the data) has to be
+              read before it is accepted, and a toggle in a list is not read. */}
+          <Modal visible={showEncSheet} animationType="none" presentationStyle="pageSheet" onRequestClose={() => setShowEncSheet(false)}>
+            <GradientBackground>
+              <SafeAreaView style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={{ padding: spacing[4], gap: spacing[4] }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
+                    <Text size="lg" weight="bold" style={{ flex: 1 }}>Encryption at rest</Text>
+                    <Pressable onPress={() => setShowEncSheet(false)} hitSlop={8} accessibilityLabel="Close">
+                      <Ionicons name="close-outline" size={22} color={colors.textSecondary} />
+                    </Pressable>
+                  </View>
+
+                  <Text size="sm" secondary style={{ lineHeight: 21 }}>
+                    Your rows currently sit in Supabase as plain words — anyone who gets at the
+                    database can read your journal. With this on, your device scrambles each row
+                    before uploading it and unscrambles it on the way back. The server only ever
+                    holds gibberish.
+                  </Text>
+
+                  <View style={{
+                    borderRadius: radius.lg, borderWidth: 1, borderColor: colors.danger,
+                    backgroundColor: `${colors.danger}12`, padding: spacing[3], gap: spacing[1.5],
+                  }}>
+                    <Text size="sm" weight="semibold" style={{ color: colors.danger }}>
+                      Save your sync key somewhere permanent first
+                    </Text>
+                    <Text size="xs" secondary style={{ lineHeight: 18 }}>
+                      The scrambling key is derived from your sync key. Today, losing that key
+                      means you cannot find your rows — the text is still there. Once this is on,
+                      losing it means the data is gone for good. Nobody can recover it, including
+                      Supabase.
+                    </Text>
+                  </View>
+
+                  <Text size="xs" tertiary style={{ lineHeight: 18 }}>
+                    Worth knowing: your sync key is sent to Supabase as a request header, which is
+                    how it finds your rows. So this protects you against a stolen copy of the
+                    database, not against Supabase itself. Note photos are stored separately and
+                    stay unencrypted.
+                  </Text>
+
+                  <RowGroup>
+                    <Row
+                      label="Encrypt new writes"
+                      subtitle={canEncrypt ? undefined : "This device has no WebCrypto"}
+                      right={
+                        <Switch
+                          value={encOn}
+                          onValueChange={handleToggleEncryption}
+                          disabled={!canEncrypt}
+                          trackColor={{ false: colors.bgTertiary, true: colors.accent }}
+                        />
+                      }
+                      isLast
+                    />
+                  </RowGroup>
+
+                  <View style={{ gap: spacing[2] }}>
+                    <Pressable
+                      onPress={handleReEncrypt}
+                      disabled={!encOn || encBusy}
+                      style={{
+                        backgroundColor: encOn && !encBusy ? colors.accent : colors.bgTertiary,
+                        borderRadius: radius.xl, paddingVertical: spacing[3], alignItems: "center",
+                      }}
+                    >
+                      <Text size="sm" weight="semibold" style={{ color: encOn && !encBusy ? colors.textInverse : colors.textTertiary }}>
+                        {encBusy ? "Encrypting…" : "Encrypt existing rows"}
+                      </Text>
+                    </Pressable>
+                    <Text size="xs" tertiary style={{ lineHeight: 18 }}>
+                      Turning the switch on only affects what you write from now on. This rewrites
+                      everything already up there. Safe to run more than once.
+                    </Text>
+                  </View>
+                </ScrollView>
+              </SafeAreaView>
+            </GradientBackground>
+          </Modal>
+
           {/* Sync key sheet — set/change, generate and copy in one place, so the
               settings list carries a single row instead of four. */}
-          <Modal visible={showKeySheet} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowKeySheet(false)}>
+          <Modal visible={showKeySheet} animationType="none" presentationStyle="pageSheet" onRequestClose={() => setShowKeySheet(false)}>
             <GradientBackground>
               <SafeAreaView style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
@@ -453,7 +576,7 @@ export default function SettingsScreen() {
           </Modal>
 
           {/* Trash modal */}
-          <Modal visible={showTrash} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowTrash(false)}>
+          <Modal visible={showTrash} animationType="none" presentationStyle="pageSheet" onRequestClose={() => setShowTrash(false)}>
             <GradientBackground>
               <SafeAreaView style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
