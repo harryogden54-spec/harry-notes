@@ -186,8 +186,15 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
       * By `onReconciled` the server's rows are already merged in, so `items` is
       * non-empty whenever the categories genuinely exist and nothing is seeded.
       */
-    onReconciled: (items) => {
-      if (items.length > 0) return { items, dirty: [] };
+    onReconciled: (items, { reachedServer }) => {
+      // `reachedServer` is the load-bearing half. Moving the seed out of
+      // `onLoad` was not enough: performSync also runs the transform on its
+      // offline-only paths (no Supabase configured, or no sync key yet), and
+      // there an empty collection means "we have not looked", not "there is
+      // nothing". A device opened before a key is entered would seed the two
+      // defaults, mark them dirty, and push them over the real rows the instant
+      // it paired. Caught by re-running the audit after the first fix.
+      if (items.length > 0 || !reachedServer) return { items, dirty: [] };
       const now = new Date().toISOString();
       const seeded = DEFAULT_CATEGORIES.map(c => ({ ...c, created_at: now, updated_at: now }));
       return { items: seeded, dirty: seeded.map(c => c.id) };

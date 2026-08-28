@@ -44,7 +44,16 @@ type Config<T extends HasId> = {
    * Anything DERIVED from the current date or from other rows belongs here, not
    * in `onLoad`. Anything the user typed belongs in neither.
    */
-  onReconciled?: (items: T[]) => { items: T[]; dirty: string[] };
+  onReconciled?: (
+    items: T[],
+    /** False on the offline-only paths (no Supabase, or no sync key), where
+     *  an empty collection means "we have not looked yet", NOT "the server
+     *  has nothing". A transform that DERIVES from existing rows can ignore
+     *  this; one that CREATES rows must not seed-and-dirty without it, or a
+     *  never-paired device invents defaults and pushes them over real data
+     *  the moment a key is entered. */
+    ctx: { reachedServer: boolean }
+  ) => { items: T[]; dirty: string[] };
   /** Optional transform applied to each remote row before merging — e.g. type coercion.
    *  Receives the row with _updated_at already stripped. */
   normalizeRemote?: (row: T) => T;
@@ -419,9 +428,9 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
    * midnight — not only at launch. A no-op transform returns no dirty ids and
    * costs one array pass.
    */
-  const applyReconciled = useCallback(() => {
+  const applyReconciled = useCallback((reachedServer: boolean) => {
     if (!onReconciled) return;
-    const result = onReconciled(itemsRef.current);
+    const result = onReconciled(itemsRef.current, { reachedServer });
     if (result.dirty.length === 0) return;
     for (const id of result.dirty) {
       dirtyIdsRef.current.add(id);
@@ -443,8 +452,8 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
     // still run the reconciliation transform: with no server there is nothing
     // it can lose a race against, and skipping it would strand Today's
     // carry-forward on a device that has never been paired.
-    if (!SYNC_ENABLED) { applyReconciled(); return true; }
-    if (!(await getSyncKey())) { applyReconciled(); return true; }
+    if (!SYNC_ENABLED) { applyReconciled(false); return true; }
+    if (!(await getSyncKey())) { applyReconciled(false); return true; }
     if (syncInFlightRef.current) return true;
     syncInFlightRef.current = true;
     try {
@@ -483,7 +492,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
         persistDirty();
         lastSyncAtRef.current = Date.now();
         if (!deletesOk) { setSyncStatus("error"); return false; }
-        applyReconciled();
+        applyReconciled(true);
         setSyncStatus("synced");
         setLastSynced(new Date().toISOString());
         return true;
@@ -562,7 +571,7 @@ export function useSyncedCollection<T extends HasId>(config: Config<T>) {
       persistBaseText();
       lastSyncAtRef.current = Date.now();
       if (!deletesOk) { setSyncStatus("error"); return false; }
-      applyReconciled();
+      applyReconciled(true);
       setSyncStatus("synced");
       setLastSynced(new Date().toISOString());
       return true;
