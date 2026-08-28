@@ -182,16 +182,16 @@ function PageTabs({ pages, activeId, onSelect, onAdd, onDeletePage, onMovePage }
               {active && i > 0 && (
                 <>
                   {i > 1 && (
-                    <Pressable onPress={() => onMovePage(p.id, -1)} hitSlop={6} accessibilityLabel="Move page left">
+                    <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onMovePage(p.id, -1)} hitSlop={6} accessibilityLabel="Move page left">
                       <Ionicons name="chevron-back" size={12} color={colors.textTertiary} />
                     </Pressable>
                   )}
                   {i < pages.length - 1 && (
-                    <Pressable onPress={() => onMovePage(p.id, 1)} hitSlop={6} accessibilityLabel="Move page right">
+                    <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onMovePage(p.id, 1)} hitSlop={6} accessibilityLabel="Move page right">
                       <Ionicons name="chevron-forward" size={12} color={colors.textTertiary} />
                     </Pressable>
                   )}
-                  <Pressable onPress={() => onDeletePage(p.id)} hitSlop={8} accessibilityLabel="Delete page">
+                  <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onDeletePage(p.id)} hitSlop={8} accessibilityLabel="Delete page">
                     <Ionicons name="close-outline" size={12} color={colors.textTertiary} />
                   </Pressable>
                 </>

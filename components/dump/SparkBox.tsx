@@ -69,8 +69,9 @@ export function SparkBox({ sparks, date, onDelete }: Props) {
           onPress={commit}
           accessibilityLabel="Save thought"
           style={{
-            paddingHorizontal: spacing[2.5], paddingVertical: spacing[1.5],
+            paddingHorizontal: spacing[3], paddingVertical: spacing[2.5],
             borderRadius: radius.md,
+            alignItems: "center", justifyContent: "center",
             backgroundColor: draft.trim() ? colors.accent : colors.bgSecondary,
           }}
         >
@@ -93,7 +94,7 @@ export function SparkBox({ sparks, date, onDelete }: Props) {
                 backgroundColor: colors.accent,
               }} />
               <Text size="sm" style={{ flex: 1, lineHeight: 20 }}>{s.content}</Text>
-              <Pressable onPress={() => onDelete(s.id)} hitSlop={8} accessibilityLabel="Delete thought">
+              <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onDelete(s.id)} hitSlop={8} accessibilityLabel="Delete thought">
                 <Ionicons name="close-outline" size={iconSize.sm} color={colors.textTertiary} />
               </Pressable>
             </View>

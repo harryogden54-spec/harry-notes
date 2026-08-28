@@ -34,7 +34,7 @@ export function SectionHeader({ label, count, subtitle, action }: Props) {
       )}
       <View style={{ flex: 1 }} />
       {action && (
-        <Pressable onPress={action.onPress} hitSlop={8}>
+        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={action.onPress} hitSlop={8}>
           <Text size="xs" weight="medium" color={colors.accent}>
             {action.label}
           </Text>

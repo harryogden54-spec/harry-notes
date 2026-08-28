@@ -53,7 +53,7 @@ export function CourseTableCard({ table, onEdit, onDelete, onArchive, ringInHead
             onPress={onToggleCollapse}
             hitSlop={8}
             accessibilityLabel={collapsed ? `Expand ${table.title || "table"}` : `Collapse ${table.title || "table"}`}
-            style={({ hovered }: any) => ({ padding: spacing[1], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}
+            style={({ hovered }: any) => ({ padding: 11, margin: -7, borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}
           >
             <Ionicons name={collapsed ? "chevron-forward" : "chevron-down"} size={14} color={colors.textTertiary} />
           </Pressable>
@@ -72,21 +72,21 @@ export function CourseTableCard({ table, onEdit, onDelete, onArchive, ringInHead
           <ProgressRing ticked={progress.ticked} total={progress.total} size={38} />
         )}
         <Pressable onPress={onEdit} hitSlop={8} accessibilityLabel="Edit table"
-          style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}>
+          style={({ hovered }: any) => ({ padding: 11, margin: -5, borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}>
           {({ hovered }: any) => (
             <Ionicons name="create-outline" size={16} color={hovered ? colors.textPrimary : colors.textTertiary} />
           )}
         </Pressable>
         {onArchive && (
           <Pressable onPress={onArchive} hitSlop={8} accessibilityLabel={`Archive ${table.title || "table"}`}
-            style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}>
+            style={({ hovered }: any) => ({ padding: 11, margin: -5, borderRadius: radius.md, backgroundColor: hovered ? colors.bgTertiary : "transparent" })}>
             {({ hovered }: any) => (
               <Ionicons name="archive-outline" size={15} color={hovered ? colors.textPrimary : colors.textTertiary} />
             )}
           </Pressable>
         )}
         <Pressable onPress={onDelete} hitSlop={8} accessibilityLabel="Delete table"
-          style={({ hovered }: any) => ({ padding: spacing[1.5], borderRadius: radius.md, backgroundColor: hovered ? `${colors.danger}14` : "transparent" })}>
+          style={({ hovered }: any) => ({ padding: 11, margin: -5, borderRadius: radius.md, backgroundColor: hovered ? `${colors.danger}14` : "transparent" })}>
           {({ hovered }: any) => (
             <Ionicons name="trash-outline" size={14} color={hovered ? colors.danger : colors.textTertiary} />
           )}
@@ -155,7 +155,8 @@ export function CourseTableCard({ table, onEdit, onDelete, onArchive, ringInHead
             onPress={() => deleteRow(table.id, row.id)}
             hitSlop={6}
             accessibilityLabel="Delete row"
-            style={{ width: 26, alignItems: "center" }}
+            accessibilityRole="button"
+            style={{ width: 26, alignItems: "center", justifyContent: "center", paddingVertical: 12, marginVertical: -12 } as any}
           >
             {({ hovered }: any) => (
               <Ionicons name="close-outline" size={14} color={hovered ? colors.danger : `${colors.textTertiary}77`} />

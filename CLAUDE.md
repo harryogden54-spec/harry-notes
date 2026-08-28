@@ -643,6 +643,39 @@ and no `flexWrap`, and the third pill only renders when `archived.length > 0` �
 so "Archive · N" ran past the right edge and was sliced off, and the bug was
 invisible on a clean store. Both rows now wrap.
 
+August 28, third batch — the hitSlop sweep finished:
+
+**All 90 `hitSlop` sites addressed.** They fell into four shapes and each needed
+a different fix, so this was not a find-and-replace:
+  - **bare (41)** — no `style` at all, so nothing is painted over new padding:
+    scripted `style={{ margin: -8, padding: 8 }}`. The negative margin cancels
+    the padding's layout effect exactly, so the control looks and sits where it
+    did while the tappable box grows 8px on every side.
+  - **painted (19)** — a background, border or radius is drawn on the box, so
+    growing padding would grow the visible chip/circle/swatch. The Pressable
+    became a transparent padded wrapper and the painted box moved to an inner
+    View (`components/ui/TapTarget` does this generically).
+  - **plain-pad (22)** and **fn-style (8)** — padding raised and matched with a
+    negative margin, keeping the laid-out footprint identical.
+`hitSlop` was LEFT in place everywhere: it is dead on web but real on native.
+Measured before/after at 375px: light/dark toggle 18×8 → 52×43, Today's tick
+20×20 → 44×44, Today reorder 16×22 → 34×40, calendar month nav 22×23 → 40×40,
+goal tick 15×17 → 37×39, Courses "Delete row" 26×15 → 26×39. Verified no
+element goes out of bounds and no screen scrolls horizontally afterwards.
+
+**Accessible names.** `Checkbox` accepted an `accessibilityLabel` that almost no
+caller passed, so the main task tick, subtask ticks and note checklist items
+were nameless to a screen reader. All labelled. `Checkbox` also gained
+`decorative` for the one nested inside `AddDumpBox`'s HandwrittenToggle, whose
+parent already carries the role, label and checked state — without it the tree
+held a second, nameless checkbox right after the real one.
+
+**CORRECTION to the 2026-08-28 audit:** it claimed the desktop/mobile breakpoint
+only evaluates on load. **That was a measurement artifact, not a bug.** Re-tested
+properly: at 1280 the Tasks title sits at x=106 (sidebar present), and after
+resizing to 375 with no reload it moves to x=16. The layout reflows correctly.
+Do not "fix" it.
+
 In progress: —
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface

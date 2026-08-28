@@ -212,7 +212,7 @@ function DumpScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
                         <Text size="meta" tertiary style={{ textTransform: "uppercase", flex: 1 }}>{d.tag}</Text>
                         {d.filed && <Ionicons name="checkmark-circle" size={iconSize.xs} color={colors.accent} />}
-                        <Pressable onPress={() => handleDelete(d.id)} hitSlop={8} accessibilityLabel="Delete capture">
+                        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => handleDelete(d.id)} hitSlop={8} accessibilityLabel="Delete capture">
                           <Ionicons name="close-outline" size={iconSize.sm} color={colors.textTertiary} />
                         </Pressable>
                       </View>

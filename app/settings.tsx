@@ -429,7 +429,7 @@ export default function SettingsScreen() {
                 <ScrollView contentContainerStyle={{ padding: spacing[4], gap: spacing[4] }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[3] }}>
                     <Text size="lg" weight="bold" style={{ flex: 1 }}>Encryption at rest</Text>
-                    <Pressable onPress={() => setShowEncSheet(false)} hitSlop={8} accessibilityLabel="Close">
+                    <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setShowEncSheet(false)} hitSlop={8} accessibilityLabel="Close">
                       <Ionicons name="close-outline" size={22} color={colors.textSecondary} />
                     </Pressable>
                   </View>
@@ -509,7 +509,7 @@ export default function SettingsScreen() {
               <SafeAreaView style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
                   <Text size="lg" weight="bold" style={{ flex: 1 }}>Sync key</Text>
-                  <Pressable onPress={() => setShowKeySheet(false)} hitSlop={12}>
+                  <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setShowKeySheet(false)} hitSlop={12}>
                     <Text size="sm" style={{ color: colors.accent }}>Done</Text>
                   </Pressable>
                 </View>
@@ -581,7 +581,7 @@ export default function SettingsScreen() {
               <SafeAreaView style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
                   <Text size="lg" weight="bold" style={{ flex: 1 }}>Trash</Text>
-                  <Pressable onPress={() => setShowTrash(false)} hitSlop={12}>
+                  <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setShowTrash(false)} hitSlop={12}>
                     <Text size="sm" style={{ color: colors.accent }}>Done</Text>
                   </Pressable>
                 </View>

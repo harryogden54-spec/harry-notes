@@ -51,7 +51,7 @@ export function ToastContainer() {
         >
           <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{toast.message}</Text>
           {toast.action && (
-            <Pressable
+            <Pressable style={{ margin: -8, padding: 8 } as any}
               onPress={() => {
                 toast.action!.onPress();
                 dismissToast(toast.id);
@@ -63,7 +63,7 @@ export function ToastContainer() {
               </Text>
             </Pressable>
           )}
-          <Pressable onPress={() => dismissToast(toast.id)} hitSlop={8}>
+          <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => dismissToast(toast.id)} hitSlop={8}>
             <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
           </Pressable>
         </View>

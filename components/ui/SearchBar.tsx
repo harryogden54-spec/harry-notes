@@ -45,7 +45,7 @@ export function SearchBar({ value, onChange, placeholder = "Search…", inputRef
         ]}
       />
       {value.length > 0 && (
-        <Pressable onPress={() => onChange("")} hitSlop={8}>
+        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onChange("")} hitSlop={8}>
           <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
         </Pressable>
       )}

@@ -104,6 +104,9 @@ export const TaskCard = React.memo(function TaskCard({
           size={22}
           checked={selectMode ? selected : task.done}
           onToggle={selectMode ? (onSelect ?? (() => {})) : onToggleDone}
+          accessibilityLabel={selectMode
+            ? `Select "${task.title}"`
+            : task.done ? `Mark "${task.title}" not done` : `Mark "${task.title}" done`}
         />
       </View>
       <View style={{ flex: 1, gap: spacing[2], minWidth: 0 }}>

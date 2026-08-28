@@ -258,7 +258,7 @@ function CoursesScreen() {
                           hitSlop={6}
                           accessibilityLabel={`Restore ${table.title || "table"}`}
                           style={({ hovered }: any) => ({
-                            paddingHorizontal: spacing[2.5], paddingVertical: spacing[1.5],
+                            paddingHorizontal: spacing[2.5], paddingVertical: 11, marginVertical: -5,
                             borderRadius: radius.md,
                             backgroundColor: hovered ? colors.bgTertiary : "transparent",
                           })}
@@ -270,7 +270,7 @@ function CoursesScreen() {
                           hitSlop={6}
                           accessibilityLabel={`Delete ${table.title || "table"}`}
                           style={({ hovered }: any) => ({
-                            padding: spacing[1.5], borderRadius: radius.md,
+                            padding: 11, margin: -5, borderRadius: radius.md,
                             backgroundColor: hovered ? `${colors.danger}14` : "transparent",
                           })}
                         >

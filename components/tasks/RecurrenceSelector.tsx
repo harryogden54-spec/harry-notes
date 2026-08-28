@@ -86,7 +86,7 @@ function RecurrenceModal({
         >
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing[5], marginBottom: spacing[3] }}>
             <Text size="base" weight="semibold">Repeat</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={onClose} hitSlop={8}>
               <Text size="sm" style={{ color: colors.textTertiary }}>Done</Text>
             </Pressable>
           </View>

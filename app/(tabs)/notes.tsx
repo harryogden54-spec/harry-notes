@@ -328,10 +328,10 @@ function NotesScreen() {
             <Text size="sm" style={{ flex: 1, color: colors.textTertiary }} numberOfLines={1}>
               {noteDisplayTitle(n)}
             </Text>
-            <Pressable onPress={() => { animate(); unarchiveNote(n.id); }} hitSlop={8}>
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => { animate(); unarchiveNote(n.id); }} hitSlop={8}>
               <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
             </Pressable>
-            <Pressable onPress={() => { animate(); deleteNote(n.id); }} hitSlop={8}>
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => { animate(); deleteNote(n.id); }} hitSlop={8}>
               <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
             </Pressable>
           </View>

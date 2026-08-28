@@ -291,7 +291,8 @@ function TasksScreen() {
                   <Text size="title" weight="bold">Tasks</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], flexShrink: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <Pressable onPress={() => setShowCategoriesModal(true)} hitSlop={10} accessibilityLabel="Edit categories"
-                      style={{ padding: spacing[1] }}>
+                      accessibilityRole="button"
+                      style={{ padding: 11, margin: -7 } as any}>
                       <Ionicons name="pricetags-outline" size={16} color={colors.textSecondary} />
                     </Pressable>
                     {([ ["focus", focusMode, () => setFocusMode(v => !v), "Focus"],
@@ -410,7 +411,7 @@ function TasksScreen() {
                           </View>
                           <Ionicons name={completedCollapsed ? "chevron-down" : "chevron-up"} size={12} color={colors.textTertiary} />
                         </Pressable>
-                        <Pressable onPress={handleClearCompleted} hitSlop={8}>
+                        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={handleClearCompleted} hitSlop={8}>
                           <Text size="xs" style={{ color: colors.accent }}>Clear completed</Text>
                         </Pressable>
                       </View>
@@ -443,10 +444,10 @@ function TasksScreen() {
                         <Text size="sm" style={{ flex: 1, color: colors.textTertiary, textDecorationLine: "line-through", opacity: 0.7 }} numberOfLines={1}>
                           {task.title}
                         </Text>
-                        <Pressable onPress={() => unarchiveTask(task.id)} hitSlop={8}>
+                        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => unarchiveTask(task.id)} hitSlop={8}>
                           <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
                         </Pressable>
-                        <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
+                        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => deleteTask(task.id)} hitSlop={8}>
                           <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
                         </Pressable>
                       </View>

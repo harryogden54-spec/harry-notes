@@ -31,6 +31,7 @@ export function SubtasksList({ subtasks, onChange }: Props) {
             checked={sub.done}
             onToggle={() => onChange(list.map(s => s.id === sub.id ? { ...s, done: !s.done } : s))}
             size={15}
+            accessibilityLabel={sub.done ? `Mark subtask "${sub.title}" not done` : `Mark subtask "${sub.title}" done`}
           />
           <Text size="sm" style={{
             flex: 1,
@@ -39,7 +40,7 @@ export function SubtasksList({ subtasks, onChange }: Props) {
           }}>
             {sub.title}
           </Text>
-          <Pressable onPress={() => onChange(list.filter(s => s.id !== sub.id))} hitSlop={8}>
+          <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onChange(list.filter(s => s.id !== sub.id))} hitSlop={8}>
             <Ionicons name="close-outline" size={14} color={colors.textTertiary} />
           </Pressable>
         </View>
@@ -66,7 +67,7 @@ export function SubtasksList({ subtasks, onChange }: Props) {
           ]}
         />
         {input.length > 0 && (
-          <Pressable onPress={addSubtask} hitSlop={8}>
+          <Pressable style={{ margin: -8, padding: 8 } as any} onPress={addSubtask} hitSlop={8}>
             <Text size="xs" style={{ color: colors.accent }} weight="medium">Add</Text>
           </Pressable>
         )}

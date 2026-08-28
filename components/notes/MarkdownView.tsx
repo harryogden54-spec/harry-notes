@@ -146,7 +146,8 @@ const MarkdownLine = React.memo(function MarkdownLine({ line, index, colors, rep
     return (
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[2], marginVertical: 2 }}>
         <View style={{ marginTop: 3 }}>
-          <Checkbox checked={checked} onToggle={() => onToggleCheckbox?.(index)} size={16} />
+          <Checkbox checked={checked} onToggle={() => onToggleCheckbox?.(index)} size={16}
+            accessibilityLabel={checked ? "Uncheck item" : "Check item"} />
         </View>
         <Text style={{ flex: 1, color: checked ? colors.textTertiary : colors.textSecondary, fontSize: 15, lineHeight: 24, textDecorationLine: checked ? "line-through" : "none" }}>
           {renderInline(cbMatch[2], colors)}

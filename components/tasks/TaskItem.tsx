@@ -116,7 +116,8 @@ export const TaskItem = React.memo(function TaskItem({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5], paddingHorizontal: spacing[3], paddingVertical: compact ? spacing[1] : spacing[2] }}>
             {selectMode ? (
-              <Checkbox shape="circle" checked={selected} onToggle={onSelect} size={16} />
+              <Checkbox shape="circle" checked={selected} onToggle={onSelect} size={16}
+                accessibilityLabel={`Select "${task.title}"`} />
             ) : (
               <Checkbox
                 shape="circle"
@@ -128,11 +129,12 @@ export const TaskItem = React.memo(function TaskItem({
                   }
                   onUpdate(task.id, { done: !task.done });
                 }}
+                accessibilityLabel={task.done ? `Mark "${task.title}" not done` : `Mark "${task.title}" done`}
               />
             )}
             {/* Priority dot — beside the checkbox; tap to edit inline */}
             {!selectMode && (
-              <Pressable
+              <Pressable style={{ margin: -8, padding: 8 } as any}
                 onPress={e => { (e as any).stopPropagation?.(); if (!task.done) setInlineField(f => f === "priority" ? null : "priority"); }}
                 hitSlop={8}
               >
@@ -159,7 +161,7 @@ export const TaskItem = React.memo(function TaskItem({
                 {!compact && (
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing[1.5], alignItems: "center" }}>
                     {task.due_date ? (
-                      <Pressable
+                      <Pressable style={{ margin: -8, padding: 8 } as any}
                         onPress={e => { (e as any).stopPropagation?.(); if (!selectMode) setInlineField(f => f === "due_date" ? null : "due_date"); }}
                         hitSlop={6}
                       >
@@ -169,7 +171,7 @@ export const TaskItem = React.memo(function TaskItem({
                         }}>{formatDate(task.due_date)}</Text>
                       </Pressable>
                     ) : !selectMode && !task.done ? (
-                      <Pressable
+                      <Pressable style={{ margin: -8, padding: 8 } as any}
                         onPress={e => { (e as any).stopPropagation?.(); setInlineField(f => f === "due_date" ? null : "due_date"); }}
                         hitSlop={6}
                       >
@@ -184,12 +186,18 @@ export const TaskItem = React.memo(function TaskItem({
               {hovered && !selectMode && !isExpanded && (
                 <View style={{ flexDirection: "row", gap: 2 }}>
                   <Pressable onPress={(e) => { e.stopPropagation?.(); onReorderUp(); }} hitSlop={6}
-                    style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
-                    <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
+                    accessibilityRole="button" accessibilityLabel="Move task up"
+                    style={{ margin: -9, padding: 9 } as any}>
+                    <View style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
+                      <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
+                    </View>
                   </Pressable>
                   <Pressable onPress={(e) => { e.stopPropagation?.(); onReorderDown(); }} hitSlop={6}
-                    style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
-                    <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
+                    accessibilityRole="button" accessibilityLabel="Move task down"
+                    style={{ margin: -9, padding: 9 } as any}>
+                    <View style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
+                      <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
+                    </View>
                   </Pressable>
                 </View>
               )}

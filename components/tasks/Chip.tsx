@@ -32,7 +32,7 @@ export const Chip = React.memo(function Chip({ label, color, onRemove, active, o
         {label}
       </Text>
       {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={6}>
+        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={onRemove} hitSlop={6}>
           <Text size="xs" style={{ color: color ?? colors.textTertiary }}>×</Text>
         </Pressable>
       )}

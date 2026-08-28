@@ -104,7 +104,7 @@ export function AddTaskRow({ onAdd, inputRef, onExpand }: Props) {
               <Text size="xs" weight="medium" style={{ color: colors.textInverse }}>Add</Text>
             </Pressable>
           )}
-          <Pressable
+          <Pressable style={{ margin: -8, padding: 8 } as any}
             onPress={() => { onExpand?.(value); setValue(""); }}
             hitSlop={8}
             accessibilityLabel="More task options"

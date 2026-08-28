@@ -14,9 +14,16 @@ interface CheckboxProps extends Omit<PressableProps, "onPress"> {
   /** "circle" matches the task-card design language; "square" is the default elsewhere. */
   shape?: "square" | "circle";
   accessibilityLabel?: string;
+  /**
+   * This checkbox sits inside a parent that already carries the role, label and
+   * checked state (see AddDumpBox's HandwrittenToggle). Without this it appears
+   * in the accessibility tree a second time, unnamed — a screen reader reads a
+   * nameless checkbox immediately after the real one.
+   */
+  decorative?: boolean;
 }
 
-export function Checkbox({ checked, onToggle, size = 18, shape = "square", accessibilityLabel, ...props }: CheckboxProps) {
+export function Checkbox({ checked, onToggle, size = 18, shape = "square", accessibilityLabel, decorative = false, ...props }: CheckboxProps) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -33,12 +40,15 @@ export function Checkbox({ checked, onToggle, size = 18, shape = "square", acces
   }
 
   return (
-    <Pressable
+    <Pressable style={{ margin: -8, padding: 8 } as any}
       onPress={handleToggle}
       hitSlop={8}
-      accessibilityRole="checkbox"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ checked }}
+      accessibilityRole={decorative ? undefined : "checkbox"}
+      accessibilityLabel={decorative ? undefined : accessibilityLabel}
+      accessibilityState={decorative ? undefined : { checked }}
+      focusable={!decorative}
+      // @ts-ignore web-only: keep the duplicate out of the accessibility tree
+      aria-hidden={decorative ? true : undefined}
       {...props}
     >
       <Animated.View

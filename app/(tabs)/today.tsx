@@ -5,7 +5,7 @@ import {
   KeyboardAvoidingView, Platform, Modal, RefreshControl,
 } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
-import { SideSafeArea } from "@/components/ui";
+import { SideSafeArea, TapTarget } from "@/components/ui";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
@@ -152,37 +152,43 @@ function TodayScreen() {
         {/* Reorder: long-press drag handle on native, ↑/↓ buttons on web
             (RNGH drag is unreliable on web — same pattern as TaskItem). */}
         {Platform.OS !== "web" ? (
-          <Pressable onLongPress={drag} hitSlop={8} delayLongPress={150}>
+          <Pressable style={{ margin: -8, padding: 8 } as any} onLongPress={drag} hitSlop={8} delayLongPress={150}>
             <Ionicons name="reorder-three-outline" size={16} color={colors.textTertiary} />
           </Pressable>
         ) : (
           <View style={{ flexDirection: "row", gap: 2 }}>
-            <Pressable onPress={() => onMoveItem(item.id, "up")} hitSlop={6}
-              style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
-              <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
-            </Pressable>
-            <Pressable onPress={() => onMoveItem(item.id, "down")} hitSlop={6}
-              style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
-              <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
-            </Pressable>
+            <TapTarget onPress={() => onMoveItem(item.id, "up")} accessibilityLabel="Move up" inset={9}>
+              <View style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
+                <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
+              </View>
+            </TapTarget>
+            <TapTarget onPress={() => onMoveItem(item.id, "down")} accessibilityLabel="Move down" inset={9}>
+              <View style={{ padding: 3, borderRadius: 4, backgroundColor: colors.bgTertiary }}>
+                <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
+              </View>
+            </TapTarget>
           </View>
         )}
 
-        <Pressable
+        <TapTarget
           onPress={() => onToggleItem(item.id)}
-          hitSlop={8}
-          style={{
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: false }}
+          accessibilityLabel={`Mark "${item.text}" done`}
+          inset={12}
+        >
+          <View style={{
             width: 20, height: 20, borderRadius: 10,
             borderWidth: 1.5,
             borderColor: colors.bgBorder,
             backgroundColor: "transparent",
             alignItems: "center", justifyContent: "center",
-          }}
-        />
+          }} />
+        </TapTarget>
 
         <Text size="sm" style={{ flex: 1, color: colors.textPrimary }}>{item.text}</Text>
 
-        <Pressable onPress={() => onDeleteItem(item.id)} hitSlop={8}>
+        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onDeleteItem(item.id)} hitSlop={8}>
           <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
         </Pressable>
       </View>
@@ -204,7 +210,7 @@ function TodayScreen() {
                 <View style={{ backgroundColor: colors.bgSecondary, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing[5], gap: spacing[4] }}>
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                     <Text size="base" weight="semibold">Set time block</Text>
-                    <Pressable onPress={() => setTimePickerFor(null)} hitSlop={12}>
+                    <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setTimePickerFor(null)} hitSlop={12}>
                       <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
                     </Pressable>
                   </View>
@@ -587,7 +593,7 @@ function CompletedRow({ item, onToggle, onDelete, isLast }: {
       }}>
         {item.text}
       </Text>
-      <Pressable onPress={onDelete} hitSlop={8}>
+      <Pressable style={{ margin: -8, padding: 8 } as any} onPress={onDelete} hitSlop={8}>
         <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
       </Pressable>
     </View>
@@ -708,17 +714,17 @@ function TimelineItemRow({ item, colors, onToggle, onDelete, onPickTime, onClear
       {/* Text */}
       <Text size="sm" style={{ flex: 1, color: colors.textPrimary }} numberOfLines={2}>{item.text}</Text>
       {/* Clock button — assign / change time */}
-      <Pressable onPress={() => item.time_block ? onClearTime(item.id) : onPickTime(item.id)} hitSlop={8}>
+      <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => item.time_block ? onClearTime(item.id) : onPickTime(item.id)} hitSlop={8}>
         <Ionicons name="timer-outline" size={14} color={item.time_block ? colors.accent : colors.textTertiary} />
       </Pressable>
       {/* If has time, show change button */}
       {item.time_block && (
-        <Pressable onPress={() => onPickTime(item.id)} hitSlop={8}>
+        <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onPickTime(item.id)} hitSlop={8}>
           <Text size="xs" style={{ color: colors.accent }}>{formatHour(item.time_block)}</Text>
         </Pressable>
       )}
       {/* Delete */}
-      <Pressable onPress={() => onDelete(item.id)} hitSlop={8}>
+      <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => onDelete(item.id)} hitSlop={8}>
         <Ionicons name="close-outline" size={16} color={colors.textTertiary} />
       </Pressable>
     </View>

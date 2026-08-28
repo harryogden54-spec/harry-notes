@@ -83,23 +83,32 @@ export function IconButton({
  * honest replacement for `hitSlop={n}`.
  */
 export function TapTarget({
-  children, onPress, accessibilityLabel, inset = 10, style, disabled = false,
+  children, onPress, onLongPress, accessibilityLabel, inset = 10, style,
+  disabled = false, accessibilityRole = "button", accessibilityState,
 }: {
   children: React.ReactNode;
-  onPress: () => void;
+  onPress?: () => void;
+  onLongPress?: () => void;
   accessibilityLabel: string;
   inset?: number;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  accessibilityRole?: "button" | "checkbox";
+  accessibilityState?: { checked?: boolean; disabled?: boolean; selected?: boolean };
 }) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={disabled}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled, ...accessibilityState }}
       style={[{ margin: -inset, padding: inset } as any, style]}
     >
+      {/* pointerEvents none so the press always resolves on the Pressable
+          itself — an inner Pressable would swallow the click on web, the
+          same trap that made dashboard task rows unopenable in July. */}
       <View pointerEvents="none">{children}</View>
     </Pressable>
   );

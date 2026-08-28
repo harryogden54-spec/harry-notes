@@ -155,7 +155,7 @@ export function BrowseBox({ dumps, selectedDay, onSelectDay }: Props) {
             ]}
           />
           {!!q && (
-            <Pressable onPress={() => setQuery("")} hitSlop={8} accessibilityLabel="Clear search">
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setQuery("")} hitSlop={8} accessibilityLabel="Clear search">
               <Ionicons name="close-outline" size={iconSize.sm} color={colors.textTertiary} />
             </Pressable>
           )}

@@ -98,10 +98,12 @@ function CategoryRow({
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2.5] }}>
         <Pressable
           onPress={() => setPickingColor(v => !v)}
-          hitSlop={8}
+          accessibilityRole="button"
           accessibilityLabel="Change colour"
-          style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: swatch.color }}
-        />
+          style={{ margin: -11, padding: 11 } as any}
+        >
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: swatch.color }} />
+        </Pressable>
         <TextInput
           value={name}
           onChangeText={setName}
@@ -116,13 +118,21 @@ function CategoryRow({
           ]}
         />
         <View style={{ flexDirection: "row", gap: 2 }}>
-          <Pressable onPress={onMoveUp} disabled={isFirst} hitSlop={6}
-            style={{ padding: 4, borderRadius: 4, backgroundColor: colors.bgTertiary, opacity: isFirst ? 0.35 : 1 }}>
-            <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
+          <Pressable onPress={onMoveUp} disabled={isFirst}
+            accessibilityRole="button" accessibilityLabel="Move category up"
+            accessibilityState={{ disabled: isFirst }}
+            style={{ margin: -9, padding: 9 } as any}>
+            <View style={{ padding: 4, borderRadius: 4, backgroundColor: colors.bgTertiary, opacity: isFirst ? 0.35 : 1 }}>
+              <Text size="xs" style={{ color: colors.textTertiary }}>↑</Text>
+            </View>
           </Pressable>
-          <Pressable onPress={onMoveDown} disabled={isLast} hitSlop={6}
-            style={{ padding: 4, borderRadius: 4, backgroundColor: colors.bgTertiary, opacity: isLast ? 0.35 : 1 }}>
-            <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
+          <Pressable onPress={onMoveDown} disabled={isLast}
+            accessibilityRole="button" accessibilityLabel="Move category down"
+            accessibilityState={{ disabled: isLast }}
+            style={{ margin: -9, padding: 9 } as any}>
+            <View style={{ padding: 4, borderRadius: 4, backgroundColor: colors.bgTertiary, opacity: isLast ? 0.35 : 1 }}>
+              <Text size="xs" style={{ color: colors.textTertiary }}>↓</Text>
+            </View>
           </Pressable>
         </View>
       </View>
@@ -163,11 +173,11 @@ function CategoryRow({
             {/* Archive is the reversible retirement: the row and its id stay,
                 so tasks already filed here keep their badge. Delete is still
                 here for a category that was a mistake. */}
-            <Pressable onPress={() => setCategoryArchived(category.id, true)} hitSlop={6}
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setCategoryArchived(category.id, true)} hitSlop={6}
               accessibilityLabel={`Archive ${category.name}`}>
               <Ionicons name="archive-outline" size={14} color={colors.textTertiary} />
             </Pressable>
-            <Pressable onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
               <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
             </Pressable>
           </View>
@@ -232,7 +242,7 @@ function ArchivedRow({ category, count, descendantIds }: {
             <Ionicons name="arrow-undo-outline" size={12} color={colors.accent} />
             <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
           </Pressable>
-          <Pressable onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
+          <Pressable style={{ margin: -8, padding: 8 } as any} onPress={handleDelete} hitSlop={6} accessibilityLabel={`Delete ${category.name}`}>
             <Ionicons name="trash-outline" size={14} color={colors.textTertiary} />
           </Pressable>
         </View>
@@ -291,7 +301,7 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
         <SafeAreaView style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: spacing[4], paddingVertical: spacing[3], borderBottomWidth: 1, borderBottomColor: colors.bgBorder }}>
             <Text size="lg" weight="bold" style={{ flex: 1 }}>Edit categories</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable style={{ margin: -8, padding: 8 } as any} onPress={onClose} hitSlop={12}>
               <Text size="sm" style={{ color: colors.accent }}>Done</Text>
             </Pressable>
           </View>
@@ -351,7 +361,7 @@ export function CategoriesManageModal({ visible, onClose }: Props) {
                                  backgroundColor: draft.trim() ? colors.accent : colors.bgTertiary }}>
                         <Text size="xs" weight="semibold" style={{ color: draft.trim() ? colors.textInverse : colors.textTertiary }}>Add</Text>
                       </Pressable>
-                      <Pressable
+                      <Pressable style={{ margin: -8, padding: 8 } as any}
                         onPress={() => setSubDrafts(d => { const n = { ...d }; delete n[cat.id]; return n; })}
                         hitSlop={8}
                       >

@@ -221,7 +221,7 @@ export function AddDumpBox({ date, onDateChange, filed, draft, onReadDay }: Prop
       accessibilityLabel="Written by hand"
     >
       <View pointerEvents="none">
-        <Checkbox size={16} checked={handwritten} onToggle={toggleHandwritten} />
+        <Checkbox size={16} checked={handwritten} onToggle={toggleHandwritten} decorative />
       </View>
       <Text size="meta" secondary>Written by hand</Text>
     </Pressable>
@@ -274,7 +274,7 @@ export function AddDumpBox({ date, onDateChange, filed, draft, onReadDay }: Prop
     <View style={{ gap: spacing[3] }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
         <Text size="cardTitle" weight="semibold" style={{ flex: 1 }}>Add a dump</Text>
-        <Pressable
+        <Pressable style={{ margin: -8, padding: 8 } as any}
           onPress={() => setExpanded(true)}
           hitSlop={10}
           accessibilityLabel="Expand"
@@ -413,7 +413,7 @@ export function AddDumpBox({ date, onDateChange, filed, draft, onReadDay }: Prop
               <Text size="lg" weight="bold" style={{ flex: 1 }}>
                 Add a dump · {date === today ? "today" : shortDate(date)}
               </Text>
-              <Pressable onPress={() => setExpanded(false)} hitSlop={10} accessibilityLabel="Close">
+              <Pressable style={{ margin: -8, padding: 8 } as any} onPress={() => setExpanded(false)} hitSlop={10} accessibilityLabel="Close">
                 <Ionicons name="contract-outline" size={iconSize.md} color={colors.textTertiary} />
               </Pressable>
             </View>
