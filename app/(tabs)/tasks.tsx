@@ -282,9 +282,14 @@ function TasksScreen() {
             >
               {/* Header */}
               <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                {/* Wraps, and the pill row is allowed to shrink. Without both, the
+                    third pill (only rendered once something is archived, so
+                    invisible on a clean store) pushed the row past the right
+                    edge on a 375px screen — the page does not scroll
+                    horizontally, so "Archive · N" was simply sliced off. */}
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing[2] }}>
                   <Text size="title" weight="bold">Tasks</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], flexShrink: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <Pressable onPress={() => setShowCategoriesModal(true)} hitSlop={10} accessibilityLabel="Edit categories"
                       style={{ padding: spacing[1] }}>
                       <Ionicons name="pricetags-outline" size={16} color={colors.textSecondary} />

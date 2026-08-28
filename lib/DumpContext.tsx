@@ -185,7 +185,21 @@ function normalizeDump(d: Dump): Dump {
   return {
     ...d,
     content:   typeof d.content   === "string" ? d.content   : "",
-    tag:       DUMP_TAGS.includes(d.tag as DumpTag) ? d.tag : "journal",
+    // An UNRECOGNISED tag is preserved, never rewritten.
+    //
+    // This used to coerce to "journal", and that turned a forward-compatibility
+    // nicety into a data-destroying one: a client older than a newly-added tag
+    // read the row, rewrote the tag to "journal", saved that locally and pushed
+    // it back — permanently losing what the row actually was. It happened for
+    // real on 2026-08-28, when goals reached a device still running the
+    // previous bundle and came back as journal entries in the undated drawer.
+    //
+    // Preserving the value costs nothing: readers key off specific tags
+    // ("journal", "spark", "goal"), so an unknown one simply matches none of
+    // them and stays inert until the client that understands it loads. Callers
+    // that map a tag to a label must tolerate a miss — see TAG_LABEL in
+    // BrowseBox.
+    tag:       typeof d.tag === "string" && d.tag ? d.tag : "journal",
     // Absence is a real state now — don't substitute today's date for it.
     note_date: typeof d.note_date === "string" && d.note_date ? d.note_date : undefined,
     filed:     !!d.filed,

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { Text } from "@/components/ui";
+import { Text, IconButton } from "@/components/ui";
 import { spacing, radius, iconSize } from "@/lib/theme";
 import { getLocalDateStr, MONTH_NAMES } from "@/lib/utils";
 import { isFiled, type Dump } from "@/lib/DumpContext";
@@ -94,17 +94,13 @@ export function MonthCalendar({ marks, selected, onSelect }: Props) {
     <View style={{ gap: spacing[3] }}>
       {/* Month switcher */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
-        <Pressable onPress={() => shift(-1)} hitSlop={10} accessibilityLabel="Previous month"
-          style={{ padding: spacing[1], borderRadius: radius.md }}>
-          <Ionicons name="chevron-back" size={iconSize.sm} color={colors.textSecondary} />
-        </Pressable>
+        <IconButton name="chevron-back" onPress={() => shift(-1)} accessibilityLabel="Previous month"
+          size={40} iconSize={iconSize.sm} />
         <Text size="cardTitle" weight="semibold" style={{ flex: 1, textAlign: "center" }}>
           {MONTH_NAMES[cursor.month]} {cursor.year}
         </Text>
-        <Pressable onPress={() => shift(1)} hitSlop={10} accessibilityLabel="Next month"
-          style={{ padding: spacing[1], borderRadius: radius.md }}>
-          <Ionicons name="chevron-forward" size={iconSize.sm} color={colors.textSecondary} />
-        </Pressable>
+        <IconButton name="chevron-forward" onPress={() => shift(1)} accessibilityLabel="Next month"
+          size={40} iconSize={iconSize.sm} />
       </View>
 
       {!isCurrentMonth && (

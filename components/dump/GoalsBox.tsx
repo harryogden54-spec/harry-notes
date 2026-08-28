@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from "react";
 import { View, Pressable, ScrollView, Modal, TextInput as RNTextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/lib/useTheme";
-import { Text, Select } from "@/components/ui";
+import { Text, Select, IconButton } from "@/components/ui";
 import { spacing, radius, shape, fontFamily, iconSize, inputText } from "@/lib/theme";
 import {
   useDumpsActions, goalsForHorizon, goalsOf, goalTitle, goalDetail,
@@ -101,17 +101,8 @@ export function GoalsBox({ dumps }: Props) {
           <Text size="meta" tertiary>{open}</Text>
         </View>
         <View style={{ flex: 1 }} />
-        <Pressable
-          onPress={() => setEditing("new")}
-          hitSlop={8}
-          accessibilityLabel="Add a goal"
-          style={({ hovered }: any) => ({
-            padding: spacing[1], borderRadius: radius.md,
-            backgroundColor: hovered ? colors.bgTertiary : "transparent",
-          })}
-        >
-          <Ionicons name="add" size={iconSize.sm} color={colors.textSecondary} />
-        </Pressable>
+        <IconButton name="add" onPress={() => setEditing("new")} accessibilityLabel="Add a goal"
+          size={38} iconSize={iconSize.sm} style={{ marginVertical: -8 }} />
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing[4], paddingBottom: spacing[2] }}>
@@ -165,11 +156,11 @@ function GoalRow({ goal, expanded, onToggleExpand, onToggleAchieved, onEdit }: {
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[2] }}>
         <Pressable
           onPress={onToggleAchieved}
-          hitSlop={8}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: done }}
           accessibilityLabel={done ? `Mark "${goalTitle(goal)}" not achieved` : `Mark "${goalTitle(goal)}" achieved`}
-          style={{ paddingTop: 2 }}
+          // Real padding, not hitSlop — see components/ui/IconButton.
+          style={{ margin: -11, padding: 11, paddingTop: 13 } as any}
         >
           <View style={{
             width: 15, height: 15, borderRadius: 999,
@@ -200,18 +191,21 @@ function GoalRow({ goal, expanded, onToggleExpand, onToggleAchieved, onEdit }: {
         </Pressable>
 
         {!!detail && (
-          <Pressable onPress={onToggleExpand} hitSlop={8} accessibilityLabel={expanded ? "Hide detail" : "Show detail"}>
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={iconSize.xs}
-              color={colors.textTertiary}
-              style={{ marginTop: 4 }}
-            />
-          </Pressable>
+          <IconButton
+            name={expanded ? "chevron-up" : "chevron-down"}
+            onPress={onToggleExpand}
+            accessibilityLabel={expanded ? "Hide detail" : "Show detail"}
+            size={34} iconSize={iconSize.xs} color={colors.textTertiary}
+            style={{ marginTop: -8, marginBottom: -8 }}
+          />
         )}
-        <Pressable onPress={onEdit} hitSlop={8} accessibilityLabel={`Edit "${goalTitle(goal)}"`}>
-          <Ionicons name="create-outline" size={iconSize.xs} color={colors.textTertiary} style={{ marginTop: 4 }} />
-        </Pressable>
+        <IconButton
+          name="create-outline"
+          onPress={onEdit}
+          accessibilityLabel={`Edit "${goalTitle(goal)}"`}
+          size={34} iconSize={iconSize.xs} color={colors.textTertiary}
+          style={{ marginTop: -8, marginBottom: -8 }}
+        />
       </View>
 
       {expanded && !!detail && (

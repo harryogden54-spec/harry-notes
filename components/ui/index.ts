@@ -20,3 +20,4 @@ export { Surface }             from "./Surface";
 export { SideSafeArea }        from "./SideSafeArea";
 export { FocusTimer }          from "./FocusTimer";
 export { RouteFade }           from "./RouteFade";
+export { IconButton, TapTarget } from "./IconButton";

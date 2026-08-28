@@ -121,28 +121,37 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
       <View style={{ flex: 1, alignItems: "center" }}>
         <SyncChip />
       </View>
+      {/* The touch target is the outer Pressable, inflated with padding and
+          pulled back with an equal negative margin so the header keeps its
+          height. `hitSlop` used to do this job and does nothing on web — see
+          components/ui/IconButton for the full story. */}
       <Pressable
         onPress={toggleScheme}
-        hitSlop={8}
+        accessibilityRole="button"
         accessibilityLabel={scheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         // @ts-ignore web-only tooltip
         title={Platform.OS === "web" ? (scheme === "dark" ? "Switch to light mode" : "Switch to dark mode") : undefined}
-        style={({ hovered, pressed }: any) => ({
-          paddingHorizontal: spacing[2], paddingVertical: 3,
-          borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
-          backgroundColor: hovered ? colors.bgTertiary : "transparent",
-          ...(Platform.OS === "web" ? {
-            transitionProperty: "background-color, transform",
-            transitionDuration: "120ms",
-            transform: [{ scale: pressed ? 0.96 : 1 }],
-          } : {}),
-        } as any)}
+        style={{ margin: -10, padding: 10 } as any}
       >
-        <Ionicons
-          name={scheme === "dark" ? "moon-outline" : "sunny-outline"}
-          size={13}
-          color={colors.textSecondary}
-        />
+        {({ hovered, pressed }: any) => (
+          <View style={{
+            paddingHorizontal: spacing[2], paddingVertical: 3,
+            minWidth: 30, minHeight: 22, alignItems: "center", justifyContent: "center",
+            borderRadius: radius.sm, borderWidth: 1, borderColor: colors.bgBorder,
+            backgroundColor: hovered ? colors.bgTertiary : "transparent",
+            ...(Platform.OS === "web" ? {
+              transitionProperty: "background-color, transform",
+              transitionDuration: "120ms",
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            } : {}),
+          } as any}>
+            <Ionicons
+              name={scheme === "dark" ? "moon-outline" : "sunny-outline"}
+              size={14}
+              color={colors.textSecondary}
+            />
+          </View>
+        )}
       </Pressable>
       {/* Mobile has no pinned sidebar, so Settings was only reachable from the
           Dashboard tab's gear icon — give every screen a way there. Desktop's
@@ -151,9 +160,9 @@ export function PersistentHeader({ showTitle = true }: { showTitle?: boolean }) 
       {showTitle && (
         <Pressable
           onPress={() => router.push("/settings")}
-          hitSlop={8}
+          accessibilityRole="button"
           accessibilityLabel="Settings"
-          style={{ marginLeft: spacing[2], padding: spacing[1] }}
+          style={{ marginLeft: spacing[2] - 8, marginVertical: -8, padding: 8 } as any}
         >
           <Ionicons name="settings-outline" size={16} color={colors.textSecondary} />
         </Pressable>

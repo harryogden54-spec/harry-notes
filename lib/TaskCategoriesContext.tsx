@@ -169,11 +169,24 @@ export function TaskCategoriesProvider({ children }: { children: React.ReactNode
     saveLocal: (items, changes) => {
       if (Platform.OS !== "web") dbSaveTaskCategories(items, changes).catch(console.error);
     },
-    // First-ever load with nothing stored locally (fresh install, or an
-    // install that predates this feature) — seed the two legacy categories so
-    // pre-existing tasks' "personal"/"uni" category ids keep resolving.
-    // Marked dirty so the seed uploads on the next sync.
-    onLoad: (items) => {
+    /**
+      * Seed the two legacy ids so tasks created before categories were editable
+      * ("personal" / "uni") keep resolving to a real name and colour.
+      *
+      * This runs in `onReconciled`, NOT `onLoad`, and that distinction is the
+      * whole point. From `onLoad` it fired before any contact with the server:
+      * on a device with an empty local store — a fresh browser, cleared site
+      * data, a new phone — it minted both rows with `created_at` set to that
+      * moment and marked them dirty. A dirty row wins last-write-wins AND is
+      * shielded from the server by doMerge's dirty guard, so the freshly seeded
+      * defaults overwrote the real categories and pushed the overwrite to every
+      * other device. Reproduced live on 2026-08-28.
+      *
+      * Same failure as the Today carry-forward of 2026-08-15, and the same fix.
+      * By `onReconciled` the server's rows are already merged in, so `items` is
+      * non-empty whenever the categories genuinely exist and nothing is seeded.
+      */
+    onReconciled: (items) => {
       if (items.length > 0) return { items, dirty: [] };
       const now = new Date().toISOString();
       const seeded = DEFAULT_CATEGORIES.map(c => ({ ...c, created_at: now, updated_at: now }));

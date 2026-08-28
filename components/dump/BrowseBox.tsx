@@ -19,6 +19,12 @@ const TAG_LABEL: Record<DumpTag, string> = {
 };
 const TAG_ORDER: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo", "goal"];
 
+/** Label for a tag, falling back to the raw value. normalizeDump deliberately
+ *  preserves tags it does not know, so this lookup can miss. */
+function tagLabel(tag: DumpTag): string {
+  return TAG_LABEL[tag] ?? String(tag);
+}
+
 type Range = "any" | "7d" | "month" | "year";
 const RANGE_OPTIONS: { value: Range; label: string }[] = [
   { value: "any",   label: "Any time" },
@@ -253,7 +259,7 @@ function DayView({ dumps, date }: { dumps: Dump[]; date: string }) {
               borderRadius: radius.md, borderWidth: 1, borderColor: colors.bgBorder,
               backgroundColor: colors.bgTertiary, padding: spacing[2.5], gap: 4,
             }}>
-              <Text size="meta" tertiary style={{ textTransform: "uppercase" }}>{TAG_LABEL[o.tag]}</Text>
+              <Text size="meta" tertiary style={{ textTransform: "uppercase" }}>{tagLabel(o.tag)}</Text>
               <Text size="sm" style={{ lineHeight: 20 }}>{o.content || "Empty…"}</Text>
             </View>
           ))}
@@ -289,7 +295,7 @@ function ResultList({ results, query }: { results: Dump[]; query: string }) {
           }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
               <View style={{ ...shape.pill, paddingVertical: 1, backgroundColor: colors.bgTertiary, borderWidth: 1, borderColor: colors.bgBorder }}>
-                <Text size="meta" secondary>{TAG_LABEL[d.tag]}</Text>
+                <Text size="meta" secondary>{tagLabel(d.tag)}</Text>
               </View>
               <Text size="meta" tertiary style={{ flex: 1 }}>
                 {d.note_date ? shortDate(d.note_date) : "No date"}

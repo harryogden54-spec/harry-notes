@@ -50,7 +50,16 @@ function AppShell() {
   // and causing blank squares (Ionicons) or serif fallback (Inter).
   const [nativeFontsLoaded] = useFonts(
     Platform.OS === "web"
-      ? {} // CSS handles all fonts on web — resolve immediately
+      // Inter comes from global.css and must NOT be registered here (see above).
+      // Ionicons is different: @expo/vector-icons gates EVERY <Ionicons> behind
+      // `Font.isLoaded("ionicons")` and renders a bare <Text /> until its own
+      // load resolves. With nothing registered, each instance fired its own
+      // Font.loadAsync at a Metro-hashed /assets/ URL that Cloudflare serves as
+      // index.html — the face errored, and the first icon to mount (the header
+      // light/dark toggle) never got its setState and stayed permanently blank.
+      // Pointing at the same static file global.css already uses makes the load
+      // succeed, so the gate opens for every icon on first paint.
+      ? { ionicons: "/fonts/Ionicons.ttf" }
       : {
           Inter_400Regular,
           Inter_500Medium,
