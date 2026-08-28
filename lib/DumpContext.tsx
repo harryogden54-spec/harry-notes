@@ -8,8 +8,8 @@ import { getLocalDateStr } from "./utils";
 /** `spark` is the brainstem box on the Dump screen — a passing thought, always
  *  dated to the day it was caught. `journal` + a `note_date` is the day's entry:
  *  the calendar and the day panel both key on that pair. Additive to the `data`
- *  jsonb row, so no migration; an older client just sees an unknown tag and
- *  normalizeDump below coerces it to "journal" rather than dropping the row. */
+ *  jsonb row, so no migration; an older client sees an unknown tag and
+ *  normalizeDump below PRESERVES it rather than rewriting or dropping the row. */
 export type DumpTag = "journal" | "spark" | "media" | "knowledge" | "todo" | "goal";
 
 export const DUMP_TAGS: DumpTag[] = ["journal", "spark", "media", "knowledge", "todo", "goal"];
@@ -95,11 +95,12 @@ export function journalFor(dumps: Dump[], date: string, includeDraft = false): D
 // this reason, and a goal really is just a capture with a horizon.
 //
 // INVARIANT: a goal never carries `note_date`.
-// `normalizeDump` coerces an unrecognised tag to "journal", so a client older
-// than this build reads a goal as a journal entry. Undated, that is harmless —
-// it lands in the undated drawer. Dated, it would be picked up by journalFor()
-// and could shadow a real day's entry, which is silent data loss on the one
-// thing in this app that must never lose anything.
+// A client older than the 2026-08-28 fix still rewrites an unrecognised tag to
+// "journal" (normalizeDump does not any more, but deployed bundles predate
+// that). Undated, the damage is limited to the row showing up in the undated
+// drawer. Dated, journalFor() would pick it up and it could shadow a real
+// day's entry — silent loss on the one thing in this app that must never lose
+// anything. `addDump` enforces this rather than trusting callers.
 
 /** Every goal, newest first within its horizon. */
 export function goalsOf(dumps: Dump[]): Dump[] {

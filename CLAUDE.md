@@ -591,6 +591,58 @@ CLAUDE.md recorded four unfixed `"fade"` modals; there were nine, because
 strands an invisible `pointer-events: none` overlay. Trade-off accepted: the
 settings and category sheets no longer slide in.
 
+August 28, second batch (post-deploy fixes found by auditing the live site):
+
+**`hitSlop` does nothing on web.** react-native-web implements it only in the
+legacy `Touchable` export; `Pressable` ignores it. The app uses `Pressable`
+everywhere and `Touchable*` nowhere, so all 97 `hitSlop` props across 32 files
+were dead — and since the iOS home-screen PWA *is* the web build, that is the
+primary device. Controls were exactly as small as they looked: header
+light/dark toggle 18×8, task-row overflow menu 14×15, Today reorder arrows
+16×22, calendar month nav 22×23. `components/ui/IconButton` (plus `TapTarget`
+for non-icon controls) is the replacement — **padding, not hitSlop**, because
+padding is real on every platform. Applied to the worst offenders; the rest of
+the 97 still need sweeping. Do not add `hitSlop` to a `Pressable` again.
+
+**The header light/dark icon had never rendered.** `@expo/vector-icons` gates
+every `<Ionicons>` behind `Font.isLoaded("ionicons")` and returns a bare
+`<Text />` until its own `Font.loadAsync` resolves. `_layout.tsx` deliberately
+passed `{}` to `useFonts` on web (Inter must come from global.css, or expo-font
+injects Metro-hashed URLs that Cloudflare serves as index.html) — so `ionicons`
+was never registered, every icon instance fired its own load at exactly such a
+hashed URL, and the face errored. Most icons still rendered because the CSS
+`Ionicons` face matches case-insensitively once the gate opens; the FIRST icon
+to mount, the header toggle, never got its `setState` and stayed permanently
+blank. Fixed by registering `{ ionicons: "/fonts/Ionicons.ttf" }` on web — the
+same static file global.css already uses, so the load succeeds and the gate
+opens on first paint. Verified: the face went `error` → `loaded`.
+
+**normalizeDump no longer rewrites an unrecognised tag.** It coerced to
+"journal", which turned forward-compatibility into data loss: a client older
+than a newly-added tag read the row, rewrote the tag, saved it locally and
+pushed it back. This happened for real — the 13 seeded goals reached a device
+still running the previous bundle and came back as journal entries in the
+undated drawer. The server rows were never damaged (only the local mirror), but
+a delta sync could not heal it either: the corrupted copy keeps the same
+`updated_at`, and doMerge is `remoteUp > localUp`, strictly greater. Healed by
+bumping `updated_at` server-side. Unknown tags are now preserved; `TAG_LABEL`
+falls back to the raw value.
+
+**Task categories seeded from `onLoad`, i.e. before any contact with the
+server.** On a device with an empty local store — fresh browser, cleared data,
+new phone — it minted "personal" and "uni" with `created_at = now` and marked
+them dirty, so the defaults beat the real rows on last-write-wins, were shielded
+by doMerge's dirty guard, and pushed the overwrite to every device. Reproduced
+live while auditing. Moved to `onReconciled`. **This is the third instance of
+the same bug** (Today carry-forward 2026-08-15, and the seeding here) — the rule
+from August 15 was written down but never swept across the other collections.
+Worth actually auditing the remaining `onLoad` hooks.
+
+**Tasks header overflowed a 375px screen.** The action row had no `flexShrink`
+and no `flexWrap`, and the third pill only renders when `archived.length > 0` —
+so "Archive · N" ran past the right edge and was sliced off, and the bug was
+invisible on a clean store. Both rows now wrap.
+
 In progress: —
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface
