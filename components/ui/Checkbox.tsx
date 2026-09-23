@@ -21,10 +21,14 @@ interface CheckboxProps extends Omit<PressableProps, "onPress"> {
    * nameless checkbox immediately after the real one.
    */
   decorative?: boolean;
+  /** Fill colour when checked. Defaults to the accent; the Courses tracker
+   *  passes the course's identity colour. */
+  color?: string;
 }
 
-export function Checkbox({ checked, onToggle, size = 18, shape = "square", accessibilityLabel, decorative = false, ...props }: CheckboxProps) {
+export function Checkbox({ checked, onToggle, size = 18, shape = "square", accessibilityLabel, decorative = false, color, ...props }: CheckboxProps) {
   const { colors } = useTheme();
+  const fill = color ?? colors.accent;
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -58,8 +62,8 @@ export function Checkbox({ checked, onToggle, size = 18, shape = "square", acces
             height: size,
             borderRadius: shape === "circle" ? size / 2 : size / 4,
             borderWidth: 1.5,
-            borderColor: checked ? colors.accent : colors.bgBorder,
-            backgroundColor: checked ? colors.accent : "transparent",
+            borderColor: checked ? fill : colors.bgBorder,
+            backgroundColor: checked ? fill : "transparent",
             alignItems: "center",
             justifyContent: "center",
             ...(Platform.OS === "web" ? {

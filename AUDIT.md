@@ -1,6 +1,43 @@
 # harry-notes audit
 
-Originally written 2026-07-26; **updated 2026-08-28**.
+Originally written 2026-07-26; **updated 2026-09-23**.
+
+## 2026-09-23 pass
+
+### Fixed this session
+- **Home's Today panel hid carried-over items.** It filtered `date === today`
+  while the Today tab and widget use `isActiveOn` (`date <= today`, undone), so
+  anything carried forward was missing from Home until a sync adopted it — i.e.
+  on every launch, and all day offline. **XS**
+- **Tasks auto-archive ran in `onLoad`** — a derived, timestamped, dirty write
+  against the stale local copy, able to overwrite a reopen made on the other
+  device. Moved to `onReconciled`; explicit un-archives are now respected. This
+  was the last `onLoad` hook in the app. **S**
+- **Stale Uni course picker.** Choosing "Uni" showed last year's seven modules
+  and silently set "Misc". Removed; this semester's courses are subcategories. **XS**
+- **`formatDueDate` hardcoded hex** — "Tomorrow" was always the retired indigo. **XS**
+
+### Suggestions, not actioned
+- **Priority colours are hardcoded hex** (`PRIORITY_COLOR` in lib/utils.ts), so
+  urgent/high edges ignore the theme; `priorityColorKey` in lib/theme.ts maps
+  them to tokens and is used nowhere. Swap one for the other. **S**
+- **Retire `uniCourse` / `UNI_COURSES` entirely.** Now display-only. A one-off
+  pass could move old tasks onto matching subcategories (or just leave them —
+  they are last year's) and delete the field from the composer paths. **S**
+- **"Lecture attended" is one tick per course-week**, though Structural has
+  three sessions and Water two. Per-session attendance would be a small data
+  change (cells keyed by session) if the single tick proves too coarse. **S**
+- **The timetable is static config** (lib/semester.ts). Room changes or a
+  cancelled week are code edits. If the university publishes an iCal feed, an
+  import would remove that. **M**
+- **Tracker ticks are last-write-wins per course table** — ticking the same
+  course on phone and laptop before either syncs keeps one device's ticks. Rare
+  for one person; a per-cell merge (like the note-body 3-way merge) would close
+  it if it ever bites. **M**
+- Still open from earlier passes and still worth doing first: the public
+  `note-images` bucket, and the QuickAddModal duplicate create surface.
+
+---
 
 ## 2026-08-28 pass
 

@@ -45,6 +45,13 @@ export type Task = {
   category?: TaskCategory;
   uniCourse?: UniCourse;
   recurrence?: string;
+  /**
+   * Set on a task made from the Courses tracker ("Structural week 4
+   * flashcards") — `courseRef()` in lib/semester.ts. Lets the tracker show the
+   * task beside its tick and treat completing it as ticking the cell.
+   * Additive to the jsonb row, no migration.
+   */
+  course_ref?: string;
 };
 
 // Split into three contexts so consumers subscribe only to what they use:
@@ -133,20 +140,36 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     saveLocal: (items, changes) => {
       if (Platform.OS !== "web") dbSaveTasks(items, changes).catch(console.error);
     },
-    // Auto-archive tasks completed 7+ days ago on initial load.
-    // Use completed_at + 7 days as updated_at so a real archive event on
-    // another device (with a later timestamp) always wins in LWW merge.
-    onLoad: (items) => {
+    // Auto-archive tasks completed 7+ days ago.
+    //
+    // In `onReconciled`, not `onLoad` (moved 2026-09-23 — the fourth instance
+    // of the bug class in CLAUDE.md, 08-15/08-28). From `onLoad` it judged
+    // "done 7+ days ago" against this device's last-written copy, before any
+    // contact with the server: a task reopened on the phone six days after
+    // completing it was still `done` in the laptop's stale store, got archived
+    // with updated_at = completed_at + 7 days — later than the reopen — and,
+    // being dirty, was shielded from the server's newer copy and pushed back
+    // over it. After reconciliation `items` already holds the server's view.
+    //
+    // Only rows whose `archived` was never set are touched: `unarchiveTask`
+    // writes an explicit `false`, and re-running this after every sync would
+    // otherwise re-archive a task within 90s of you restoring it.
+    //
+    // The stamp is completed_at + 7 days, or just after the row's last edit if
+    // that is later, so the archive is never older than what it supersedes.
+    onReconciled: (items) => {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
       const cutoffStr = cutoff.toISOString();
       const dirty: string[] = [];
       const updated = items.map(t => {
-        if (t.done && !t.archived && t.completed_at && t.completed_at < cutoffStr) {
+        if (t.done && t.archived === undefined && t.completed_at && t.completed_at < cutoffStr) {
           dirty.push(t.id);
           const archiveAt = new Date(t.completed_at);
           archiveAt.setDate(archiveAt.getDate() + 7);
-          return { ...t, archived: true, updated_at: archiveAt.toISOString() };
+          const afterEdit = t.updated_at ? new Date(new Date(t.updated_at).getTime() + 1) : archiveAt;
+          const stampAt = afterEdit > archiveAt ? afterEdit : archiveAt;
+          return { ...t, archived: true, updated_at: stampAt.toISOString() };
         }
         return t;
       });

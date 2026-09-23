@@ -20,11 +20,13 @@ import { useTasksData, useTasksActions, useTasksSync } from "@/lib/TasksContext"
 import { useCategoriesData } from "@/lib/TaskCategoriesContext";
 import { useToast } from "@/lib/ToastContext";
 import { useNotesData } from "@/lib/NotesContext";
-import { useTodayData } from "@/lib/TodayContext";
+import { useTodayData, isActiveOn } from "@/lib/TodayContext";
 import { getTodayStr, formatHeaderDate, cmpRecentDesc } from "@/lib/utils";
 import { useMounted } from "@/lib/useMounted";
 import { notePreview, noteDisplayTitle } from "@/components/notes/utils";
 import { SearchResults }      from "@/components/dashboard/SearchResults";
+import { ComingUp }           from "@/components/dashboard/ComingUp";
+import { upcomingSessions }   from "@/lib/semester";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +49,13 @@ function TodayPanel() {
   const { items: allTodayItems } = useTodayData();
   const todayStr = getTodayStr();
 
-  const active = allTodayItems.filter(i => i.date === todayStr && !i.done);
+  // `isActiveOn`, not `date === today`: an undone item from an earlier day is
+  // carried forward by derivation until reconciliation adopts it (CLAUDE.md,
+  // 2026-08-15). Matching on the date alone hid those items from Home on every
+  // launch — and all day while offline — though the Today tab showed them.
+  const active = allTodayItems
+    .filter(i => isActiveOn(i, todayStr))
+    .sort((a, b) => a.order - b.order);
 
   if (active.length === 0) {
     return (
@@ -98,15 +106,18 @@ function DashboardScreen() {
   const mounted = useMounted();
   const now = mounted ? new Date() : null;
 
+  // Soonest due first — overdue at the top, undated at the bottom. Priority
+  // only breaks ties within a day: the card shows five rows, and sorting by
+  // priority first let an urgent task due next month push today's out of view.
   const allOpenTasks = useMemo(() => tasks
     .filter(t => !t.done && !t.archived)
     .sort((a, b) => {
-      const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
-      const bi = b.priority ? PRIORITY_ORDER.indexOf(b.priority as any) : 99;
-      if (ai !== bi) return ai - bi;
       const aDate = a.due_date ?? "9999-99-99";
       const bDate = b.due_date ?? "9999-99-99";
-      return aDate.localeCompare(bDate);
+      if (aDate !== bDate) return aDate < bDate ? -1 : 1;
+      const ai = a.priority ? PRIORITY_ORDER.indexOf(a.priority as any) : 99;
+      const bi = b.priority ? PRIORITY_ORDER.indexOf(b.priority as any) : 99;
+      return ai - bi;
     }), [tasks]);
 
   // Unique categories that exist in open tasks, for the filter chips.
@@ -279,12 +290,22 @@ function DashboardScreen() {
 
   // ─── Today card ───────────────────────────────────────────────────────────────
 
+  // Recomputed per render (the dashboard re-renders on any data change); the
+  // list itself keeps its own minute timer so "Now" rolls over on time.
+  const upcomingCount = mounted ? upcomingSessions(new Date(), 1).length : 0;
+
   const todayCard = (
     <View style={{ flex: 1 }}>
       <SectionHeader label="Today" action={{ label: "Open", onPress: () => router.push("/(tabs)/today") }} />
-      <View style={{ paddingVertical: spacing[1], flex: 1 }}>
+      <View style={{ paddingVertical: spacing[1] }}>
         <TodayPanel />
       </View>
+      {upcomingCount > 0 && (
+        <View style={{ marginTop: spacing[4] }}>
+          <SectionHeader label="Coming up" action={{ label: "Timetable", onPress: () => router.push("/(tabs)/courses") }} />
+          <ComingUp limit={3} />
+        </View>
+      )}
     </View>
   );
 

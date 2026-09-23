@@ -32,14 +32,17 @@ export function formatDueDate(
   tomorrow: string,
   dangerColor: string,
   accentColor: string,
+  /** Theme token for anything further out (textTertiary). Was a hardcoded
+   *  #9A9A9A, and "Tomorrow" a hardcoded #5B6AD0 — the retired indigo accent,
+   *  shown whatever theme or accent was active. */
+  mutedColor: string,
 ): { label: string; color: string } {
   if (date < today)      return { label: "Overdue",  color: dangerColor };
   if (date === today)    return { label: "Today",    color: accentColor };
-  if (date === tomorrow) return { label: "Tomorrow", color: "#5B6AD0" };
-  return {
-    label: new Date(date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
-    color: "#9A9A9A",
-  };
+  if (date === tomorrow) return { label: "Tomorrow", color: accentColor };
+  const d = new Date(date + "T00:00:00");
+  // Not toLocaleDateString — newer ICU spells September "Sept".
+  return { label: `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`, color: mutedColor };
 }
 
 /**

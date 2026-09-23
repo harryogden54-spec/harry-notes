@@ -11,6 +11,7 @@ import { cmpRecentDesc } from "@/lib/utils";
 import { noteDisplayTitle } from "@/components/notes/utils";
 import type { NavItem } from "./navConfig";
 import { NAV_ITEMS } from "./navConfig";
+import { NavIcon } from "./NavIcon";
 
 function ActiveBar({ active, accent }: { active: boolean; accent: string }) {
   const scale = useSharedValue(active ? 1 : 0);
@@ -141,9 +142,10 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
                   }}
                 >
                   <ActiveBar active={active} accent={colors.accent} />
-                  <Ionicons
-                    name={active ? item.iconFilled : item.iconOutline}
-                    size={18}
+                  <NavIcon
+                    glyph={item.glyph}
+                    size={19}
+                    active={active}
                     color={active ? colors.accent : hovered ? colors.textPrimary : colors.textSecondary}
                   />
                   {!collapsed && (
@@ -239,7 +241,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: Props) {
           marginTop: spacing[2],
         }}
       >
-        <Ionicons name="settings-outline" size={16} color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary} />
+        <NavIcon glyph="settings" size={17} color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary} />
         {!collapsed && (
           <Text size="sm" color={hoveredItem === "settings" ? colors.textPrimary : colors.textTertiary}>
             Settings

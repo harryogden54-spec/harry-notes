@@ -1,23 +1,24 @@
 import type React from "react";
 import type { Ionicons } from "@expo/vector-icons";
+import type { NavGlyph } from "./NavIcon";
 
 export type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
 export type NavItem = {
   name: string;
   label: string;
-  iconOutline: IoniconName;
-  iconFilled: IoniconName;
+  /** Duotone glyph drawn by NavIcon (native falls back to an Ionicons pair). */
+  glyph: NavGlyph;
   path: string;
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { name: "index",   label: "Home",     iconOutline: "home-outline",     iconFilled: "home",     path: "/(tabs)/" },
-  { name: "today",   label: "Today",    iconOutline: "today-outline",    iconFilled: "today",    path: "/(tabs)/today" },
-  { name: "tasks",   label: "Tasks",    iconOutline: "checkbox-outline", iconFilled: "checkbox", path: "/(tabs)/tasks" },
-  { name: "notes",   label: "Notes",    iconOutline: "albums-outline",   iconFilled: "albums",   path: "/(tabs)/notes" },
-  { name: "courses", label: "Courses",  iconOutline: "school-outline",   iconFilled: "school",   path: "/(tabs)/courses" },
-  { name: "dump",    label: "Dump",     iconOutline: "cloud-upload-outline", iconFilled: "cloud-upload",  path: "/(tabs)/dump" },
+  { name: "index",   label: "Home",     glyph: "home", path: "/(tabs)/" },
+  { name: "today",   label: "Today",    glyph: "today", path: "/(tabs)/today" },
+  { name: "tasks",   label: "Tasks",    glyph: "tasks", path: "/(tabs)/tasks" },
+  { name: "notes",   label: "Notes",    glyph: "notes", path: "/(tabs)/notes" },
+  { name: "courses", label: "Courses",  glyph: "courses", path: "/(tabs)/courses" },
+  { name: "dump",    label: "Dump",     glyph: "dump", path: "/(tabs)/dump" },
 ];
 
 // Mobile bottom bar shows only these four (six tabs was too cluttered);

@@ -4,7 +4,7 @@
     {
       "name": "harry-notes-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "web"],
+      "runtimeArgs": ["run", "web", "--", "--offline"],
       "port": 8081
     },
     {

@@ -3,6 +3,10 @@ import { Platform } from "react-native";
 import { storage } from "./storage";
 import { dbLoadCourses, dbSaveCourses } from "./db";
 import { useSyncedCollection, type SyncStatus } from "./useSyncedCollection";
+import {
+  TERM_ID, TRACKER_ITEMS, WEEKS, courseByKey, trackerTableId, weekRowId,
+  type CourseKey, type TrackerItemKey,
+} from "./semester";
 
 export type CourseColumnType = "text" | "checkbox";
 
@@ -32,9 +36,21 @@ export type CourseTable = {
    * ignores the field and shows the table as normal.
    */
   archived?: boolean;
+  /**
+   * Set on the per-course semester tracker tables (lib/semester.ts). Those are
+   * ordinary tables underneath — a week per row, a tracker item per checkbox
+   * column — so they sync like any other, but the Courses screen draws them as
+   * the semester tracker rather than in the generic table list. Additive jsonb.
+   */
+  semester?: { term: string; course: string };
   created_at: string;
   updated_at?: string;
 };
+
+/** True for a semester tracker table (drawn by the tracker, not the table list). */
+export function isTrackerTable(t: CourseTable): boolean {
+  return !!t.semester;
+}
 
 /** Live tables — everything the Courses screen shows by default. */
 export function activeTables(tables: CourseTable[]): CourseTable[] {
@@ -82,6 +98,9 @@ type CoursesActions = {
   addRow: (tableId: string) => void;
   deleteRow: (tableId: string, rowId: string) => void;
   updateCell: (tableId: string, rowId: string, columnId: string, value: string | boolean) => void;
+  /** Tick / untick one semester tracker cell, creating that course's table
+   *  on first use (at a user action — never on load, see CLAUDE.md). */
+  setTrackerCell: (course: CourseKey, week: number, item: TrackerItemKey, value: boolean) => void;
 };
 
 const CoursesDataContext    = createContext<CoursesData | null>(null);
@@ -116,6 +135,9 @@ function normalizeTable(t: CourseTable): CourseTable {
     // `undefined` rather than `false` so an unarchived table stops carrying a
     // dead key in the synced jsonb, matching Category.archived.
     archived: t.archived === true ? true : undefined,
+    semester: t.semester && typeof t.semester === "object" && typeof t.semester.course === "string"
+      ? { term: String(t.semester.term ?? ""), course: t.semester.course }
+      : undefined,
     created_at: typeof t.created_at === "string" && t.created_at ? t.created_at : EPOCH,
   };
 }
@@ -217,14 +239,43 @@ export function CoursesProvider({ children }: { children: React.ReactNode }) {
     ));
   }, [markDirty, setTables]);
 
+  const setTrackerCell = useCallback((course: CourseKey, week: number, item: TrackerItemKey, value: boolean) => {
+    const id = trackerTableId(course);
+    const rowId = weekRowId(week);
+    markDirty(id);
+    setTables(prev => {
+      const existing = prev.find(t => t.id === id);
+      if (!existing) {
+        const def = courseByKey(course);
+        const table: CourseTable = {
+          id,
+          title: def.name,
+          columns: def.items.map(k => ({ id: k, name: TRACKER_ITEMS[k].label, type: "checkbox" as const })),
+          rows: WEEKS.map(w => ({ id: weekRowId(w), cells: w === week ? { [item]: value } : {} })),
+          semester: { term: TERM_ID, course },
+          created_at: new Date().toISOString(),
+        };
+        return [...prev, stamp(table)];
+      }
+      return prev.map(t => {
+        if (t.id !== id) return t;
+        const hasRow = t.rows.some(r => r.id === rowId);
+        const rows = hasRow
+          ? t.rows.map(r => r.id === rowId ? { ...r, cells: { ...r.cells, [item]: value } } : r)
+          : [...t.rows, { id: rowId, cells: { [item]: value } }];
+        return stamp({ ...t, rows });
+      });
+    });
+  }, [markDirty, setTables]);
+
   const dataValue = useMemo(() => ({ tables, loaded }), [tables, loaded]);
   const syncValue = useMemo(
     () => ({ syncStatus, lastSynced, syncNow }),
     [syncStatus, lastSynced, syncNow]
   );
   const actionsValue = useMemo(
-    () => ({ addTable, updateTableStructure, setTableArchived, deleteTable, addRow, deleteRow, updateCell }),
-    [addTable, updateTableStructure, setTableArchived, deleteTable, addRow, deleteRow, updateCell]
+    () => ({ addTable, updateTableStructure, setTableArchived, deleteTable, addRow, deleteRow, updateCell, setTrackerCell }),
+    [addTable, updateTableStructure, setTableArchived, deleteTable, addRow, deleteRow, updateCell, setTrackerCell]
   );
 
   return (

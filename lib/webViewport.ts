@@ -48,6 +48,57 @@ export function applyMobileViewport(): void {
     meta.setAttribute("content", VIEWPORT_CONTENT);
   }
   installKeyboardScrollRestore();
+  installSafeAreaRefresh();
+}
+
+/**
+ * Make react-native-safe-area-context re-read the insets whenever iOS may have
+ * changed them without telling it.
+ *
+ * The provider's web build reads `env(safe-area-inset-*)` off a hidden probe
+ * div once at mount, and afterwards only when that div fires a padding
+ * transition. On a cold launch of the home-screen PWA, WebKit can report the
+ * insets as 0 while the launch animation is still sizing the window — the
+ * provider then holds bottom = 0, the tab bar loses its home-indicator padding,
+ * and nothing corrects it until the app is backgrounded and reopened (the
+ * reported symptom, 2026-09-23). If the later env() change produces no
+ * transition event on the hidden probe, the stale value is permanent.
+ *
+ * So: on every event that can follow such a change, and on a short schedule
+ * after load, dispatch the probe's own transition-end events. The provider's
+ * handler just re-reads computed style, so a spurious nudge is a no-op when
+ * nothing moved. `MobileTabBar` additionally paints its padding from CSS
+ * `env()` directly (see there), so the bar itself is right even before this
+ * catches up; this keeps the header inset and the published bar height honest.
+ */
+function installSafeAreaRefresh(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  // Once per page — a window flag rather than a module one, because Fast
+  // Refresh re-evaluates this module and would stack the listeners.
+  const w = window as unknown as { __hnSafeAreaRefresh?: boolean };
+  if (w.__hnSafeAreaRefresh) return;
+  w.__hnSafeAreaRefresh = true;
+  const nudge = () => {
+    for (const el of Array.from(document.body?.children ?? [])) {
+      const style = (el as HTMLElement).style;
+      if (!style || !style.paddingBottom.includes("safe-area-inset-bottom")) continue;
+      // Mid-transition, getComputedStyle returns an interpolated value; let a
+      // real transition finish and deliver its own event instead.
+      if (el.getAnimations?.().length) continue;
+      el.dispatchEvent(new Event("webkitTransitionEnd"));
+      el.dispatchEvent(new Event("transitionend"));
+    }
+  };
+  const schedule = () => { for (const ms of [0, 120, 400, 1000, 2500]) setTimeout(nudge, ms); };
+  window.addEventListener("load", schedule);
+  window.addEventListener("pageshow", schedule);
+  window.addEventListener("orientationchange", schedule);
+  window.addEventListener("resize", nudge);
+  window.visualViewport?.addEventListener("resize", nudge);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") schedule();
+  });
+  schedule();
 }
 
 /**

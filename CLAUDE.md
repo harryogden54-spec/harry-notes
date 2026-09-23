@@ -676,7 +676,67 @@ properly: at 1280 the Tasks title sits at x=106 (sidebar present), and after
 resizing to 375 with no reload it moves to x=16. The layout reflows correctly.
 Do not "fix" it.
 
+**September 23 batch (deployed 2026-09-23):**
+
+**COURSES REBUILT AS A SEMESTER TRACKER.** Built in code rather than via the
+Claude design tool (the 08-28 deferral): the requirements were functional
+(timetable, ticks, task generation), which a design canvas cannot wire up.
+- `lib/semester.ts` is the whole semester as static config: `TERM_ID`
+  ("2026-s1"), week 1 = Mon 21 Sep 2026, weeks 0–11 (week 0 = welcome week, no
+  classes, tracked anyway), the four courses (Structural / Water / Transport /
+  Conceptual Design) with their tracker columns, and the weekly `SESSIONS`.
+  Next semester = replace that file and bump `TERM_ID`.
+- Ticks are ordinary synced CourseTables — one per course, **deterministic id**
+  `sem-<term>-<course>` (so two devices ticking before sync write one row, not
+  two tables), a row per week (`w0`…`w11`), a checkbox column per item key, and
+  `semester: { term, course }` (additive jsonb). `setTrackerCell` creates the
+  table on the first tick — at a user action, never on load. `isTrackerTable()`
+  keeps them out of the generic list, which survives folded away as "Other tables".
+- `lib/useSemesterTracker.ts` is the one source of "done": ticked OR its linked
+  task completed. That is a READ-TIME derivation — completing a task never
+  writes to the courses table — so the clock/other-rows sync bug class cannot
+  reach it. Toggling a cell flips its linked task too, so they never disagree.
+- "Make a task" writes `Task.course_ref` (`term:course:week:item`, additive),
+  titles it "Structural week 4 flashcards", due that week's Sunday (today if
+  the week is over), filed under a Uni subcategory matched by name
+  (`categoryMatch`) or created on first use.
+- Screen: week strip → activity rings (outer = week, accent; inner = weeks 0..N,
+  `colors.warning` — ink vanished beside Navy's near-black light value) +
+  per-course mini rings → Mon–Fri timetable (blocks open the course-week sheet;
+  a check marks "lecture attended") → per-course tracker tables → Other tables.
+  Dashboard gets a **Coming up** list (next 3 classes) under Today.
+- The `UNI_COURSES` chip row under "Uni" in `CategorySelector` was removed —
+  last year's modules, parallel to real subcategories. Legacy `uniCourse`
+  values still display via CategoryBadge.
+
+**Nav icons are duotone SVG** (`components/nav/NavIcon.tsx`): one colour, a
+~30% silhouette under a full-strength detail, replacing Ionicons outlines that
+read as line drawings. Web only; native falls back to Ionicons. The glyphs made
+the tab bar 2px shorter — `BAR_CONTENT_HEIGHT` is 53 now.
+
+**Dashboard tasks sort by due date** (undated last), priority only breaks ties.
+**Dashboard Today panel used `date === today`** instead of `isActiveOn`, so
+carried-over items were missing from Home on every launch and all day offline.
+
+**Tasks auto-archive moved `onLoad` → `onReconciled`** — the fourth instance of
+the 08-15 bug class and the last `onLoad` hook in the app. It now also skips rows
+with an explicit `archived: false` (what `unarchiveTask` writes), or re-running
+after every sync would re-archive a restored task within 90s.
+
+**iOS PWA bottom bar, second attempt.** Reported: wrong bottom padding on a cold
+launch, correct after backgrounding and reopening. The safe-area provider reads
+`env()` once at mount and afterwards only on its probe's transition event, so a
+0 read during the launch animation can stick. `MobileTabBar` now paints
+`max(env(safe-area-inset-bottom), 10px)` straight from CSS on web, and
+`installSafeAreaRefresh` (lib/webViewport.ts) re-dispatches the probe's
+transition-end on load/pageshow/resize/orientation/visibility plus a short
+schedule, so the JS insets (header, published bar height) catch up. Verified
+the refresh re-reads in Chrome; **the cold-launch behaviour itself still needs
+an on-device check.** `formatDueDate` also lost its two hardcoded hex values.
+
 In progress: —
+Awaiting confirmation (2026-09-23): the cold-launch bottom-bar fix above, on
+the iPhone PWA.
 Approved but not yet built (from the 2026-08-13 visual review): per-screen identity
 from the accent only (a small accent-derived cue per screen, NOT per-screen surface
 tints). Declined in the same review: a signature display typeface, and a reading-measure
@@ -694,8 +754,8 @@ its own lazy chunk); Supabase storage bucket (note images) policies not yet
 reviewed — table RLS shipped 2026-07-12, and encryption at rest does NOT cover
 that bucket, so it matters more now; two-browser sync drill; drop the
 localStorage fallback in `lib/storage.ts` once IndexedDB has ridden a release.
-Deferred at the user's request (2026-08-28): a **Courses page redesign** via the
-Claude design tool.
+The Courses redesign deferred on 2026-08-28 was built in code on 2026-09-23
+(see that batch); a visual polish pass in Claude Design is still open if wanted.
 Declined by the user, do not re-raise: the dual FAB stack, the Home/Today
 overlap, and the third light/dark control in Settings.
 **Dropped 2026-08-28, do not re-raise as a new idea: CRDT / local-first sync.**

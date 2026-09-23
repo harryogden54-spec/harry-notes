@@ -1,78 +1,65 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import {
-  View, Pressable, ScrollView, Platform, RefreshControl, useWindowDimensions,
-} from "react-native";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { View, Pressable, ScrollView, RefreshControl, useWindowDimensions } from "react-native";
 // Side-notch padding only — PersistentHeader owns the top inset, MobileTabBar the bottom.
 import { SideSafeArea } from "@/components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useTheme } from "@/lib/useTheme";
-import { Text, EmptyState, GradientBackground, Skeleton } from "@/components/ui";
-import { spacing, radius, iconSize, getShadow } from "@/lib/theme";
+import { Text, GradientBackground, Skeleton } from "@/components/ui";
+import { spacing, radius, iconSize, transition } from "@/lib/theme";
 import { useScrollBottomPadding } from "@/lib/TabBarHeightContext";
 import { storage } from "@/lib/storage";
 import { webWideContentStyle } from "@/lib/webLayout";
+import { useCoursesData, useCoursesSync } from "@/lib/CoursesContext";
+import { useSemesterTracker, pct } from "@/lib/useSemesterTracker";
 import {
-  useCoursesData, useCoursesActions, useCoursesSync, tableProgress,
-  activeTables, archivedTables, type CourseTable,
-} from "@/lib/CoursesContext";
-import { useToast } from "@/lib/ToastContext";
-import { CourseTableCard, TableEditorModal, ProgressRing } from "@/components/courses";
+  SEMESTER_COURSES, LAST_WEEK, defaultWeek, weekOf, weekRangeLabel, isTeachingWeek,
+  type CourseKey, type Session,
+} from "@/lib/semester";
+import {
+  ProgressHero, WeekStrip, Timetable, CourseTrackerCard, CourseWeekSheet, OtherTables,
+  type SheetTarget,
+} from "@/components/courses";
 
-const COLLAPSED_KEY = "courses_collapsed";
-
-/** True when every table is condensed (and there is at least one). */
-function sortedIdsAllIn(collapsed: string[], tables: CourseTable[]): boolean {
-  return tables.length > 0 && tables.every(t => collapsed.includes(t.id));
-}
+const TRACKER_COLLAPSED_KEY = "courses_tracker_collapsed";
 
 function CoursesScreen() {
-  const { colors, scheme, shadow } = useTheme();
+  const { colors, shadow } = useTheme();
   const scrollBottom = useScrollBottomPadding();
-  const { tables, loaded } = useCoursesData();
-  const { deleteTable, setTableArchived } = useCoursesActions();
+  const { loaded } = useCoursesData();
   const { syncNow } = useCoursesSync();
-  const { showToast } = useToast();
+  const { isDone, weekProgress } = useSemesterTracker();
   const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === "web" && width > 1024;
+  const wide = width >= 1024;
+  const narrow = width < 640;
 
-  const [editorVisible, setEditorVisible] = useState(false);
-  const [editTarget, setEditTarget]       = useState<CourseTable | null>(null);
-  const [refreshing, setRefreshing]       = useState(false);
+  const currentWeek = weekOf();
+  const [week, setWeek] = useState(() => defaultWeek());
+  const [sheet, setSheet] = useState<SheetTarget | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Condensed tables, persisted locally (a view preference, not synced data).
-  const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
+  // Tracker cards: condensed state is a local view preference. With nothing
+  // stored, phones start condensed — four 12-row tables is a long scroll.
+  const [collapsed, setCollapsed] = useState<CourseKey[] | null>(null);
   useEffect(() => {
-    storage.get<string[]>(COLLAPSED_KEY).then(v => { if (Array.isArray(v)) setCollapsedIds(v); });
-  }, []);
-  const toggleCollapsed = useCallback((id: string) => {
-    setCollapsedIds(prev => {
-      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      storage.set(COLLAPSED_KEY, next);
+    storage.get<CourseKey[]>(TRACKER_COLLAPSED_KEY).then(v => {
+      setCollapsed(Array.isArray(v) ? v : width < 768 ? SEMESTER_COURSES.map(c => c.key) : []);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleCollapsed = useCallback((key: CourseKey) => {
+    setCollapsed(prev => {
+      const cur = prev ?? [];
+      const next = cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key];
+      storage.set(TRACKER_COLLAPSED_KEY, next);
       return next;
     });
   }, []);
-  const allCollapsed = sortedIdsAllIn(collapsedIds, activeTables(tables));
+  const allCollapsed = (collapsed ?? []).length === SEMESTER_COURSES.length;
   const toggleAll = useCallback(() => {
-    const next = allCollapsed ? [] : activeTables(tables).map(t => t.id);
-    setCollapsedIds(next);
-    storage.set(COLLAPSED_KEY, next);
-  }, [allCollapsed, tables]);
-
-  const archived = useMemo(() => archivedTables(tables), [tables]);
-  const [showArchived, setShowArchived] = useState(false);
-
-  const { sorted, overall } = useMemo(() => {
-    const sorted = activeTables(tables).sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const overall = sorted.reduce(
-      (acc, t) => {
-        const p = tableProgress(t);
-        return { ticked: acc.ticked + p.ticked, total: acc.total + p.total };
-      },
-      { ticked: 0, total: 0 }
-    );
-    return { sorted, overall };
-  }, [tables]);
+    const next = allCollapsed ? [] : SEMESTER_COURSES.map(c => c.key);
+    setCollapsed(next);
+    storage.set(TRACKER_COLLAPSED_KEY, next);
+  }, [allCollapsed]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -80,30 +67,70 @@ function CoursesScreen() {
     setRefreshing(false);
   }, [syncNow]);
 
-  const handleArchive = useCallback((table: CourseTable) => {
-    setTableArchived(table.id, true);
-    showToast(`"${table.title || "Untitled table"}" archived`, {
-      label: "Undo",
-      onPress: () => setTableArchived(table.id, false),
-    });
-  }, [setTableArchived, showToast]);
+  const onPressSession = useCallback((s: Session) => setSheet({ course: s.course, week, session: s }), [week]);
+  const lectureDone = useCallback((s: Session) => isDone(s.course, week, "lecture"), [isDone, week]);
+  const weekPct = useCallback((w: number) => pct(weekProgress(w)), [weekProgress]);
 
-  const handleDelete = useCallback((table: CourseTable) => {
-    const undo = deleteTable(table.id);
-    showToast(`"${table.title || "Untitled table"}" deleted`, { label: "Undo", onPress: undo });
-  }, [deleteTable, showToast]);
+  const trackerWeek = currentWeek ?? defaultWeek();
+
+  const subtitle = useMemo(() => {
+    if (currentWeek === null) return `Semester 1 · weeks 0–${LAST_WEEK}`;
+    return `Semester 1 · week ${currentWeek} of ${LAST_WEEK} · ${weekRangeLabel(currentWeek)}`;
+  }, [currentWeek]);
 
   if (!loaded) {
     return (
       <GradientBackground>
         <SideSafeArea style={{ flex: 1 }}>
           <View style={{ padding: spacing[4], gap: spacing[3] }}>
-            {[1, 2, 3].map(i => <Skeleton key={i} height={140} borderRadius={18} />)}
+            <Skeleton height={72} borderRadius={18} />
+            <Skeleton height={220} borderRadius={20} />
+            <Skeleton height={320} borderRadius={20} />
           </View>
         </SideSafeArea>
       </GradientBackground>
     );
   }
+
+  const hero = <ProgressHero week={week} onOpenCourse={course => setSheet({ course, week })} />;
+
+  const timetable = (
+    <View style={{
+      borderRadius: 20, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
+      backgroundColor: colors.bgSecondary, padding: narrow ? spacing[3] : spacing[4],
+      ...shadow("sm"),
+    }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3], gap: spacing[2] }}>
+        <View style={{ flex: 1 }}>
+          <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>Timetable</Text>
+          <Text size="cardTitle" weight="semibold">Week {week} · {weekRangeLabel(week)}</Text>
+        </View>
+        {currentWeek !== null && week !== currentWeek && (
+          <Pressable
+            onPress={() => setWeek(currentWeek)}
+            accessibilityRole="button"
+            style={({ hovered }: any) => ({
+              paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: 99,
+              borderWidth: 1, borderColor: colors.bgBorder,
+              backgroundColor: hovered ? colors.bgTertiary : "transparent",
+              ...transition("background-color"),
+            } as any)}
+          >
+            <Text size="xs" weight="medium" secondary>This week</Text>
+          </Pressable>
+        )}
+      </View>
+      {isTeachingWeek(week) ? (
+        <Timetable week={week} compact={narrow} onPressSession={onPressSession} isCourseWeekDone={lectureDone} />
+      ) : (
+        <View style={{ paddingVertical: spacing[8], alignItems: "center", gap: spacing[2] }}>
+          <Ionicons name="sunny-outline" size={iconSize.lg} color={colors.textTertiary} />
+          <Text size="sm" secondary>Welcome week — no classes timetabled.</Text>
+          <Text size="meta" tertiary>The tracker still counts it; tap a course above to tick or make tasks.</Text>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <GradientBackground>
@@ -117,181 +144,64 @@ function CoursesScreen() {
           }
         >
           {/* Header */}
-          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[5] }}>
+          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[4] }}>
             <Text size="title" weight="bold">Courses</Text>
-            <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>
-              {sorted.length === 0
-                ? "Progress tables for revision tracking"
-                : `${sorted.length} table${sorted.length !== 1 ? "s" : ""}${
-                    overall.total > 0 ? ` · ${Math.round((overall.ticked / overall.total) * 100)}% ticked overall` : ""
-                  }`}
-            </Text>
+            <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{subtitle}</Text>
           </View>
 
-          {/* New table — full-width primary action, per the mockup */}
-          <Pressable
-            onPress={() => { setEditTarget(null); setEditorVisible(true); }}
-            accessibilityLabel="New table"
-            style={({ hovered, pressed }: any) => ({
-              flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing[2],
-              borderRadius: 18, paddingVertical: spacing[3],
-              backgroundColor: colors.textPrimary,
-              opacity: pressed ? 0.85 : hovered ? 0.92 : 1,
-              marginBottom: spacing[5],
-              ...shadow("md"),
-              ...(Platform.OS === "web" ? {
-                transitionProperty: "opacity, transform",
-                transitionDuration: "150ms",
-                transform: [{ scale: pressed ? 0.99 : 1 }],
-              } : {}),
-            } as any)}
-          >
-            <Ionicons name="add" size={16} color={colors.bgPrimary} />
-            <Text size="sm" weight="semibold" style={{ color: colors.bgPrimary }}>New table</Text>
-          </Pressable>
+          <View style={{ marginBottom: spacing[4], marginHorizontal: -spacing[4], paddingHorizontal: spacing[4] }}>
+            <WeekStrip selected={week} current={currentWeek} onSelect={setWeek} progressOf={weekPct} />
+          </View>
 
-          {sorted.length === 0 ? (
-            <EmptyState
-              type="courses"
-              title="No tables yet"
-              subtitle="Create a table to track lectures reviewed, flashcards made and anything else per course — tickbox columns feed the progress ring."
-            />
+          {wide ? (
+            <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "flex-start", marginBottom: spacing[6] }}>
+              <View style={{ width: 380 }}>{hero}</View>
+              <View style={{ flex: 1 }}>{timetable}</View>
+            </View>
           ) : (
-            <View style={{ gap: spacing[4] }}>
-              {sorted.length > 1 && (
-                <Pressable
-                  onPress={toggleAll}
-                  hitSlop={6}
-                  style={{ alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: spacing[1] }}
-                >
-                  <Ionicons name={allCollapsed ? "chevron-down" : "chevron-up"} size={12} color={colors.textTertiary} />
-                  <Text size="xs" tertiary>{allCollapsed ? "Expand all" : "Condense all"}</Text>
-                </Pressable>
-              )}
-              {sorted.map(table => {
-                const progress = tableProgress(table);
-                const isCollapsed = collapsedIds.includes(table.id);
-                // Condensed on desktop drops the side ring panel — the header
-                // carries the ring, and a 132px panel beside a single header row
-                // looks like a mistake.
-                return isDesktop && !isCollapsed ? (
-                  <View key={table.id} style={{ flexDirection: "row", gap: spacing[3], alignItems: "stretch" }}>
-                    <View style={{ flex: 1 }}>
-                      <CourseTableCard
-                        table={table}
-                        collapsed={isCollapsed}
-                        onToggleCollapse={() => toggleCollapsed(table.id)}
-                        onEdit={() => { setEditTarget(table); setEditorVisible(true); }}
-                        onArchive={() => handleArchive(table)}
-                        onDelete={() => handleDelete(table)}
-                      />
-                    </View>
-                    {/* Progress ring panel beside the table, per the mockup */}
-                    <View style={{
-                      width: 132, borderRadius: 18, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
-                      backgroundColor: colors.bgSecondary, alignItems: "center", justifyContent: "center",
-                      gap: spacing[2], paddingVertical: spacing[4],
-                      ...shadow("sm"),
-                    }}>
-                      <ProgressRing ticked={progress.ticked} total={progress.total} size={72} />
-                      <Text size="2xs" tertiary style={{ textAlign: "center" }}>
-                        {progress.total > 0 ? `${progress.ticked}/${progress.total} ticked` : "No tickboxes"}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <CourseTableCard
-                    key={table.id}
-                    table={table}
-                    ringInHeader
-                    collapsed={isCollapsed}
-                    onToggleCollapse={() => toggleCollapsed(table.id)}
-                    onEdit={() => { setEditTarget(table); setEditorVisible(true); }}
-                    onArchive={() => handleArchive(table)}
-                    onDelete={() => handleDelete(table)}
-                  />
-                );
-              })}
+            <View style={{ gap: spacing[4], marginBottom: spacing[6] }}>
+              {hero}
+              {timetable}
             </View>
           )}
-          {archived.length > 0 && (
-            <View style={{ marginTop: spacing[6], gap: spacing[3] }}>
-              <Pressable
-                onPress={() => setShowArchived(v => !v)}
-                style={{ flexDirection: "row", alignItems: "center", gap: spacing[2], alignSelf: "flex-start" }}
-              >
-                <Ionicons
-                  name={showArchived ? "chevron-down" : "chevron-forward"}
-                  size={iconSize.xs}
-                  color={colors.textTertiary}
-                />
-                <Text size="label" weight="semibold" secondary style={{ textTransform: "uppercase" }}>
-                  Archived · {archived.length}
-                </Text>
-              </Pressable>
 
-              {showArchived && (
-                <View style={{ gap: spacing[2] }}>
-                  {archived.map(table => {
-                    const p = tableProgress(table);
-                    return (
-                      <View
-                        key={table.id}
-                        style={{
-                          flexDirection: "row", alignItems: "center", gap: spacing[3],
-                          borderRadius: radius.lg, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
-                          backgroundColor: colors.bgSecondary,
-                          paddingHorizontal: spacing[4], paddingVertical: spacing[3],
-                        }}
-                      >
-                        <View style={{ flex: 1, gap: 1 }}>
-                          <Text size="cardTitle" weight="semibold" numberOfLines={1} secondary>
-                            {table.title || "Untitled table"}
-                          </Text>
-                          <Text size="meta" tertiary>
-                            {table.rows.length} row{table.rows.length !== 1 ? "s" : ""}
-                            {p.total > 0 ? ` · ${p.ticked}/${p.total} ticked` : ""}
-                          </Text>
-                        </View>
-                        <Pressable
-                          onPress={() => setTableArchived(table.id, false)}
-                          hitSlop={6}
-                          accessibilityLabel={`Restore ${table.title || "table"}`}
-                          style={({ hovered }: any) => ({
-                            paddingHorizontal: spacing[2.5], paddingVertical: 11, marginVertical: -5,
-                            borderRadius: radius.md,
-                            backgroundColor: hovered ? colors.bgTertiary : "transparent",
-                          })}
-                        >
-                          <Text size="xs" style={{ color: colors.accent }}>Restore</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleDelete(table)}
-                          hitSlop={6}
-                          accessibilityLabel={`Delete ${table.title || "table"}`}
-                          style={({ hovered }: any) => ({
-                            padding: 11, margin: -5, borderRadius: radius.md,
-                            backgroundColor: hovered ? `${colors.danger}14` : "transparent",
-                          })}
-                        >
-                          {({ hovered }: any) => (
-                            <Ionicons name="trash-outline" size={14} color={hovered ? colors.danger : colors.textTertiary} />
-                          )}
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          )}
+          {/* Tracker */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
+            <Text size="label" weight="semibold" tertiary style={{ flex: 1, textTransform: "uppercase" }}>Tracker</Text>
+            <Pressable
+              onPress={toggleAll}
+              accessibilityRole="button"
+              style={({ hovered }: any) => ({
+                flexDirection: "row", alignItems: "center", gap: spacing[1],
+                paddingHorizontal: spacing[2], paddingVertical: spacing[2], margin: -spacing[2], borderRadius: radius.md,
+                backgroundColor: hovered ? colors.bgTertiary : "transparent",
+              })}
+            >
+              <Ionicons name={allCollapsed ? "chevron-down" : "chevron-up"} size={iconSize.xs} color={colors.textTertiary} />
+              <Text size="xs" tertiary>{allCollapsed ? "Expand all" : "Condense all"}</Text>
+            </Pressable>
+          </View>
+          {/* Wrap only on the wide row layout — a wrapping column shrinks its
+              children to their content width instead of stretching them. */}
+          <View style={{ flexDirection: wide ? "row" : "column", flexWrap: wide ? "wrap" : "nowrap", gap: spacing[3], marginBottom: spacing[8] }}>
+            {SEMESTER_COURSES.map(c => (
+              <View key={c.key} style={wide ? { width: "49%", flexGrow: 1, flexBasis: "45%" } as any : undefined}>
+                <CourseTrackerCard
+                  course={c}
+                  currentWeek={trackerWeek}
+                  selectedWeek={week}
+                  collapsed={(collapsed ?? []).includes(c.key)}
+                  onToggleCollapse={() => toggleCollapsed(c.key)}
+                  onOpenWeek={w => setSheet({ course: c.key, week: w })}
+                />
+              </View>
+            ))}
+          </View>
+
+          <OtherTables />
         </ScrollView>
 
-        <TableEditorModal
-          visible={editorVisible}
-          onClose={() => setEditorVisible(false)}
-          table={editTarget}
-        />
+        <CourseWeekSheet target={sheet} onClose={() => setSheet(null)} />
       </SideSafeArea>
     </GradientBackground>
   );

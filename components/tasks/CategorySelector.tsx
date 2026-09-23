@@ -3,7 +3,7 @@ import { View, Pressable } from "react-native";
 import { useTheme } from "@/lib/useTheme";
 import { Text } from "@/components/ui";
 import { spacing, resolveAccentSwatch } from "@/lib/theme";
-import { UNI_COURSES, type TaskCategory, type UniCourse } from "@/lib/TasksContext";
+import type { TaskCategory, UniCourse } from "@/lib/TasksContext";
 import { useCategoriesData, topLevel, childrenOf, rootCategoryId } from "@/lib/TaskCategoriesContext";
 
 type Props = {
@@ -12,14 +12,16 @@ type Props = {
   onChange: (category?: TaskCategory, uniCourse?: UniCourse) => void;
 };
 
-export function CategorySelector({ category, uniCourse, onChange }: Props) {
+export function CategorySelector({ category, onChange }: Props) {
   const { colors, scheme } = useTheme();
   const { categories } = useCategoriesData();
   const sorted = topLevel(categories);
-  // The uni-course sub-picker only applies to the legacy "uni" seeded
-  // category (custom categories the user adds have no course concept).
-  const uniCat = categories.find(c => c.id === "uni");
-  const uniSwatch = resolveAccentSwatch(uniCat?.color ?? "sage", scheme);
+  // The hard-coded UNI_COURSES chip row that used to sit under "Uni" is gone
+  // (2026-09-23): it listed last year's modules and ran parallel to real Uni
+  // subcategories, which is where this semester's courses live (the Courses
+  // tracker files its tasks there). A task that still carries a legacy
+  // `uniCourse` keeps showing it via CategoryBadge; any category change here
+  // clears it, since the subcategory now says the same thing.
   // Whichever top-level category is in play — either it is selected directly or
   // one of its children is. Drives which subcategory row shows.
   const activeRootId = rootCategoryId(categories, category);
@@ -37,10 +39,7 @@ export function CategorySelector({ category, uniCourse, onChange }: Props) {
           return (
             <Pressable
               key={cat.id}
-              onPress={() => onChange(
-                active ? undefined : cat.id,
-                !active && cat.id === "uni" ? (uniCourse ?? "Misc") : undefined
-              )}
+              onPress={() => onChange(active ? undefined : cat.id, undefined)}
               style={{
                 paddingHorizontal: spacing[2], paddingVertical: spacing[1],
                 borderRadius: 99, borderWidth: 1,
@@ -76,26 +75,6 @@ export function CategorySelector({ category, uniCourse, onChange }: Props) {
               </Pressable>
             );
           })}
-        </View>
-      )}
-      {activeRootId === "uni" && (
-        <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing[1] }}>
-          {UNI_COURSES.map(course => (
-            <Pressable
-              key={course}
-              onPress={() => onChange("uni", course)}
-              style={{
-                paddingHorizontal: spacing[2], paddingVertical: spacing[0.5],
-                borderRadius: 99, borderWidth: 1,
-                borderColor: uniCourse === course ? uniSwatch.color : colors.bgBorder,
-                backgroundColor: uniCourse === course ? `${uniSwatch.color}18` : "transparent",
-              }}
-            >
-              <Text size="xs" style={{ color: uniCourse === course ? uniSwatch.color : colors.textSecondary }}>
-                {course}
-              </Text>
-            </Pressable>
-          ))}
         </View>
       )}
     </View>

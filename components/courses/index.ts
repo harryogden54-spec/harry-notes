@@ -1,3 +1,11 @@
 export { ProgressRing } from "./ProgressRing";
 export { TableEditorModal } from "./TableEditorModal";
 export { CourseTableCard } from "./CourseTableCard";
+export { ActivityRings, MiniRing } from "./ActivityRings";
+export { WeekStrip } from "./WeekStrip";
+export { Timetable } from "./Timetable";
+export { CourseTrackerCard } from "./CourseTrackerCard";
+export { CourseWeekSheet, type SheetTarget } from "./CourseWeekSheet";
+export { ProgressHero } from "./ProgressHero";
+export { OtherTables } from "./OtherTables";
+export { useCourseColors } from "./courseColors";

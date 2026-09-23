@@ -10,11 +10,14 @@ import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, getShadow } from "@/lib/theme";
 import { useReportTabBarHeight } from "@/lib/TabBarHeightContext";
 import { NAV_ITEMS, MOBILE_BAR_NAMES, type NavItem } from "./navConfig";
+import { NavIcon } from "./NavIcon";
 
 /**
  * Everything in the bar above its bottom inset padding: borderTop (1) +
  * paddingTop spacing[1.5] (6) + a tab's paddingVertical spacing[1] (8) + the
- * 22px icon + 2px gap + the 2xs label's line box. Measured at 55px.
+ * 22px NavIcon svg + 2px gap + the 2xs label's line box. Measured at 53px
+ * (2026-09-23, after the duotone icons replaced Ionicons, whose font line box
+ * was 2px taller than the glyph).
  *
  * This is reported synchronously so the FAB stack, toasts and scroll paddings
  * are correct on the very first frame. onLayout below corrects it if the real
@@ -23,7 +26,7 @@ import { NAV_ITEMS, MOBILE_BAR_NAMES, type NavItem } from "./navConfig";
  * reliably deliver an initial callback, so a measurement-only approach leaves
  * every consumer on its fallback value forever.
  */
-const BAR_CONTENT_HEIGHT = 55;
+const BAR_CONTENT_HEIGHT = 53;
 
 /**
  * Custom mobile bottom bar: four primary tabs + a "More" button that opens a
@@ -78,6 +81,12 @@ export function MobileTabBar() {
           borderTopColor: colors.bgBorder,
           paddingTop: spacing[1.5],
           paddingBottom: barPaddingBottom,
+          // On web the padding comes straight from CSS env(), not from the JS
+          // inset: the safe-area provider can hold a stale 0 after a cold PWA
+          // launch, and CSS always has WebKit's current value. The JS value
+          // above still drives the published height (FAB, toasts, scroll pads),
+          // and lib/webViewport.ts keeps it refreshed.
+          ...(Platform.OS === "web" ? { paddingBottom: `max(env(safe-area-inset-bottom), ${spacing[2.5]}px)` } as any : {}),
         }}
       >
         {barItems.map(item => {
@@ -90,7 +99,7 @@ export function MobileTabBar() {
               accessibilityState={{ selected: active }}
               style={{ flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing[1] }}
             >
-              <Ionicons name={active ? item.iconFilled : item.iconOutline} size={20} color={active ? colors.accent : colors.textTertiary} />
+              <NavIcon glyph={item.glyph} size={22} active={active} color={active ? colors.accent : colors.textTertiary} />
               <Text size="2xs" weight="medium" style={{ color: active ? colors.accent : colors.textTertiary }}>
                 {item.label}
               </Text>
@@ -106,7 +115,7 @@ export function MobileTabBar() {
           accessibilityState={{ selected: moreActive }}
           style={{ flex: 1, alignItems: "center", gap: 2, paddingVertical: spacing[1] }}
         >
-          <Ionicons name={moreActive ? "ellipsis-horizontal-circle" : "ellipsis-horizontal-circle-outline"} size={20} color={moreActive ? colors.accent : colors.textTertiary} />
+          <NavIcon glyph="more" size={22} active={moreActive} color={moreActive ? colors.accent : colors.textTertiary} />
           <Text size="2xs" weight="medium" style={{ color: moreActive ? colors.accent : colors.textTertiary }}>
             More
           </Text>
@@ -149,7 +158,7 @@ export function MobileTabBar() {
                     backgroundColor: active ? `${colors.accent}12` : "transparent",
                   }}
                 >
-                  <Ionicons name={active ? item.iconFilled : item.iconOutline} size={20} color={active ? colors.accent : colors.textSecondary} />
+                  <NavIcon glyph={item.glyph} size={22} active={active} color={active ? colors.accent : colors.textSecondary} />
                   <Text size="base" weight={active ? "semibold" : "regular"} style={{ flex: 1, color: active ? colors.accent : colors.textPrimary }}>
                     {item.label}
                   </Text>
@@ -172,7 +181,7 @@ export function MobileTabBar() {
                 borderRadius: radius.lg,
               }}
             >
-              <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
+              <NavIcon glyph="settings" size={22} color={colors.textSecondary} />
               <Text size="base" style={{ flex: 1 }}>Settings</Text>
             </Pressable>
           </Animated.View>

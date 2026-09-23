@@ -33,7 +33,7 @@ function RowContent({ task, onPress }: Props) {
   // medium and low stay silent. The colour is spent on the left edge.
   const isHighPriority = task.priority === "urgent" || task.priority === "high";
   const priorityColor  = isHighPriority && !task.done ? PRIORITY_COLOR[task.priority!] : undefined;
-  const due            = task.due_date ? formatDueDate(task.due_date, today, tomorrow, colors.danger, colors.accent) : null;
+  const due            = task.due_date ? formatDueDate(task.due_date, today, tomorrow, colors.danger, colors.accent, colors.textTertiary) : null;
 
   const [renaming, setRenaming]     = useState(false);
   const [renameText, setRenameText] = useState(task.title);
