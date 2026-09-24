@@ -92,16 +92,17 @@ function CoursesScreen() {
     );
   }
 
-  const hero = <ProgressHero week={week} onOpenCourse={course => setSheet({ course, week })} />;
+  const hero = <ProgressHero week={week} fill={wide} onOpenCourse={course => setSheet({ course, week })} />;
 
   const timetable = (
     <View style={{
       borderRadius: 20, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
       backgroundColor: colors.bgSecondary, padding: narrow ? spacing[3] : spacing[4],
+      ...(wide ? { flex: 1 } : {}),
       ...shadow("sm"),
     }}>
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3], gap: spacing[2] }}>
-        <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14, gap: spacing[2] }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>Timetable</Text>
           <Text size="cardTitle" weight="semibold">Week {week} · {weekRangeLabel(week)}</Text>
         </View>
@@ -109,14 +110,18 @@ function CoursesScreen() {
           <Pressable
             onPress={() => setWeek(currentWeek)}
             accessibilityRole="button"
-            style={({ hovered }: any) => ({
-              paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: 99,
-              borderWidth: 1, borderColor: colors.bgBorder,
-              backgroundColor: hovered ? colors.bgTertiary : "transparent",
-              ...transition("background-color"),
-            } as any)}
+            style={{ height: 40, justifyContent: "center" }}
           >
-            <Text size="xs" weight="medium" secondary>This week</Text>
+            {({ hovered }: any) => (
+              <View style={{
+                paddingHorizontal: spacing[3], paddingVertical: 7, borderRadius: 99,
+                borderWidth: 1, borderColor: colors.bgBorder,
+                backgroundColor: hovered ? colors.bgTertiary : "transparent",
+                ...transition("background-color"),
+              } as any}>
+                <Text size="xs" weight="medium" secondary>This week</Text>
+              </View>
+            )}
           </Pressable>
         )}
       </View>
@@ -144,9 +149,9 @@ function CoursesScreen() {
           }
         >
           {/* Header */}
-          <View style={{ paddingTop: spacing[4], paddingBottom: spacing[4] }}>
+          <View style={{ paddingTop: spacing[2], paddingBottom: spacing[4], gap: 2 }}>
             <Text size="title" weight="bold">Courses</Text>
-            <Text size="sm" secondary style={{ marginTop: spacing[0.5] }}>{subtitle}</Text>
+            <Text size="sm" secondary>{subtitle}</Text>
           </View>
 
           <View style={{ marginBottom: spacing[4], marginHorizontal: -spacing[4], paddingHorizontal: spacing[4] }}>
@@ -154,36 +159,45 @@ function CoursesScreen() {
           </View>
 
           {wide ? (
-            <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "flex-start", marginBottom: spacing[6] }}>
-              <View style={{ width: 380 }}>{hero}</View>
-              <View style={{ flex: 1 }}>{timetable}</View>
+            // Stretch, so the rings card and the timetable end on one line.
+            <View style={{ flexDirection: "row", gap: spacing[4], alignItems: "stretch", marginBottom: 28 }}>
+              <View style={{ width: 368 }}>{hero}</View>
+              <View style={{ flex: 1, minWidth: 0 }}>{timetable}</View>
             </View>
           ) : (
-            <View style={{ gap: spacing[4], marginBottom: spacing[6] }}>
+            <View style={{ gap: spacing[4], marginBottom: 28 }}>
               {hero}
               {timetable}
             </View>
           )}
 
           {/* Tracker */}
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: spacing[3] }}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
             <Text size="label" weight="semibold" tertiary style={{ flex: 1, textTransform: "uppercase" }}>Tracker</Text>
             <Pressable
               onPress={toggleAll}
               accessibilityRole="button"
               style={({ hovered }: any) => ({
                 flexDirection: "row", alignItems: "center", gap: spacing[1],
-                paddingHorizontal: spacing[2], paddingVertical: spacing[2], margin: -spacing[2], borderRadius: radius.md,
+                height: 40, paddingHorizontal: spacing[2], marginRight: -spacing[2], borderRadius: radius.md,
                 backgroundColor: hovered ? colors.bgTertiary : "transparent",
               })}
             >
-              <Ionicons name={allCollapsed ? "chevron-down" : "chevron-up"} size={iconSize.xs} color={colors.textTertiary} />
+              <Ionicons
+                name="chevron-down" size={iconSize.xs} color={colors.textTertiary}
+                style={{ transform: [{ rotate: allCollapsed ? "0deg" : "180deg" }] }}
+              />
               <Text size="xs" tertiary>{allCollapsed ? "Expand all" : "Condense all"}</Text>
             </Pressable>
           </View>
           {/* Wrap only on the wide row layout — a wrapping column shrinks its
               children to their content width instead of stretching them. */}
-          <View style={{ flexDirection: wide ? "row" : "column", flexWrap: wide ? "wrap" : "nowrap", gap: spacing[3], marginBottom: spacing[8] }}>
+          <View style={{
+            flexDirection: wide ? "row" : "column", flexWrap: wide ? "wrap" : "nowrap",
+            // flex-start: an expanded card must not stretch its collapsed neighbour.
+            alignItems: wide ? "flex-start" : "stretch",
+            gap: spacing[3], marginBottom: spacing[5],
+          }}>
             {SEMESTER_COURSES.map(c => (
               <View key={c.key} style={wide ? { width: "49%", flexGrow: 1, flexBasis: "45%" } as any : undefined}>
                 <CourseTrackerCard

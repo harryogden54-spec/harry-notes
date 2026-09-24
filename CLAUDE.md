@@ -734,6 +734,20 @@ schedule, so the JS insets (header, published bar height) catch up. Verified
 the refresh re-reads in Chrome; **the cold-launch behaviour itself still needs
 an on-device check.** `formatDueDate` also lost its two hardcoded hex values.
 
+**September 24: Courses visual pass from a Claude Design handoff** (bundle
+"Harry-notes Redesign", `Courses Redesign.dc.html`). Styling only — no data or
+behaviour change. Week strip chips share the width on desktop (flexGrow over a
+52px basis, still scrolls on a phone); rings card stretches to the timetable's
+height; timetable blocks carry a 1px course-colour ring instead of a left bar;
+tracker ticks are a shared `components/courses/Tick` (visual only — the caller's
+Pressable is the whole 42px cell); desktop course-week sheet anchors 120px from
+the top rather than centring; "Make a task" is an alpha accent wash
+(`useCoursesInk()` in courseColors.ts); Other tables is a ruled row; Coming up
+rows get hairline separators. Tick cells pass `aria-checked` directly —
+react-native-web does not emit it from `accessibilityState`, so no checkbox in the
+app reported its state before this. Type sizes stayed on tokens where the design
+used off-scale values (24 → 2xl, 20 → xl).
+
 In progress: —
 Awaiting confirmation (2026-09-23): the cold-launch bottom-bar fix above, on
 the iPhone PWA.

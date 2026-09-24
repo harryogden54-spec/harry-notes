@@ -34,8 +34,8 @@ export function ComingUp({ limit = 3 }: { limit?: number }) {
   const tomorrow = getTomorrowStr();
 
   return (
-    <View style={{ gap: spacing[1.5] }}>
-      {items.map(o => {
+    <View>
+      {items.map((o, idx) => {
         const course = courseByKey(o.course);
         const sw = courseColors[o.course];
         const live = o.startsAt <= now;
@@ -51,19 +51,21 @@ export function ComingUp({ limit = 3 }: { limit?: number }) {
             accessibilityLabel={`${when} ${formatTime(o.start)}, ${course.name} ${o.kind}, ${o.location}`}
             style={({ hovered }: any) => ({
               flexDirection: "row", alignItems: "center", gap: spacing[3],
-              paddingVertical: spacing[2], paddingHorizontal: spacing[2], marginHorizontal: -spacing[2],
+              minHeight: 52, paddingVertical: spacing[1.5], paddingHorizontal: spacing[2], marginHorizontal: -spacing[2],
               borderRadius: radius.lg,
+              // Hairline between rows, drawn on the row below so the first has none.
+              borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: `${colors.bgBorder}66`,
               backgroundColor: hovered ? colors.bgTertiary : "transparent",
               ...transition("background-color"),
             } as any)}
           >
-            <View style={{ width: 86 }}>
+            <View style={{ width: 78 }}>
               <Text size="label" weight="semibold" style={{ textTransform: "uppercase", color: live ? colors.danger : colors.textTertiary }}>
                 {when}
               </Text>
               <Text size="sm" weight="semibold" style={{ fontVariant: ["tabular-nums"] }}>{formatTime(o.start)}</Text>
             </View>
-            <View style={{ width: 3, alignSelf: "stretch", borderRadius: 2, backgroundColor: sw.color }} />
+            <View style={{ width: 3, alignSelf: "stretch", borderRadius: 2, marginVertical: 4, backgroundColor: sw.color }} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text size="sm" weight="medium" numberOfLines={1}>{course.name} · {o.kind}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>

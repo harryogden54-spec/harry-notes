@@ -19,11 +19,13 @@ export type Ring = {
  * builds are not deployed, so the fallback only needs to be sane — there is no
  * react-native-svg dependency to lean on).
  */
-export function ActivityRings({ rings, size = 132, stroke, gap = 3, center }: {
+export function ActivityRings({ rings, size = 132, stroke, gap = 3, center, trackOpacity = 0.16 }: {
   rings: Ring[];
   size?: number;
   stroke?: number;
   gap?: number;
+  /** Opacity of each ring's own-colour track. */
+  trackOpacity?: number;
   /** Optional content drawn in the middle (e.g. a percentage). */
   center?: React.ReactNode;
 }) {
@@ -61,7 +63,7 @@ export function ActivityRings({ rings, size = 132, stroke, gap = 3, center }: {
           const v = Math.max(0, Math.min(1, r.value));
           return (
             <g key={i}>
-              <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={r.color} strokeOpacity={0.16} strokeWidth={sw} />
+              <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={r.color} strokeOpacity={trackOpacity} strokeWidth={sw} />
               {v > 0 && (
                 <circle
                   cx={size / 2} cy={size / 2} r={radius} fill="none"
@@ -83,11 +85,12 @@ export function ActivityRings({ rings, size = 132, stroke, gap = 3, center }: {
 }
 
 /** A single small ring with a centred fraction — the per-course rings. */
-export function MiniRing({ value, color, size = 34, caption }: { value: number; color: string; size?: number; caption?: string }) {
+export function MiniRing({ value, color, size = 36, stroke, caption }: { value: number; color: string; size?: number; stroke?: number; caption?: string }) {
   return (
     <ActivityRings
       size={size}
-      stroke={Math.max(3, Math.round(size / 8))}
+      stroke={stroke ?? Math.max(3, size / 8)}
+      trackOpacity={0.18}
       rings={[{ value, color, label: caption ?? "Progress" }]}
       center={caption ? <Text size="2xs" weight="semibold" style={{ fontVariant: ["tabular-nums"] }}>{caption}</Text> : undefined}
     />

@@ -8,4 +8,5 @@ export { CourseTrackerCard } from "./CourseTrackerCard";
 export { CourseWeekSheet, type SheetTarget } from "./CourseWeekSheet";
 export { ProgressHero } from "./ProgressHero";
 export { OtherTables } from "./OtherTables";
-export { useCourseColors } from "./courseColors";
+export { useCourseColors, useCoursesInk } from "./courseColors";
+export { Tick } from "./Tick";

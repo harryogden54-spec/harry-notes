@@ -73,17 +73,23 @@ export function OtherTables() {
 
   return (
     <View style={{ gap: spacing[3] }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[2] }}>
+      {/* A quiet ruled row, not a section label — this is last year's material. */}
+      <View style={{
+        flexDirection: "row", alignItems: "center", gap: spacing[2],
+        borderTopWidth: 1, borderTopColor: colors.bgBorder, paddingHorizontal: spacing[1],
+      }}>
         <Pressable
           onPress={toggleOpen}
           accessibilityRole="button"
           accessibilityState={{ expanded: open }}
-          style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing[2], paddingVertical: spacing[2] }}
+          style={{ flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing[2] }}
         >
-          <Ionicons name={open ? "chevron-down" : "chevron-forward"} size={iconSize.xs} color={colors.textTertiary} />
-          <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>
-            Other tables{count > 0 ? ` · ${count}` : ""}
-          </Text>
+          <Ionicons
+            name="chevron-forward" size={iconSize.xs} color={colors.textTertiary}
+            style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}
+          />
+          <Text size="sm" weight="medium" secondary>Other tables</Text>
+          {count > 0 && <Text size="meta" tertiary>{count}</Text>}
         </Pressable>
         {open && (
           <Pressable

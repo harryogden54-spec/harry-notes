@@ -5,7 +5,7 @@ import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, transition } from "@/lib/theme";
 import { useSemesterTracker, pct } from "@/lib/useSemesterTracker";
 import { SEMESTER_COURSES, FIRST_WEEK, type CourseKey } from "@/lib/semester";
-import { useCourseColors } from "./courseColors";
+import { useCourseColors, useCoursesInk } from "./courseColors";
 import { ActivityRings, MiniRing } from "./ActivityRings";
 
 /**
@@ -14,10 +14,16 @@ import { ActivityRings, MiniRing } from "./ActivityRings";
  * per-course ring for the week beside them. A course's ring opens that course's
  * week sheet, which is where "Make a task" lives.
  */
-export function ProgressHero({ week, onOpenCourse }: { week: number; onOpenCourse: (course: CourseKey) => void }) {
+export function ProgressHero({ week, onOpenCourse, fill }: {
+  week: number;
+  onOpenCourse: (course: CourseKey) => void;
+  /** Stretch to the height of a sibling (desktop row beside the timetable). */
+  fill?: boolean;
+}) {
   const { colors, shadow } = useTheme();
   const { weekProgress, toDateProgress } = useSemesterTracker();
   const courseColors = useCourseColors();
+  const { tileBg } = useCoursesInk();
 
   const wk = weekProgress(week);
   const toDate = toDateProgress(week);
@@ -42,9 +48,10 @@ export function ProgressHero({ week, onOpenCourse }: { week: number; onOpenCours
     <View style={{
       borderRadius: 20, borderWidth: 1, borderColor: `${colors.bgBorder}88`,
       backgroundColor: colors.bgSecondary, padding: spacing[4], gap: spacing[4],
+      justifyContent: "space-between", ...(fill ? { flex: 1 } : {}),
       ...shadow("sm"),
     }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[5] }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing[5], paddingHorizontal: spacing[1], paddingTop: spacing[1] }}>
         <ActivityRings
           size={128}
           rings={[
@@ -70,16 +77,16 @@ export function ProgressHero({ week, onOpenCourse }: { week: number; onOpenCours
               accessibilityRole="button"
               accessibilityLabel={`${c.name}, week ${week}: ${p.done} of ${p.total}. Open`}
               style={({ hovered, pressed }: any) => ({
-                flexGrow: 1, flexBasis: "46%",
+                flexGrow: 1, flexBasis: "46%", minHeight: 52,
                 flexDirection: "row", alignItems: "center", gap: spacing[2.5],
                 paddingHorizontal: spacing[2.5], paddingVertical: spacing[2],
                 borderRadius: radius.lg,
-                backgroundColor: hovered ? colors.bgTertiary : `${colors.bgTertiary}88`,
+                backgroundColor: hovered ? colors.bgTertiary : tileBg,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
                 ...(Platform.OS === "web" ? transition("background-color, transform") : {}),
               } as any)}
             >
-              <MiniRing value={pct(p)} color={sw.color} size={34} />
+              <MiniRing value={pct(p)} color={sw.color} size={36} stroke={4.5} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text size="sm" weight="semibold" numberOfLines={1}>{c.short}</Text>
                 <Text size="meta" tertiary>{p.done}/{p.total} this week</Text>

@@ -2,7 +2,7 @@ import React from "react";
 import { View, Modal, Pressable, Platform, ScrollView, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Text, Checkbox, IconButton } from "@/components/ui";
+import { Text, IconButton } from "@/components/ui";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, iconSize, layout, shape, transition } from "@/lib/theme";
 import { useTasksActions } from "@/lib/TasksContext";
@@ -12,7 +12,8 @@ import {
   TRACKER_ITEMS, courseByKey, formatTime, sessionsFor, shortDate, weekRangeLabel,
   type CourseKey, type Session,
 } from "@/lib/semester";
-import { useCourseColors } from "./courseColors";
+import { useCourseColors, useCoursesInk } from "./courseColors";
+import { Tick } from "./Tick";
 
 export type SheetTarget = { course: CourseKey; week: number; session?: Session };
 
@@ -42,6 +43,7 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
   const { deleteTask } = useTasksActions();
   const { showToast } = useToast();
   const courseColors = useCourseColors();
+  const { accentInk, accentWash } = useCoursesInk();
 
   if (!target) return null;
   const { course, week, session } = target;
@@ -75,8 +77,10 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={{
         flex: 1, alignItems: "center",
-        justifyContent: narrow ? "flex-end" : "center",
-        padding: narrow ? 0 : spacing[6],
+        // Desktop anchors near the top rather than centring, so the dialog does
+        // not jump vertically as rows gain task pills or the list changes length.
+        justifyContent: narrow ? "flex-end" : "flex-start",
+        padding: narrow ? 0 : spacing[6], paddingTop: narrow ? 0 : 120,
       }}>
         <Pressable
           onPress={onClose}
@@ -86,7 +90,7 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
         <View
           style={{
             width: "100%", maxWidth: narrow ? undefined : layout.panel.modal,
-            maxHeight: height * 0.88,
+            maxHeight: narrow ? height * 0.88 : height - 144,
             backgroundColor: colors.bgPrimary,
             borderRadius: narrow ? 0 : 24,
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
@@ -98,7 +102,10 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
           {/* Course colour band */}
           <View style={{ height: 4, backgroundColor: sw.color }} />
 
-          <ScrollView contentContainerStyle={{ padding: spacing[5], paddingBottom: narrow ? spacing[8] : spacing[5], gap: spacing[4] }}>
+          <ScrollView contentContainerStyle={{
+            paddingHorizontal: spacing[5], paddingTop: narrow ? 18 : spacing[5],
+            paddingBottom: narrow ? 34 : spacing[5], gap: spacing[4],
+          }}>
             {/* Header */}
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing[3] }}>
               <View style={{ flex: 1, gap: 2 }}>
@@ -107,7 +114,7 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
                 </Text>
                 <Text size="xl" weight="bold">{def.name}</Text>
               </View>
-              <IconButton name="close-outline" onPress={onClose} accessibilityLabel="Close" style={{ margin: -spacing[2] }} />
+              <IconButton name="close-outline" onPress={onClose} accessibilityLabel="Close" style={{ marginTop: -spacing[2], marginRight: -10 }} />
             </View>
 
             {/* Classes this week */}
@@ -126,7 +133,7 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
                         borderWidth: 1, borderColor: focused ? `${sw.color}66` : colors.bgBorder,
                       }}
                     >
-                      <View style={{ width: 38, alignItems: "center" }}>
+                      <View style={{ width: 40, alignItems: "center" }}>
                         <Text size="label" weight="semibold" tertiary style={{ textTransform: "uppercase" }}>{DAY_NAMES[s.day]}</Text>
                         <Text size="sm" weight="semibold" style={{ fontVariant: ["tabular-nums"] }}>{formatTime(s.start)}</Text>
                       </View>
@@ -161,48 +168,62 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
                       borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.bgBorder,
                     }}
                   >
-                    <Checkbox
-                      shape="circle" size={20} checked={done} color={sw.color}
-                      onToggle={() => toggle(course, week, key)}
+                    {/* 40×44 target around a 20px tick; negative margins keep the row's rhythm. */}
+                    <Pressable
+                      onPress={() => toggle(course, week, key)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: done }}
+                      aria-checked={done}
                       accessibilityLabel={`${item.label}, week ${week}`}
-                    />
+                      style={{ width: 40, height: 44, marginHorizontal: -10, alignItems: "center", justifyContent: "center" }}
+                    >
+                      <Tick done={done} color={sw.color} />
+                    </Pressable>
                     <Text size="sm" weight={done ? "regular" : "medium"} style={{ flex: 1, color: done ? colors.textTertiary : colors.textPrimary }}>
                       {item.label}
                     </Text>
+                    {/* Painted pills sit inside a transparent Pressable padded to a
+                        40px+ target; the negative margin keeps the row height. */}
                     {task ? (
                       <Pressable
                         onPress={() => openTask(task.id)}
                         accessibilityRole="button"
                         accessibilityLabel={`Open task ${task.title}`}
-                        style={({ hovered }: any) => ({
-                          flexDirection: "row", alignItems: "center", gap: 4,
-                          ...shape.pill, paddingVertical: 5,
-                          backgroundColor: hovered ? colors.bgTertiary : "transparent",
-                          borderWidth: 1, borderColor: colors.bgBorder,
-                          ...transition("background-color"),
-                        } as any)}
+                        style={{ paddingVertical: 8, marginVertical: -8 }}
                       >
-                        <Ionicons name={task.done ? "checkmark-circle" : "checkbox-outline"} size={iconSize.xs} color={task.done ? colors.success : colors.textSecondary} />
-                        <Text size="meta" secondary>{task.done ? "Task done" : `Task · ${dueLabel(task.due_date)}`}</Text>
+                        {({ hovered }: any) => (
+                          <View style={{
+                            flexDirection: "row", alignItems: "center", gap: 5,
+                            ...shape.pill, paddingHorizontal: 10, paddingVertical: 5,
+                            backgroundColor: hovered ? colors.bgTertiary : "transparent",
+                            borderWidth: 1, borderColor: colors.bgBorder,
+                            ...transition("background-color"),
+                          } as any}>
+                            {task.done
+                              ? <Tick done color={colors.success} size={iconSize.xs} />
+                              : <Ionicons name="checkbox-outline" size={iconSize.xs} color={colors.textSecondary} />}
+                            <Text size="meta" secondary>{task.done ? "Task done" : `Task · ${dueLabel(task.due_date)}`}</Text>
+                          </View>
+                        )}
                       </Pressable>
                     ) : !done ? (
                       <Pressable
                         onPress={() => handleMake(key)}
                         accessibilityRole="button"
                         accessibilityLabel={`Make a task: ${def.short} week ${week} ${item.taskWord}`}
-                        style={({ hovered, pressed }: any) => ({
-                          flexDirection: "row", alignItems: "center", gap: 4,
-                          ...shape.pill, paddingVertical: 5,
-                          backgroundColor: hovered ? colors.accent : colors.accentSubtle,
-                          opacity: pressed ? 0.85 : 1,
-                          ...transition("background-color"),
-                        } as any)}
+                        style={{ paddingVertical: 8, marginVertical: -8 }}
                       >
-                        {({ hovered }: any) => (
-                          <>
-                            <Ionicons name="add" size={iconSize.xs} color={hovered ? colors.textInverse : colors.accent} />
-                            <Text size="meta" weight="semibold" style={{ color: hovered ? colors.textInverse : colors.accent }}>Make a task</Text>
-                          </>
+                        {({ hovered, pressed }: any) => (
+                          <View style={{
+                            flexDirection: "row", alignItems: "center", gap: 4,
+                            ...shape.pill, paddingHorizontal: 11, paddingVertical: 6,
+                            backgroundColor: accentWash,
+                            opacity: pressed ? 0.7 : hovered ? 0.85 : 1,
+                            ...transition("opacity"),
+                          } as any}>
+                            <Ionicons name="add" size={iconSize.xs} color={accentInk} />
+                            <Text size="meta" weight="semibold" style={{ color: accentInk }}>Make a task</Text>
+                          </View>
                         )}
                       </Pressable>
                     ) : null}
@@ -218,7 +239,7 @@ export function CourseWeekSheet({ target, onClose }: { target: SheetTarget | nul
                 accessibilityLabel={`Make tasks for the ${remaining.length} items left`}
                 style={({ hovered }: any) => ({
                   flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing[1.5],
-                  paddingVertical: spacing[3], borderRadius: radius.lg,
+                  minHeight: 44, borderRadius: radius.lg,
                   backgroundColor: hovered ? colors.bgTertiary : "transparent",
                   borderWidth: 1, borderStyle: "dashed", borderColor: colors.bgBorder,
                   ...(Platform.OS === "web" ? transition("background-color") : {}),

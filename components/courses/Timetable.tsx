@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { View, Pressable, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
-import { spacing, radius, iconSize, transition } from "@/lib/theme";
+import { spacing, radius, transition } from "@/lib/theme";
 import { getLocalDateStr } from "@/lib/utils";
 import {
   GRID_START_HOUR, GRID_END_HOUR, courseByKey, formatTime, minutesOf,
   sessionDate, sessionsForWeek, type Session,
 } from "@/lib/semester";
 import { useCourseColors } from "./courseColors";
+import { Tick } from "./Tick";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const;
-const AXIS_W = 30;
 
 /**
  * Mon–Fri grid for one semester week. Every class is a block you can press —
@@ -30,6 +29,7 @@ export function Timetable({ week, compact, onPressSession, isCourseWeekDone }: {
   const { colors } = useTheme();
   const courseColors = useCourseColors();
   const hourH = compact ? 40 : 48;
+  const AXIS_W = compact ? 26 : 30;
   const pxPerMin = hourH / 60;
   const hours = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => GRID_START_HOUR + i);
   const gridH = (GRID_END_HOUR - GRID_START_HOUR) * hourH;
@@ -107,7 +107,7 @@ export function Timetable({ week, compact, onPressSession, isCourseWeekDone }: {
                 style={{
                   flex: 1, height: gridH, marginHorizontal: 1.5,
                   borderRadius: radius.sm,
-                  backgroundColor: isToday ? `${colors.accent}0D` : "transparent",
+                  backgroundColor: isToday ? `${colors.accent}14` : "transparent",
                 }}
               >
                 {sessions.filter(s => s.day === day).map(s => {
@@ -123,39 +123,39 @@ export function Timetable({ week, compact, onPressSession, isCourseWeekDone }: {
                       key={`${s.course}-${s.start}`}
                       onPress={() => onPressSession(s)}
                       accessibilityRole="button"
-                      accessibilityLabel={`${course.name} ${s.kind}, ${DAYS[i]} ${formatTime(s.start)} to ${formatTime(s.end)}, ${s.location}`}
+                      accessibilityLabel={`${course.name} ${s.kind}, ${DAYS[i]} ${formatTime(s.start)} to ${formatTime(s.end)}, ${s.location}${done ? ", lecture ticked" : ""}`}
                       style={({ hovered, pressed }: any) => ({
                         position: "absolute", top: top + 1, left: 0, right: 0, height: h - 2,
                         borderRadius: radius.md,
                         backgroundColor: sw.subtle,
-                        borderLeftWidth: 3, borderLeftColor: sw.color,
-                        paddingHorizontal: compact ? 4 : spacing[2], paddingVertical: short ? 2 : spacing[1],
+                        // A hairline ring in the course colour, not a side bar:
+                        // the fill already says which course, the ring gives it an edge.
+                        borderWidth: 1, borderColor: hovered ? sw.color : `${sw.color}40`,
+                        paddingHorizontal: compact ? 4 : spacing[2],
+                        paddingVertical: compact || short ? 4 : 6,
+                        gap: 1,
                         overflow: "hidden",
-                        opacity: past && !hovered ? 0.6 : 1,
+                        opacity: past && !hovered ? 0.55 : 1,
                         transform: [{ scale: pressed ? 0.98 : 1 }],
-                        ...(hovered ? { boxShadow: `0 0 0 1px ${sw.color}` } : {}),
-                        ...(Platform.OS === "web" ? transition("opacity, transform, box-shadow") : {}),
+                        ...(Platform.OS === "web" ? transition("opacity, transform, border-color") : {}),
                       } as any)}
                     >
                       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 3 }}>
                         <Text
                           size={compact ? "2xs" : "xs"} weight="semibold" numberOfLines={short || compact ? 1 : 2}
-                          style={{ flex: 1, color: sw.color, lineHeight: compact ? 12 : 15 }}
+                          style={{ flex: 1, minWidth: 0, color: sw.color, lineHeight: compact ? 12 : 15 }}
                         >
                           {compact ? course.abbr : course.name}
                         </Text>
-                        {done && <Ionicons name="checkmark-circle" size={compact ? 10 : iconSize.xs} color={sw.color} />}
+                        {done && <View style={{ marginTop: 1 }}><Tick done color={sw.color} size={compact ? 10 : 12} /></View>}
                       </View>
                       {!short && (
-                        <Text size="2xs" numberOfLines={1} style={{ color: colors.textSecondary, marginTop: 1 }}>
-                          {compact ? `${formatTime(s.start)}` : `${s.kind} · ${formatTime(s.start)}–${formatTime(s.end)}`}
+                        <Text size="2xs" numberOfLines={1} style={{ color: colors.textSecondary, lineHeight: 13 }}>
+                          {compact ? formatTime(s.start) : `${s.kind} · ${formatTime(s.start)}–${formatTime(s.end)}`}
                         </Text>
                       )}
                       {!compact && h >= 80 && (
-                        <Text size="2xs" numberOfLines={2} tertiary style={{ marginTop: 1 }}>{s.location}</Text>
-                      )}
-                      {compact && h >= 70 && (
-                        <Text size="2xs" numberOfLines={1} tertiary>{s.kind === "Seminar" ? "Sem" : "Lec"}</Text>
+                        <Text size="2xs" numberOfLines={2} tertiary style={{ lineHeight: 13 }}>{s.location}</Text>
                       )}
                     </Pressable>
                   );

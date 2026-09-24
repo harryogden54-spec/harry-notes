@@ -4,11 +4,13 @@ import { Text } from "@/components/ui/Text";
 import { useTheme } from "@/lib/useTheme";
 import { spacing, radius, transition } from "@/lib/theme";
 import { WEEKS, weekMonday, shortDate } from "@/lib/semester";
+import { useCoursesInk } from "./courseColors";
 
 /**
  * Week picker, 0–11. Each chip carries a hairline progress bar for that week,
  * so the strip doubles as an at-a-glance history of the semester. The current
- * week gets a dot; the selected one is inked.
+ * week gets a dot; the selected one is inked. Chips share the width when it
+ * fits all twelve (desktop) and fall back to a fixed 52px scroller (phone).
  */
 export function WeekStrip({ selected, current, onSelect, progressOf }: {
   selected: number;
@@ -18,6 +20,7 @@ export function WeekStrip({ selected, current, onSelect, progressOf }: {
   progressOf: (week: number) => number;
 }) {
   const { colors } = useTheme();
+  const { accentInk } = useCoursesInk();
   const scrollRef = useRef<ScrollView>(null);
 
   // Bring the selected week into view on a narrow screen, where the strip scrolls.
@@ -31,7 +34,7 @@ export function WeekStrip({ selected, current, onSelect, progressOf }: {
       ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: spacing[1.5], paddingVertical: spacing[0.5] }}
+      contentContainerStyle={{ flexGrow: 1, gap: spacing[1.5], paddingVertical: spacing[0.5] }}
     >
       {WEEKS.map(week => {
         const isSel = week === selected;
@@ -46,8 +49,8 @@ export function WeekStrip({ selected, current, onSelect, progressOf }: {
             accessibilityState={{ selected: isSel }}
             accessibilityLabel={`Week ${week}, ${Math.round(p * 100)}% done${isNow ? ", this week" : ""}`}
             style={({ hovered }: any) => ({
-              width: 52, paddingTop: spacing[1.5], paddingBottom: spacing[1.5],
-              borderRadius: radius.lg, alignItems: "center", gap: 3,
+              flexGrow: 1, flexBasis: 52, minWidth: 52, height: 70,
+              borderRadius: radius.lg, alignItems: "center", justifyContent: "center", gap: 3,
               backgroundColor: isSel ? colors.textPrimary : hovered ? colors.bgTertiary : colors.bgSecondary,
               borderWidth: 1, borderColor: isSel ? colors.textPrimary : colors.bgBorder,
               ...(Platform.OS === "web" ? transition("background-color, border-color") : {}),
@@ -57,7 +60,7 @@ export function WeekStrip({ selected, current, onSelect, progressOf }: {
               <Text size="2xs" weight="semibold" style={{ color: isSel ? colors.bgPrimary : colors.textTertiary, letterSpacing: 0.6 }}>
                 WK
               </Text>
-              {isNow && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isSel ? colors.bgPrimary : colors.accent }} />}
+              {isNow && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isSel ? colors.bgPrimary : accentInk }} />}
             </View>
             <Text size="base" weight="bold" style={{ color: isSel ? colors.bgPrimary : past || isNow ? colors.textPrimary : colors.textSecondary, fontVariant: ["tabular-nums"], lineHeight: 18 }}>
               {week}
@@ -66,7 +69,7 @@ export function WeekStrip({ selected, current, onSelect, progressOf }: {
               {shortDate(weekMonday(week))}
             </Text>
             <View style={{ width: 30, height: 3, borderRadius: 2, marginTop: 1, backgroundColor: isSel ? `${colors.bgPrimary}40` : colors.bgTertiary, overflow: "hidden" }}>
-              <View style={{ width: `${Math.round(p * 100)}%`, height: 3, borderRadius: 2, backgroundColor: isSel ? colors.bgPrimary : colors.accent }} />
+              <View style={{ width: `${Math.round(p * 100)}%`, height: 3, borderRadius: 2, backgroundColor: isSel ? colors.bgPrimary : accentInk }} />
             </View>
           </Pressable>
         );
